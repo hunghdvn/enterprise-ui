@@ -1,0 +1,6 @@
+.overlay { position: fixed; inset: 0; z-index: 50; background: color-mix(in srgb, var(--text) 45%, transparent); }
+.panel { position: fixed; top: 0; right: 0; height: 100%; width: min(360px, 90vw); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-left: 1px solid var(--border); box-shadow: var(--shadow-md); font-family: var(--font); font-size: var(--font-size); }
+.panel:focus-visible { outline: 2px solid var(--color-blue-600); outline-offset: -2px; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.title { margin: 0; font-size: 14px; font-weight: 700; }
+.body { padding: 12px 16px 16px; display: grid; gap: 12px; overflow: auto; }
