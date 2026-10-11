@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../Button/Button';
 import styles from './Modal.module.css';
-import { FOCUSABLE, isTabbable } from '../internal/dialogTab';
+import { FOCUSABLE, isTabbable, lockBodyScroll, registerDialog } from '../internal/dialogTab';
 
 export interface ModalProps {
   open: boolean;
@@ -22,6 +22,8 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     if (!open) return;
     prevFocus.current = document.activeElement;
     const panel = panelRef.current;
+    const dialog = registerDialog(() => panelRef.current);
+    const releaseScroll = lockBodyScroll();
     const timer = window.setTimeout(() => {
       const items = panel
         ? Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable)
@@ -30,7 +32,8 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     }, 0);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        e.stopPropagation();
+        // A dialog stacked on top owns Escape until it closes.
+        if (!dialog.isTop()) return;
         onCloseRef.current();
         return;
       }
@@ -60,12 +63,11 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       }
     };
     document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     return () => {
       window.clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
+      dialog.dispose();
+      releaseScroll();
       const prev = prevFocus.current as HTMLElement | null;
       prev?.focus?.();
     };

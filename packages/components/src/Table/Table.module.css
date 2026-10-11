@@ -124,11 +124,11 @@ button.h:hover {
 }
 
 .row:hover {
-  background: var(--color-blue-50, #eff6ff);
+  background: var(--row-hover-bg);
 }
 
 .row[data-selected='true'] {
-  background: var(--color-blue-50, #eff6ff);
+  background: var(--row-selected-bg);
   box-shadow: inset 2px 0 0 var(--color-blue-600);
 }
 
@@ -174,4 +174,7 @@ button.h:hover {
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 12px;
+}
+.footText {
+  min-width: 0;
 }

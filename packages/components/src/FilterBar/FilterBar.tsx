@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
-import { useTheme } from '../ThemeProvider/ThemeContext';
+import { useOptionalTheme, useTheme } from '../ThemeProvider/ThemeContext';
 import styles from './FilterBar.module.css';
 
 export interface FilterBarProps {
@@ -9,7 +9,10 @@ export interface FilterBarProps {
   onSearch: (value: string) => void;
   filters?: ReactNode;
   onReset?: () => void;
-  /** Show the density toggle. Defaults to true. */
+  /**
+   * Show the density toggle. Defaults to true when a ThemeProvider is present
+   * and false outside one — without a provider there is nothing to toggle.
+   */
   densityToggle?: boolean;
   searchPlaceholder?: string;
 }
@@ -36,9 +39,11 @@ export function FilterBar({
   onSearch,
   filters,
   onReset,
-  densityToggle = true,
+  densityToggle,
   searchPlaceholder = 'Tìm kiếm…',
 }: FilterBarProps) {
+  const theme = useOptionalTheme();
+  const showDensityToggle = densityToggle ?? theme !== null;
   return (
     <div className={styles.bar} role="search">
       <Input
@@ -55,7 +60,7 @@ export function FilterBar({
           Đặt lại
         </Button>
       )}
-      {densityToggle && <DensityToggleButton />}
+      {showDensityToggle && <DensityToggleButton />}
     </div>
   );
 }

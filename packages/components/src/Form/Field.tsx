@@ -1,4 +1,5 @@
 import { cloneElement, useContext, useId, type ReactElement } from 'react';
+import { Checkbox } from '../Checkbox/Checkbox';
 import { FormErrorsContext } from './Form';
 import styles from './Form.module.css';
 
@@ -23,15 +24,21 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
     ? [existingDescribedBy, errorId].filter(Boolean).join(' ')
     : existingDescribedBy;
   const childId = (childProps.id as string | undefined) ?? controlId;
-  const needsClone = resolvedError !== undefined || childProps.id === undefined;
+  const alreadyRequired = childProps['aria-required'] !== undefined;
+  const needsClone =
+    resolvedError !== undefined || childProps.id === undefined || (required && !alreadyRequired);
   const child = needsClone
     ? cloneElement(children, {
         id: childId,
+        ...(required && !alreadyRequired ? { 'aria-required': true } : {}),
         ...(resolvedError ? { 'aria-invalid': 'true', 'aria-describedby': mergedDescribedBy } : {}),
       })
     : children;
-  return (
-    <label htmlFor={childId} className={styles.field}>
+  // A child that renders its own <label> (Checkbox) must not be wrapped in
+  // another one: nested labels duplicate the accessible name and are invalid.
+  const selfLabelled = children.type === Checkbox;
+  const body = (
+    <>
       <span className={styles.label}>
         {label}
         {required && (
@@ -49,6 +56,12 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
       ) : hint ? (
         <span className={styles.hint}>{hint}</span>
       ) : null}
+    </>
+  );
+  if (selfLabelled) return <span className={styles.field}>{body}</span>;
+  return (
+    <label htmlFor={childId} className={styles.field}>
+      {body}
     </label>
   );
 }

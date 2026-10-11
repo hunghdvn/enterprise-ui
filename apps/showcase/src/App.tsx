@@ -28,7 +28,7 @@ function HeaderRight() {
         onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')}
         aria-label={`Chuyển mật độ (hiện tại: ${density})`}
       >
-        {density === 'compact' ? 'Thoáng' : 'Gọn'}
+        Mật độ: {density === 'compact' ? 'Gọn' : 'Thoáng'}
       </Button>
       <Button variant="primary" size="sm">
         Tạo đơn

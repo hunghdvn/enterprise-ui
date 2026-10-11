@@ -44,3 +44,27 @@ test('works without ThemeProvider when density toggle hidden', () => {
   expect(screen.getByRole('searchbox', { name: /Tìm kiếm/i })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Mật độ/i })).not.toBeInTheDocument();
 });
+
+test('hides density toggle by default outside ThemeProvider', () => {
+  render(<FilterBar searchValue="" onSearch={() => {}} />);
+  expect(screen.queryByRole('button', { name: /Mật độ/i })).not.toBeInTheDocument();
+});
+
+test('shows density toggle by default inside ThemeProvider', () => {
+  render(
+    <ThemeProvider>
+      <FilterBar searchValue="" onSearch={() => {}} />
+    </ThemeProvider>,
+  );
+  expect(screen.getByRole('button', { name: /Mật độ/i })).toBeInTheDocument();
+});
+
+test('throws when density toggle is forced outside ThemeProvider', () => {
+  // Explicitly opting in without a provider is a wiring mistake: fail loudly
+  // instead of rendering a button whose clicks silently do nothing.
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  expect(() => render(<FilterBar searchValue="" onSearch={() => {}} densityToggle />)).toThrow(
+    /ThemeProvider/,
+  );
+  spy.mockRestore();
+});

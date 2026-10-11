@@ -25,9 +25,9 @@ typecheck → lint → format check → both builds. Mirror it before pushing.
 ## Gotchas
 
 - **Showcase consumes the built lib, not source.** `apps/showcase` resolves
-  `@enterprise-ui/components` via `dist/` (`main`/`exports` point there). After
-  changing `packages/components/src`, rebuild the lib or the showcase will test
-  stale code. `dist/` is gitignored.
+  `@enterprise-ui/components` via `dist/` (`main`/`exports` point there) and must
+  `import '@enterprise-ui/components/style.css'` (it bundles the tokens) —
+  without it every screen renders unstyled. `dist/` is gitignored.
 - **Tokens test is deliberately loose.** Prettier lowercases hex and normalizes
   quotes in `*.css`, so `packages/tokens/tokens.test.mjs` compares
   case-insensitively with quotes normalized. Do not "tighten" it to exact match.

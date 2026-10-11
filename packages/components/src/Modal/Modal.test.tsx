@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Drawer } from '../Drawer/Drawer';
 import { Modal } from './Modal';
 
 test('renders nothing when closed', () => {
@@ -137,4 +138,49 @@ test('keeps focus + overflow across onClose identity change while open', async (
   const dialogAfter = screen.getByRole('dialog', { name: 'Tạo đơn' });
   expect(document.body.style.overflow).toBe('hidden');
   expect(dialogAfter.contains(document.activeElement)).toBe(true);
+});
+
+test('only the topmost stacked dialog closes on Escape', () => {
+  const onCloseModal = vi.fn();
+  const onCloseDrawer = vi.fn();
+  render(
+    <Modal open onClose={onCloseModal} title="Tạo đơn">
+      <Drawer open onClose={onCloseDrawer} title="Bộ lọc">
+        <button>Áp dụng</button>
+      </Drawer>
+    </Modal>,
+  );
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(onCloseDrawer).toHaveBeenCalledTimes(1);
+  expect(onCloseModal).not.toHaveBeenCalled();
+});
+
+test('body scroll stays locked until the last stacked dialog closes', () => {
+  const { rerender } = render(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <button>Áp dụng</button>
+      </Drawer>
+    </Modal>,
+  );
+  expect(document.body.style.overflow).toBe('hidden');
+
+  rerender(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <Drawer open={false} onClose={() => {}} title="Bộ lọc">
+        <button>Áp dụng</button>
+      </Drawer>
+    </Modal>,
+  );
+  // The modal underneath is still open, so the body must stay locked.
+  expect(document.body.style.overflow).toBe('hidden');
+
+  rerender(
+    <Modal open={false} onClose={() => {}} title="Tạo đơn">
+      <Drawer open={false} onClose={() => {}} title="Bộ lọc">
+        <button>Áp dụng</button>
+      </Drawer>
+    </Modal>,
+  );
+  expect(document.body.style.overflow).toBe('');
 });

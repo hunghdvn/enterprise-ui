@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
 import styles from './Pagination.module.css';
@@ -19,6 +19,18 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
   const current = Math.min(Math.max(1, Math.floor(page)), totalPages);
   const start = total === 0 ? 0 : (current - 1) * safeSize + 1;
   const end = Math.min(current * safeSize, total);
+
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+
+  // `page` can arrive out of range (e.g. `total` shrank after a search). The
+  // footer and the active button already show the clamped page, so report it:
+  // otherwise the parent keeps rendering a slice the UI does not claim.
+  useEffect(() => {
+    if (page !== current) onChangeRef.current?.(current);
+  }, [page, current]);
 
   const from = Math.max(1, Math.min(current - Math.floor(WINDOW / 2), totalPages - WINDOW + 1));
   const to = Math.min(totalPages, from + WINDOW - 1);
@@ -66,7 +78,7 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
           ›
         </Button>
       </span>
-      <PageJumper key={current} current={current} totalPages={totalPages} onGo={go} />
+      <PageJumper current={current} totalPages={totalPages} onGo={go} />
     </nav>
   );
 }
@@ -81,14 +93,21 @@ function PageJumper({
   onGo: (p: number) => void;
 }) {
   const [draft, setDraft] = useState(String(current));
+  const shownPage = useRef(current);
+  useEffect(() => {
+    if (shownPage.current === current) return;
+    shownPage.current = current;
+    setDraft(String(current));
+  }, [current]);
 
   const commitJumper = () => {
-    const parsed = Number.parseInt(draft, 10);
-    if (Number.isNaN(parsed)) {
+    const wanted = draft.trim();
+    // Digits only: Number.parseInt('1e5') silently reads 1 and '12abc' reads 12.
+    if (!/^\d+$/.test(wanted)) {
       setDraft(String(current));
       return;
     }
-    const clamped = Math.min(Math.max(1, parsed), totalPages);
+    const clamped = Math.min(Math.max(1, Number(wanted)), totalPages);
     setDraft(String(clamped));
     onGo(clamped);
   };
@@ -96,6 +115,7 @@ function PageJumper({
   return (
     <form
       className={styles.jumper}
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         commitJumper();

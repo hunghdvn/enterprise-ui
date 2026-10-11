@@ -33,3 +33,63 @@ export function isTabbable(el: HTMLElement): boolean {
   if (el.tabIndex < 0) return false;
   return !isHiddenInChain(el);
 }
+
+/**
+ * Registration of an open dialog. Dialogs are stacked: only the topmost one
+ * handles Escape, so a modal with a drawer on top does not close both at once.
+ */
+export interface DialogHandle {
+  isTop: () => boolean;
+  dispose: () => void;
+}
+
+const openDialogs: { token: symbol; panel: () => HTMLElement | null }[] = [];
+
+export function registerDialog(panel: () => HTMLElement | null): DialogHandle {
+  const token = Symbol('dialog');
+  openDialogs.push({ token, panel });
+  return {
+    isTop: () => {
+      const mine = panel();
+      // Same z-index everywhere, so the last dialog in document order is the
+      // one painted on top and the one that owns Escape. (Effect order cannot
+      // answer this: React mounts children before parents.)
+      if (!mine) return false;
+      return openDialogs.every((other) => {
+        const el = other.panel();
+        return (
+          !el ||
+          el === mine ||
+          !(mine.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+        );
+      });
+    },
+    dispose: () => {
+      const at = openDialogs.findIndex((d) => d.token === token);
+      if (at !== -1) openDialogs.splice(at, 1);
+    },
+  };
+}
+
+let bodyLocks = 0;
+let prevBodyOverflow = '';
+
+/**
+ * Locks `body` scroll and returns the release. Locked once per stack: the page
+ * stays unscrollable while any dialog is open and the value captured before the
+ * first lock is restored only when the last one releases.
+ */
+export function lockBodyScroll(): () => void {
+  if (bodyLocks === 0) {
+    prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  bodyLocks += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    bodyLocks -= 1;
+    if (bodyLocks === 0) document.body.style.overflow = prevBodyOverflow;
+  };
+}

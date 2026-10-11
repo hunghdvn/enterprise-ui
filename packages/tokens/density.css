@@ -3,6 +3,7 @@
   --cell-py: 4px;
   --cell-px: 8px;
   --input-h: 32px;
+  --input-h-lg: 40px;
   --font-size: 13px;
 }
 [data-density='comfortable'] {
@@ -10,5 +11,6 @@
   --cell-py: 12px;
   --cell-px: 16px;
   --input-h: 40px;
+  --input-h-lg: 48px;
   --font-size: 14px;
 }

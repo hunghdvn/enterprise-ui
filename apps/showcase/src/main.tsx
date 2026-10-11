@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import '@enterprise-ui/components/style.css';
 import '@enterprise-ui/tokens/all.css';
 import App from './App';
 

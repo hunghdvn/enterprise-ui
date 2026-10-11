@@ -4,13 +4,19 @@
 }
 .input {
   font-family: var(--font);
-  height: var(--input-h);
-  padding: 0 8px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font-size: var(--font-size);
+}
+.input[data-size='sm'] {
+  height: var(--input-h);
+  padding: 0 8px;
+}
+.input[data-size='md'] {
+  height: var(--input-h-lg);
+  padding: 0 12px;
 }
 .input::placeholder {
   color: var(--text-muted);

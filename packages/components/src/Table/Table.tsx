@@ -164,7 +164,13 @@ export function Table<T extends Record<string, unknown>>({
               </div>
             );
           })}
-          {summary && <div className={styles.foot}>{summary}</div>}
+          {summary && (
+            <div className={styles.foot} role="row">
+              <span className={styles.footText} role="gridcell">
+                {summary}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

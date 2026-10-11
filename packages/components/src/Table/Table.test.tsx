@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Table } from './Table';
 
 const cols = [
@@ -85,6 +85,21 @@ test('shows loading state and summary footer', () => {
     />,
   );
   expect(screen.getByText('Tổng: 1 đơn')).toBeInTheDocument();
+});
+
+test('summary footer is a grid row with a grid cell', () => {
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1', total: '₫ 10M' }]}
+      summary={<span>Tổng: 1 đơn</span>}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  const rows = within(grid).getAllByRole('row');
+  const footer = rows[rows.length - 1];
+  expect(footer).toHaveTextContent('Tổng: 1 đơn');
+  expect(within(footer).getByRole('gridcell')).toBeInTheDocument();
 });
 
 test('supports custom render and right alignment', () => {
