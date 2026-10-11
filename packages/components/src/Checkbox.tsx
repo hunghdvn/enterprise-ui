@@ -4,7 +4,8 @@ import styles from './Checkbox.module.css';
 
 export type CheckboxSize = 'sm' | 'md';
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'> {
+export interface CheckboxProps
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'> {
   /** Visual size of the checkbox control. */
   size?: CheckboxSize;
   /** Visible label associated with the native checkbox. */
