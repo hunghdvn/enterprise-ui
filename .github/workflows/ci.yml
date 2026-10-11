@@ -5,17 +5,12 @@ on:
     branches: [main, "feat/**", "fix/**"]
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -26,17 +21,6 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Apply Prettier formatting
-        run: |
-          pnpm format
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A ':!.github/workflows/ci.yml'
-            git commit -m "style: apply Prettier formatting"
-            TARGET_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-            git push origin "HEAD:${TARGET_BRANCH}"
-          fi
       - name: Type-check
         run: pnpm typecheck
       - name: Test
