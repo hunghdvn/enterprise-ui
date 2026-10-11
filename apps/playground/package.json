@@ -1,0 +1,17 @@
+{
+  "name": "@enterprise-ui/playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@enterprise-ui/components": "workspace:*",
+    "@enterprise-ui/tokens": "workspace:*",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
