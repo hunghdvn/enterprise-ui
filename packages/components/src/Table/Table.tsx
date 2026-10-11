@@ -116,11 +116,7 @@ export function Table<T extends Record<string, unknown>>({
                   className={styles.h}
                   data-align={c.align ?? 'left'}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onSort?.(c.key)}
-                    className={styles.sortBtn}
-                  >
+                  <button type="button" onClick={() => onSort?.(c.key)} className={styles.sortBtn}>
                     <span>{c.title}</span>
                     <span aria-hidden="true" className={styles.arrow}>
                       {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}

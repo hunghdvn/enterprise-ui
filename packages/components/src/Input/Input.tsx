@@ -6,7 +6,13 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   error?: string;
 }
 
-export function Input({ size = 'sm', error, className = '', 'aria-invalid': ariaInvalid, ...rest }: InputProps) {
+export function Input({
+  size = 'sm',
+  error,
+  className = '',
+  'aria-invalid': ariaInvalid,
+  ...rest
+}: InputProps) {
   return (
     <span className={styles.wrap}>
       <input

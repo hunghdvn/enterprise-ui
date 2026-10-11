@@ -1,1 +1,8 @@
-[data-theme="light"] { --bg: #F8FAFC; --surface: #FFFFFF; --surface-muted: #F1F5F9; --border: #E2E8F0; --text: #0F172A; --text-muted: #64748B; }
+[data-theme='light'] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+}

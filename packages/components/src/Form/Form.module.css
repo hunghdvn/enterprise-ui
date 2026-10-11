@@ -1,6 +1,25 @@
-.form { display: grid; gap: 12px; }
-.field { display: grid; gap: 4px; font-family: var(--font); font-size: var(--font-size); color: var(--text); }
-.label { font-weight: 600; }
-.required { color: var(--danger); }
-.error { color: var(--danger); font-size: 12px; }
-.hint { color: var(--text-muted); font-size: 12px; }
+.form {
+  display: grid;
+  gap: 12px;
+}
+.field {
+  display: grid;
+  gap: 4px;
+  font-family: var(--font);
+  font-size: var(--font-size);
+  color: var(--text);
+}
+.label {
+  font-weight: 600;
+}
+.required {
+  color: var(--danger);
+}
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}
+.hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}

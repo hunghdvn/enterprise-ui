@@ -1,2 +1,14 @@
-[data-density="compact"] { --row-height:32px; --cell-py:4px; --cell-px:8px; --input-h:32px; --font-size:13px; }
-[data-density="comfortable"] { --row-height:44px; --cell-py:12px; --cell-px:16px; --input-h:40px; --font-size:14px; }
+[data-density='compact'] {
+  --row-height: 32px;
+  --cell-py: 4px;
+  --cell-px: 8px;
+  --input-h: 32px;
+  --font-size: 13px;
+}
+[data-density='comfortable'] {
+  --row-height: 44px;
+  --cell-py: 12px;
+  --cell-px: 16px;
+  --input-h: 40px;
+  --font-size: 14px;
+}

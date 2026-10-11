@@ -23,14 +23,11 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
     ? [existingDescribedBy, errorId].filter(Boolean).join(' ')
     : existingDescribedBy;
   const childId = (childProps.id as string | undefined) ?? controlId;
-  const needsClone =
-    resolvedError !== undefined || childProps.id === undefined;
+  const needsClone = resolvedError !== undefined || childProps.id === undefined;
   const child = needsClone
     ? cloneElement(children, {
         id: childId,
-        ...(resolvedError
-          ? { 'aria-invalid': 'true', 'aria-describedby': mergedDescribedBy }
-          : {}),
+        ...(resolvedError ? { 'aria-invalid': 'true', 'aria-describedby': mergedDescribedBy } : {}),
       })
     : children;
   return (

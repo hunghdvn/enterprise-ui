@@ -15,7 +15,12 @@ export function Toast({ message, tone = 'info', onClose }: ToastProps) {
       <span className={styles.dot} aria-hidden="true" />
       <span className={styles.message}>{message}</span>
       {onClose && (
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Đóng thông báo">
+        <button
+          type="button"
+          className={styles.close}
+          onClick={onClose}
+          aria-label="Đóng thông báo"
+        >
           ✕
         </button>
       )}

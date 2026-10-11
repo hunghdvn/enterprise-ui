@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Typecheck (all workspaces)
+        run: npm --workspaces run typecheck --if-present
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: Build components lib
+        run: npm run build --workspace=@enterprise-ui/components
+
+      - name: Build showcase
+        run: npm run build --workspace=@enterprise-ui/showcase

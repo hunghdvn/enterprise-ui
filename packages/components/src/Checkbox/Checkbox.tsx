@@ -1,7 +1,10 @@
 import type { InputHTMLAttributes } from 'react';
 import styles from './Checkbox.module.css';
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
+export interface CheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'size'
+> {
   size?: 'sm' | 'md';
 }
 

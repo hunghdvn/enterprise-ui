@@ -45,8 +45,8 @@ export default function TokensPage() {
     <div className={styles.page}>
       <h2 className={styles.title}>Tokens</h2>
       <p className={styles.subtitle}>
-        Sidebar trắng chung nền · primary #1E47C4 · switch theme/density không nháy,
-        persist qua reload (localStorage eui-theme / eui-density).
+        Sidebar trắng chung nền · primary #1E47C4 · switch theme/density không nháy, persist qua
+        reload (localStorage eui-theme / eui-density).
       </p>
       {GROUPS.map((g) => (
         <section key={g.title} className={styles.group}>

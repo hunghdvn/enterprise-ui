@@ -26,7 +26,7 @@ function readDensity(init: Density): Density {
 export function ThemeProvider({
   children,
   theme: init = 'light',
-  density: initD = 'compact'
+  density: initD = 'compact',
 }: {
   children: ReactNode;
   theme?: Theme;

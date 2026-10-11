@@ -10,9 +10,7 @@ export interface FormProps extends FormHTMLAttributes<HTMLFormElement> {
 export function Form({ errors, className = '', children, ...rest }: FormProps) {
   return (
     <form {...rest} noValidate className={`${styles.form} ${className}`}>
-      <FormErrorsContext.Provider value={errors ?? {}}>
-        {children}
-      </FormErrorsContext.Provider>
+      <FormErrorsContext.Provider value={errors ?? {}}>{children}</FormErrorsContext.Provider>
     </form>
   );
 }

@@ -1,12 +1,5 @@
 import { useState } from 'react';
-import {
-  Badge,
-  Button,
-  FilterBar,
-  Pagination,
-  Table,
-  useToast,
-} from '@enterprise-ui/components';
+import { Badge, Button, FilterBar, Pagination, Table, useToast } from '@enterprise-ui/components';
 import styles from './ListDemoPage.module.css';
 
 type Order = {
@@ -45,16 +38,12 @@ export default function ListDemoPage() {
   const filtered = ALL.filter((r) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
-    return (
-      r.code.toLowerCase().includes(q) || r.customer.toLowerCase().includes(q)
-    );
+    return r.code.toLowerCase().includes(q) || r.customer.toLowerCase().includes(q);
   });
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortKey === 'code') {
-      return sortDir === 'asc'
-        ? a.code.localeCompare(b.code)
-        : b.code.localeCompare(a.code);
+      return sortDir === 'asc' ? a.code.localeCompare(b.code) : b.code.localeCompare(a.code);
     }
     return 0;
   });
@@ -94,14 +83,11 @@ export default function ListDemoPage() {
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>Đơn hàng bán</h2>
           <p className={styles.subtitle}>
-            P1 List demo — chỉ dùng ThemeProvider, AppShell, Table, FilterBar, Pagination,
-            Button, Badge, Toast.
+            P1 List demo — chỉ dùng ThemeProvider, AppShell, Table, FilterBar, Pagination, Button,
+            Badge, Toast.
           </p>
         </div>
-        <Button
-          variant="primary"
-          onClick={() => toast.success('Tạo đơn thành công (demo)')}
-        >
+        <Button variant="primary" onClick={() => toast.success('Tạo đơn thành công (demo)')}>
           Tạo đơn
         </Button>
       </div>

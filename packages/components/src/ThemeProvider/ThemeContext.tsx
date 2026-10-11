@@ -14,7 +14,7 @@ export const Ctx = createContext<ThemeCtx>({
   theme: 'light',
   density: 'compact',
   setTheme: () => {},
-  setDensity: () => {}
+  setDensity: () => {},
 });
 
 export const useTheme = () => useContext(Ctx);

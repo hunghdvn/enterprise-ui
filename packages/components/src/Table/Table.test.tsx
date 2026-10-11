@@ -92,7 +92,12 @@ test('supports custom render and right alignment', () => {
     <Table
       columns={[
         { key: 'code', title: 'Mã đơn' },
-        { key: 'total', title: 'Giá trị', align: 'right', render: (r) => <strong>{String(r['total'])}</strong> },
+        {
+          key: 'total',
+          title: 'Giá trị',
+          align: 'right',
+          render: (r) => <strong>{String(r['total'])}</strong>,
+        },
       ]}
       data={[{ code: 'SO-1', total: '₫ 10M' }]}
     />,

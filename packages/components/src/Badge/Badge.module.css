@@ -1,7 +1,34 @@
-.badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font); font-size: var(--font-size); color: var(--text); padding: 2px 8px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
-.badge[data-tone="blue"] .dot { background: var(--color-blue-600); }
-.badge[data-tone="orange"] .dot { background: var(--color-orange-500); }
-.badge[data-tone="green"] .dot { background: var(--success); }
-.badge[data-tone="red"] .dot { background: var(--danger); }
-.badge[data-tone="neutral"] .dot { background: var(--text-muted); }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: var(--font-size);
+  color: var(--text);
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.badge[data-tone='blue'] .dot {
+  background: var(--color-blue-600);
+}
+.badge[data-tone='orange'] .dot {
+  background: var(--color-orange-500);
+}
+.badge[data-tone='green'] .dot {
+  background: var(--success);
+}
+.badge[data-tone='red'] .dot {
+  background: var(--danger);
+}
+.badge[data-tone='neutral'] .dot {
+  background: var(--text-muted);
+}

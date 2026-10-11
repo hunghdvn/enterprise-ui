@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
 import styles from './Pagination.module.css';
@@ -27,22 +27,6 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
 
   const go = (p: number) => {
     if (p >= 1 && p <= totalPages && p !== current) onChange?.(p);
-  };
-
-  const [draft, setDraft] = useState(String(current));
-  useEffect(() => {
-    setDraft(String(current));
-  }, [current]);
-
-  const commitJumper = () => {
-    const parsed = Number.parseInt(draft, 10);
-    if (Number.isNaN(parsed)) {
-      setDraft(String(current));
-      return;
-    }
-    const clamped = Math.min(Math.max(1, parsed), totalPages);
-    setDraft(String(clamped));
-    go(clamped);
   };
 
   return (
@@ -82,31 +66,58 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
           ›
         </Button>
       </span>
-      <form
-        className={styles.jumper}
-        onSubmit={(e) => {
-          e.preventDefault();
-          commitJumper();
-        }}
-      >
-        <label className={styles.jumperLabel}>
-          Đi tới
-          <Input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label="Đi tới trang"
-            className={styles.jumperInput}
-            size="sm"
-          />
-        </label>
-        <span className={styles.jumperTotal}>/ {totalPages} trang</span>
-        <Button type="button" variant="secondary" size="sm" onClick={commitJumper}>
-          Đi
-        </Button>
-      </form>
+      <PageJumper key={current} current={current} totalPages={totalPages} onGo={go} />
     </nav>
+  );
+}
+
+function PageJumper({
+  current,
+  totalPages,
+  onGo,
+}: {
+  current: number;
+  totalPages: number;
+  onGo: (p: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(current));
+
+  const commitJumper = () => {
+    const parsed = Number.parseInt(draft, 10);
+    if (Number.isNaN(parsed)) {
+      setDraft(String(current));
+      return;
+    }
+    const clamped = Math.min(Math.max(1, parsed), totalPages);
+    setDraft(String(clamped));
+    onGo(clamped);
+  };
+
+  return (
+    <form
+      className={styles.jumper}
+      onSubmit={(e) => {
+        e.preventDefault();
+        commitJumper();
+      }}
+    >
+      <label className={styles.jumperLabel}>
+        Đi tới
+        <Input
+          type="number"
+          min={1}
+          max={totalPages}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          aria-label="Đi tới trang"
+          className={styles.jumperInput}
+          size="sm"
+        />
+      </label>
+      <span className={styles.jumperTotal}>/ {totalPages} trang</span>
+      <Button type="button" variant="secondary" size="sm" onClick={commitJumper}>
+        Đi
+      </Button>
+    </form>
   );
 }
