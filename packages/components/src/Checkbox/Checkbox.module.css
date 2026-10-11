@@ -1,0 +1,42 @@
+.label {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font);
+  color: var(--text);
+  cursor: pointer;
+}
+.label[data-size='sm'] {
+  font-size: var(--font-size);
+  gap: 6px;
+}
+.label[data-size='md'] {
+  font-size: var(--font-size-md);
+  gap: 8px;
+}
+.box {
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
+  accent-color: var(--color-blue-600);
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+[data-size='md'] .box {
+  width: var(--control-size);
+  height: var(--control-size);
+}
+.box:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 2px;
+}
+/* The box keeps its accent color when enabled, so disabled is driven through
+   accent-color first and the author background/border do not paint over it. */
+.box:disabled,
+.box:disabled:hover,
+.box:disabled:focus {
+  accent-color: var(--text-muted);
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}

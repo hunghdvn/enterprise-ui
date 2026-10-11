@@ -1,0 +1,60 @@
+.region {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  z-index: 60;
+  max-width: min(360px, 90vw);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: var(--font-size);
+}
+.toast[data-tone='success'] {
+  border-left-color: var(--success);
+}
+.toast[data-tone='error'] {
+  border-left-color: var(--danger);
+}
+.toast[data-tone='info'] {
+  border-left-color: var(--color-blue-600);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-blue-600);
+  flex-shrink: 0;
+}
+.toast[data-tone='success'] .dot {
+  background: var(--success);
+}
+.toast[data-tone='error'] .dot {
+  background: var(--danger);
+}
+.message {
+  flex: 1;
+}
+.close {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+}
+.close:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 2px;
+}

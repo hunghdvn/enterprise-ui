@@ -1,0 +1,237 @@
+.wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  font-size: var(--font-size);
+  font-family: var(--font);
+  color: var(--text);
+  max-width: 100%;
+}
+
+.scroll {
+  min-width: 100%;
+}
+
+.grid {
+  min-width: 100%;
+  /* Each row is its own grid, so a row only pins its first/last cell while it
+     is at least as wide as the tracks it lays out. `1fr` tracks overflowing a
+     row box sized to the viewport leave the stuck cell with a containing block
+     narrower than the scroller and it never pins — sizing the grid to its
+     content is what makes the horizontal scroll + sticky pair work. */
+  width: max-content;
+}
+
+.head {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Row/cell height must come out at `--row-height`, padding included: without
+   border-box the min-height plus padding renders 40px compact (68px
+   comfortable) instead of the 32/44px the spec asks for. */
+.h,
+.c,
+.foot {
+  box-sizing: border-box;
+}
+
+/* Every track needs a floor. `1fr` on its own always fits the container, so
+   the grid can never overflow and the tablet view never scrolls horizontally —
+   which is what the pinned first/last columns below exist for. */
+.h,
+.c {
+  min-width: var(--cell-min-width);
+}
+
+.cellSelect {
+  min-width: 0;
+}
+
+.h {
+  padding: var(--cell-py) var(--cell-px);
+  min-height: var(--row-height);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+}
+
+button.h {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+button.h:hover {
+  color: var(--text);
+}
+
+.sortBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:hover {
+  color: var(--text);
+}
+
+.h[data-align='center'] .sortBtn {
+  justify-content: center;
+}
+
+.h[data-align='right'] .sortBtn {
+  justify-content: flex-end;
+}
+
+.h[data-align='left'] .sortBtn {
+  justify-content: flex-start;
+}
+
+.sortBtn:focus-visible,
+.check:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.h[data-align='center'],
+.c[data-align='center'] {
+  justify-content: center;
+  text-align: center;
+}
+
+.h[data-align='right'],
+.c[data-align='right'] {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.arrow {
+  font-size: 10px;
+}
+
+.row {
+  display: grid;
+  border-bottom: 1px solid var(--surface-muted);
+  background: var(--surface);
+}
+
+.row:nth-child(even) {
+  background: var(--surface);
+}
+
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  .row:nth-child(even) {
+    background: color-mix(in srgb, var(--bg) 50%, var(--surface));
+  }
+}
+
+.row:hover {
+  background: var(--row-hover-bg);
+}
+
+.row[data-selected='true'] {
+  background: var(--row-selected-bg);
+  box-shadow: inset 2px 0 0 var(--row-selected-marker);
+}
+
+/* Pinned columns: the first column stays on the left edge and the last on the
+   right edge while the table scrolls horizontally. The offsets are what make
+   the pinning happen — `position: sticky` alone never shifts anything. */
+.row > .c:first-child,
+.head > .h:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.row > .c:last-child,
+.head > .h:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+}
+
+/* Body rows own their background (zebra/hover/selected), so the pinned cells
+   inherit it instead of letting other rows show through underneath. */
+.row > .c:first-child,
+.row > .c:last-child {
+  background: inherit;
+  border-bottom: inherit;
+}
+
+.head > .h:first-child,
+.head > .h:last-child {
+  background: var(--bg);
+}
+
+.c {
+  padding: var(--cell-py) var(--cell-px);
+  min-height: var(--row-height);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-blue-600);
+  cursor: pointer;
+}
+
+.state {
+  padding: 24px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size);
+  font-family: var(--font);
+}
+
+.foot {
+  padding: var(--cell-py) var(--cell-px);
+  min-height: var(--row-height);
+  display: flex;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.footText {
+  min-width: 0;
+}

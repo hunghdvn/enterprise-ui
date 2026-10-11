@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@enterprise-ui/components": ["../../packages/components/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

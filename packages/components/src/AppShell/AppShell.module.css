@@ -1,0 +1,111 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+.sidebar {
+  width: 210px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 12px 8px;
+  flex-shrink: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 12px;
+  font-weight: 700;
+}
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-blue-600);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  border-radius: 0 6px 6px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.nav[data-active='true'] {
+  background: var(--nav-active-bg);
+  border-left: 3px solid var(--color-blue-600);
+  color: var(--color-blue-600);
+  font-weight: 600;
+}
+[data-theme='dark'] .nav[data-active='true'] {
+  background: var(--nav-active-bg);
+  border-left-color: var(--color-blue-300);
+  color: var(--color-blue-200);
+}
+.nav:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 2px;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.icon {
+  flex-shrink: 0;
+}
+.count {
+  background: var(--color-orange-500);
+  color: var(--on-accent);
+  border-radius: 10px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+}
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+}
+.spacer {
+  flex: 1;
+}
+.body {
+  padding: 12px 16px;
+}
+@media (max-width: 768px) {
+  .sidebar {
+    width: 64px;
+  }
+  .nav {
+    justify-content: center;
+  }
+  .item > span:last-child {
+    display: none;
+  }
+  .brandText {
+    display: none;
+  }
+  .count {
+    display: none;
+  }
+}
