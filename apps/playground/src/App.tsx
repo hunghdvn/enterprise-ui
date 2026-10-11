@@ -40,7 +40,9 @@ export function App() {
             <span className="wordmark__mark" aria-hidden="true">
               E
             </span>
-            <span>enterprise<span className="wordmark__light">/ui</span></span>
+            <span>
+              enterprise<span className="wordmark__light">/ui</span>
+            </span>
           </a>
           <div className="hero__actions">
             <span className="version-pill">FOUNDATION · 0.1</span>
@@ -51,16 +53,24 @@ export function App() {
         </div>
 
         <div className="hero__content" id="top">
-          <p className="eyebrow"><span className="eyebrow__dot" /> DESIGN SYSTEM / BALANCED SKY</p>
+          <p className="eyebrow">
+            <span className="eyebrow__dot" /> DESIGN SYSTEM / BALANCED SKY
+          </p>
           <h1>Clarity for complex work.</h1>
           <p className="hero__intro">
             A deliberate foundation for enterprise software: precise typography, calm surfaces,
             accessible contrast and a sky-blue interaction language.
           </p>
           <div className="hero__meta">
-            <span><span className="meta-dot meta-dot--sky" /> Sky-led palette</span>
-            <span><span className="meta-dot meta-dot--slate" /> Structured neutrals</span>
-            <span><span className="meta-dot meta-dot--green" /> Accessible by default</span>
+            <span>
+              <span className="meta-dot meta-dot--sky" /> Sky-led palette
+            </span>
+            <span>
+              <span className="meta-dot meta-dot--slate" /> Structured neutrals
+            </span>
+            <span>
+              <span className="meta-dot meta-dot--green" /> Accessible by default
+            </span>
           </div>
         </div>
         <div className="hero__orb hero__orb--one" aria-hidden="true" />
@@ -119,22 +129,34 @@ export function App() {
           <div className="semantic-grid">
             <div className="semantic-item">
               <span className="semantic-item__bar semantic-item__bar--primary" />
-              <div><strong>Primary</strong><span>Action and focus</span></div>
+              <div>
+                <strong>Primary</strong>
+                <span>Action and focus</span>
+              </div>
               <code>#0369A1</code>
             </div>
             <div className="semantic-item">
               <span className="semantic-item__bar semantic-item__bar--success" />
-              <div><strong>Success</strong><span>Completed states</span></div>
+              <div>
+                <strong>Success</strong>
+                <span>Completed states</span>
+              </div>
               <code>#15803D</code>
             </div>
             <div className="semantic-item">
               <span className="semantic-item__bar semantic-item__bar--warning" />
-              <div><strong>Warning</strong><span>Needs attention</span></div>
+              <div>
+                <strong>Warning</strong>
+                <span>Needs attention</span>
+              </div>
               <code>#B45309</code>
             </div>
             <div className="semantic-item">
               <span className="semantic-item__bar semantic-item__bar--danger" />
-              <div><strong>Danger</strong><span>Destructive states</span></div>
+              <div>
+                <strong>Danger</strong>
+                <span>Destructive states</span>
+              </div>
               <code>#B42318</code>
             </div>
           </div>
@@ -163,7 +185,9 @@ export function App() {
             </div>
             <div className="type-specimen__row">
               <span className="type-label">Body / 14</span>
-              <span className="type-body">Review activity, track changes and keep teams aligned.</span>
+              <span className="type-body">
+                Review activity, track changes and keep teams aligned.
+              </span>
             </div>
             <div className="type-specimen__row">
               <span className="type-label">Label / 12</span>
@@ -187,7 +211,10 @@ export function App() {
           <div className="component-grid">
             <article className="specimen-card">
               <div className="specimen-card__heading">
-                <div><h3>Buttons</h3><p>Actions have a clear hierarchy.</p></div>
+                <div>
+                  <h3>Buttons</h3>
+                  <p>Actions have a clear hierarchy.</p>
+                </div>
                 <span className="component-tag">Button</span>
               </div>
               <div className="control-stack">
@@ -196,8 +223,12 @@ export function App() {
                   <Button variant="secondary">Cancel</Button>
                 </div>
                 <div className="control-row">
-                  <Button variant="ghost" size="sm">View details</Button>
-                  <Button variant="danger" size="sm">Delete record</Button>
+                  <Button variant="ghost" size="sm">
+                    View details
+                  </Button>
+                  <Button variant="danger" size="sm">
+                    Delete record
+                  </Button>
                 </div>
                 <div className="control-row">
                   <Button size="sm">Compact</Button>
@@ -205,12 +236,17 @@ export function App() {
                   <Button size="lg">Comfortable</Button>
                 </div>
               </div>
-              <p className="specimen-note">Primary uses Sky 700 for readable white-on-blue contrast.</p>
+              <p className="specimen-note">
+                Primary uses Sky 700 for readable white-on-blue contrast.
+              </p>
             </article>
 
             <article className="specimen-card">
               <div className="specimen-card__heading">
-                <div><h3>Form field</h3><p>Labels stay explicit and close to inputs.</p></div>
+                <div>
+                  <h3>Form field</h3>
+                  <p>Labels stay explicit and close to inputs.</p>
+                </div>
                 <span className="component-tag">Input</span>
               </div>
               <form
@@ -230,8 +266,14 @@ export function App() {
                 />
                 <span className="field-hint">Use a name your team will recognize.</span>
                 <div className="control-row control-row--form">
-                  <Button type="submit" disabled={!projectName.trim()}>Save workspace</Button>
-                  {savedName ? <span className="saved-state" role="status">Saved: {savedName}</span> : null}
+                  <Button type="submit" disabled={!projectName.trim()}>
+                    Save workspace
+                  </Button>
+                  {savedName ? (
+                    <span className="saved-state" role="status">
+                      Saved: {savedName}
+                    </span>
+                  ) : null}
                 </div>
               </form>
             </article>
@@ -239,13 +281,28 @@ export function App() {
 
           <div className="status-panel">
             <div className="status-panel__heading">
-              <div><h3>Semantic states</h3><p>Status colors carry meaning, not brand decoration.</p></div>
+              <div>
+                <h3>Semantic states</h3>
+                <p>Status colors carry meaning, not brand decoration.</p>
+              </div>
             </div>
             <div className="status-list">
-              <span className="status-chip status-chip--success"><span />All systems operational</span>
-              <span className="status-chip status-chip--warning"><span />Review required</span>
-              <span className="status-chip status-chip--danger"><span />Action failed</span>
-              <span className="status-chip status-chip--info"><span />New activity</span>
+              <span className="status-chip status-chip--success">
+                <span />
+                All systems operational
+              </span>
+              <span className="status-chip status-chip--warning">
+                <span />
+                Review required
+              </span>
+              <span className="status-chip status-chip--danger">
+                <span />
+                Action failed
+              </span>
+              <span className="status-chip status-chip--info">
+                <span />
+                New activity
+              </span>
             </div>
           </div>
         </section>
@@ -279,8 +336,12 @@ export function App() {
 
         <footer className="footer">
           <a className="wordmark wordmark--footer" href="#top">
-            <span className="wordmark__mark" aria-hidden="true">E</span>
-            <span>enterprise<span className="wordmark__light">/ui</span></span>
+            <span className="wordmark__mark" aria-hidden="true">
+              E
+            </span>
+            <span>
+              enterprise<span className="wordmark__light">/ui</span>
+            </span>
           </a>
           <span>Balanced Sky · Design foundation preview</span>
           <a href="#top">Back to top ↑</a>
