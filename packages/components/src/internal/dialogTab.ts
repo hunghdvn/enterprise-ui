@@ -71,6 +71,33 @@ export function registerDialog(panel: () => HTMLElement | null): DialogHandle {
   };
 }
 
+/**
+ * Hands focus back when a dialog closes.
+ *
+ * The dialog that opened remembers what was focused before it (`prev`); focus
+ * returns there when that element is still usable. When it is not — `body`
+ * still holds focus because the element would be an element behind the dialog,
+ * or it unmounted meanwhile — focus goes to the topmost dialog still open, so
+ * it never lands on the page behind a modal. Call this *after* disposing the
+ * closing dialog, so the stack holds the dialogs that remain.
+ */
+export function restoreFocus(prev: Element | null): void {
+  if (
+    prev instanceof HTMLElement &&
+    prev !== document.body &&
+    document.contains(prev) &&
+    typeof prev.focus === 'function'
+  ) {
+    prev.focus();
+    return;
+  }
+  const remaining = openDialogs[openDialogs.length - 1];
+  const panel = remaining?.panel();
+  if (!panel) return;
+  const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
+  (items[0] ?? panel).focus();
+}
+
 let bodyLocks = 0;
 let prevBodyOverflow = '';
 

@@ -156,7 +156,7 @@ test('only the topmost stacked dialog closes on Escape', () => {
 });
 
 test('stacked dialogs keep focus in the topmost dialog', async () => {
-  render(
+  const { rerender } = render(
     <Modal open onClose={() => {}} title="Tạo đơn">
       <button>Lưu</button>
       <Drawer open onClose={() => {}} title="Bộ lọc">
@@ -165,12 +165,27 @@ test('stacked dialogs keep focus in the topmost dialog', async () => {
     </Modal>,
   );
   const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  const modalPanel = screen.getByRole('dialog', { name: 'Tạo đơn' });
   const modalClose = screen.getAllByRole('button', { name: 'Đóng' })[0];
 
   // The drawer on top owns initial focus: the modal's own timer fired later
   // must not pull focus back onto the outer panel's close button.
   await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
   expect(modalClose).not.toHaveFocus();
+
+  // Closing the drawer must hand focus back to the modal still open below it —
+  // the drawer captured `body` as the prior focus (the modal had not focused
+  // anything yet), so a naive restore leaves focus outside every dialog.
+  rerender(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button>Lưu</button>
+      <Drawer open={false} onClose={() => {}} title="Bộ lọc">
+        <span>Tùy chọn lọc</span>
+      </Drawer>
+    </Modal>,
+  );
+  await waitFor(() => expect(modalPanel.contains(document.activeElement)).toBe(true));
+  expect(document.activeElement).not.toBe(document.body);
 });
 
 test('stacked dialogs keep Tab trapping in the topmost dialog', () => {

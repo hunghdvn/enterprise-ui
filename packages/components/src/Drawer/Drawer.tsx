@@ -1,7 +1,13 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../Button/Button';
 import styles from './Drawer.module.css';
-import { FOCUSABLE, isTabbable, lockBodyScroll, registerDialog } from '../internal/dialogTab';
+import {
+  FOCUSABLE,
+  isTabbable,
+  lockBodyScroll,
+  registerDialog,
+  restoreFocus,
+} from '../internal/dialogTab';
 
 export interface DrawerProps {
   open: boolean;
@@ -72,10 +78,12 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
     return () => {
       window.clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
-      dialog.dispose();
       releaseScroll();
-      const prev = prevFocus.current as HTMLElement | null;
-      prev?.focus?.();
+      // Dispose first so the remaining stack is what restoreFocus falls back
+      // to: closing a drawer on top of a modal must move focus back into the
+      // modal, not to the `body` it captured when it opened.
+      dialog.dispose();
+      restoreFocus(prevFocus.current);
     };
   }, [open]);
 
