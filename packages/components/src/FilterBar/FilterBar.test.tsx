@@ -38,3 +38,9 @@ test('hides density toggle when disabled', () => {
   );
   expect(screen.queryByRole('button', { name: /Mật độ/i })).not.toBeInTheDocument();
 });
+
+test('works without ThemeProvider when density toggle hidden', () => {
+  render(<FilterBar searchValue="" onSearch={() => {}} densityToggle={false} />);
+  expect(screen.getByRole('searchbox', { name: /Tìm kiếm/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Mật độ/i })).not.toBeInTheDocument();
+});

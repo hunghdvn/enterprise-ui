@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Modal } from './Modal';
 
 test('renders nothing when closed', () => {
@@ -25,4 +25,30 @@ test('renders dialog, closes on Esc and overlay, returns focus', () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByTestId('modal-overlay'));
   expect(onClose).toHaveBeenCalledTimes(2);
+});
+
+test('keeps focus + overflow across onClose identity change while open', async () => {
+  const { rerender } = render(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button>Lưu</button>
+    </Modal>,
+  );
+  const dialog = screen.getByRole('dialog', { name: 'Tạo đơn' });
+  await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+  expect(document.body.style.overflow).toBe('hidden');
+  // Rerender with a new inline onClose fn (new identity) while still open.
+  rerender(
+    <Modal
+      open
+      onClose={() => {
+        // new identity
+      }}
+      title="Tạo đơn"
+    >
+      <button>Lưu</button>
+    </Modal>,
+  );
+  const dialogAfter = screen.getByRole('dialog', { name: 'Tạo đơn' });
+  expect(document.body.style.overflow).toBe('hidden');
+  expect(dialogAfter.contains(document.activeElement)).toBe(true);
 });

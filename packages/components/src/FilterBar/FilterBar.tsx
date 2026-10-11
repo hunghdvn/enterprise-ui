@@ -14,6 +14,23 @@ export interface FilterBarProps {
   searchPlaceholder?: string;
 }
 
+function DensityToggleButton() {
+  const { density, setDensity } = useTheme();
+  const next = density === 'compact' ? 'comfortable' : 'compact';
+  const label = density === 'compact' ? 'Gọn' : 'Thoáng';
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      aria-label={`Mật độ: ${label}`}
+      title="Chuyển mật độ hiển thị"
+      onClick={() => setDensity(next)}
+    >
+      Mật độ: {label}
+    </Button>
+  );
+}
+
 export function FilterBar({
   searchValue,
   onSearch,
@@ -22,10 +39,6 @@ export function FilterBar({
   densityToggle = true,
   searchPlaceholder = 'Tìm kiếm…',
 }: FilterBarProps) {
-  const { density, setDensity } = useTheme();
-  const next = density === 'compact' ? 'comfortable' : 'compact';
-  const label = density === 'compact' ? 'Gọn' : 'Thoáng';
-
   return (
     <div className={styles.bar} role="search">
       <Input
@@ -42,17 +55,7 @@ export function FilterBar({
           Đặt lại
         </Button>
       )}
-      {densityToggle && (
-        <Button
-          variant="secondary"
-          size="sm"
-          aria-label={`Mật độ: ${label}`}
-          title="Chuyển mật độ hiển thị"
-          onClick={() => setDensity(next)}
-        >
-          Mật độ: {label}
-        </Button>
-      )}
+      {densityToggle && <DensityToggleButton />}
     </div>
   );
 }
