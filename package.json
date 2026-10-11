@@ -1,0 +1,6 @@
+{
+  "name": "enterprise-ui",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": { "test": "node packages/tokens/tokens.test.mjs && npm --workspaces run test" }
+}

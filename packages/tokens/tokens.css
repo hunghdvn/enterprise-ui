@@ -1,0 +1,9 @@
+:root {
+  --color-blue-50: #EFF6FF; --color-blue-100: #DBEAFE; --color-blue-500: #3B82F6;
+  --color-blue-600: #1E47C4; --color-blue-700: #1E40AF; --color-blue-800: #1E3A8A;
+  --color-orange-50: #FFF7ED; --color-orange-500: #F97316; --color-orange-600: #EA580C;
+  --success: #16A34A; --danger: #DC2626;
+  --radius: 6px; --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06); --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  --font: Inter, system-ui, -apple-system, sans-serif;
+}
