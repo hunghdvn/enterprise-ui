@@ -3,11 +3,39 @@
  * The CSS custom properties are defined in ./tokens.css.
  */
 export const designTokens = {
+  palette: {
+    sky: {
+      50: 'var(--eui-palette-sky-50)',
+      100: 'var(--eui-palette-sky-100)',
+      200: 'var(--eui-palette-sky-200)',
+      300: 'var(--eui-palette-sky-300)',
+      400: 'var(--eui-palette-sky-400)',
+      500: 'var(--eui-palette-sky-500)',
+      600: 'var(--eui-palette-sky-600)',
+      700: 'var(--eui-palette-sky-700)',
+      800: 'var(--eui-palette-sky-800)',
+      900: 'var(--eui-palette-sky-900)',
+    },
+    slate: {
+      50: 'var(--eui-palette-slate-50)',
+      100: 'var(--eui-palette-slate-100)',
+      200: 'var(--eui-palette-slate-200)',
+      300: 'var(--eui-palette-slate-300)',
+      400: 'var(--eui-palette-slate-400)',
+      500: 'var(--eui-palette-slate-500)',
+      600: 'var(--eui-palette-slate-600)',
+      700: 'var(--eui-palette-slate-700)',
+      800: 'var(--eui-palette-slate-800)',
+      900: 'var(--eui-palette-slate-900)',
+    },
+  },
   color: {
     primary: 'var(--eui-color-primary)',
     primaryHover: 'var(--eui-color-primary-hover)',
     primaryActive: 'var(--eui-color-primary-active)',
     primaryForeground: 'var(--eui-color-primary-foreground)',
+    primarySubtle: 'var(--eui-color-primary-subtle)',
+    primarySubtleForeground: 'var(--eui-color-primary-subtle-foreground)',
     text: 'var(--eui-color-text)',
     muted: 'var(--eui-color-text-muted)',
     disabledText: 'var(--eui-color-text-disabled)',
@@ -34,8 +62,12 @@ export const designTokens = {
     heightSm: 'var(--eui-control-height-sm)',
     heightMd: 'var(--eui-control-height-md)',
     heightLg: 'var(--eui-control-height-lg)',
+    radius: 'var(--eui-control-radius)',
   },
   shadow: {
+    sm: 'var(--eui-shadow-sm)',
+    md: 'var(--eui-shadow-md)',
+    lg: 'var(--eui-shadow-lg)',
     focus: 'var(--eui-shadow-focus)',
   },
   radius: {
@@ -67,6 +99,7 @@ export const designTokens = {
     fontSizeLg: 'var(--eui-font-size-lg)',
     fontSizeXl: 'var(--eui-font-size-xl)',
     fontSize2xl: 'var(--eui-font-size-2xl)',
+    fontSize3xl: 'var(--eui-font-size-3xl)',
     fontWeightRegular: 'var(--eui-font-weight-regular)',
     fontWeightMedium: 'var(--eui-font-weight-medium)',
     fontWeightSemibold: 'var(--eui-font-weight-semibold)',
@@ -74,6 +107,9 @@ export const designTokens = {
     lineHeightTight: 'var(--eui-line-height-tight)',
     lineHeightNormal: 'var(--eui-line-height-normal)',
     lineHeightRelaxed: 'var(--eui-line-height-relaxed)',
+    letterSpacingTight: 'var(--eui-letter-spacing-tight)',
+    letterSpacingNormal: 'var(--eui-letter-spacing-normal)',
+    letterSpacingWide: 'var(--eui-letter-spacing-wide)',
   },
   motion: {
     durationFast: 'var(--eui-motion-duration-fast)',
