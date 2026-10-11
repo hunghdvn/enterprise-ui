@@ -20,7 +20,11 @@ describe('Button', () => {
   });
 
   it('supports native button attributes and variants', () => {
-    render(<Button type="submit" variant="secondary" data-testid="submit-button">Submit</Button>);
+    render(
+      <Button type="submit" variant="secondary" data-testid="submit-button">
+        Submit
+      </Button>,
+    );
     expect(screen.getByTestId('submit-button')).toHaveAttribute('type', 'submit');
   });
 });

@@ -34,9 +34,9 @@ pnpm --filter @enterprise-ui/playground dev
 Import styles once in the application entry point:
 
 ```tsx
-import "@enterprise-ui/tokens/styles.css";
-import "@enterprise-ui/components/style.css";
-import { Button, Input } from "@enterprise-ui/components";
+import '@enterprise-ui/tokens/styles.css';
+import '@enterprise-ui/components/style.css';
+import { Button, Input } from '@enterprise-ui/components';
 ```
 
 This repository is at its initial foundation stage. Public APIs may evolve before the first stable release.

@@ -21,14 +21,20 @@ export function App() {
         <div className="demo-row">
           <Button onClick={() => setSavedName(name || 'Enterprise UI')}>Primary action</Button>
           <Button variant="secondary">Secondary</Button>
-          <Button variant="ghost" size="sm">Quiet action</Button>
-          <Button variant="danger" size="sm">Destructive</Button>
+          <Button variant="ghost" size="sm">
+            Quiet action
+          </Button>
+          <Button variant="danger" size="sm">
+            Destructive
+          </Button>
         </div>
       </section>
 
       <section className="demo-card" aria-labelledby="input-heading">
         <h2 id="input-heading">Input</h2>
-        <label className="field-label" htmlFor="project-name">Project name</label>
+        <label className="field-label" htmlFor="project-name">
+          Project name
+        </label>
         <Input
           id="project-name"
           value={name}
@@ -39,7 +45,11 @@ export function App() {
           <Button onClick={() => setSavedName(name.trim())} disabled={!name.trim()}>
             Save value
           </Button>
-          {savedName ? <p className="saved-value" role="status">Saved: {savedName}</p> : null}
+          {savedName ? (
+            <p className="saved-value" role="status">
+              Saved: {savedName}
+            </p>
+          ) : null}
         </div>
       </section>
 
