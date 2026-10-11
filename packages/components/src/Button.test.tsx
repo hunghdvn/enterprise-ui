@@ -37,7 +37,7 @@ describe('Button', () => {
     const button = screen.getByRole('button', { name: 'Saving' });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(button.querySelector('[aria-hidden="true"]')).toHaveClass(styles.spinner);
+    expect(button.querySelector('[aria-hidden="true"]')).toHaveClass(styles.spinner!);
     await user.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -50,15 +50,15 @@ describe('Button', () => {
     );
     const button = screen.getByTestId('submit-button');
     expect(button).toHaveAttribute('type', 'submit');
-    expect(button).toHaveClass(styles.secondary, styles.md);
+    expect(button).toHaveClass(styles.secondary!, styles.md!);
   });
 
   it('applies variant and size classes', () => {
     const { rerender } = render(<Button variant="danger" size="sm">Delete</Button>);
-    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(styles.danger, styles.sm);
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(styles.danger!, styles.sm!);
 
     rerender(<Button variant="ghost" size="lg">Cancel</Button>);
-    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass(styles.ghost, styles.lg);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass(styles.ghost!, styles.lg!);
   });
 
   it('does not allow disabled buttons to receive focus', async () => {
