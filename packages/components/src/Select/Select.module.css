@@ -1,0 +1,5 @@
+.wrap { display: inline-grid; gap: 4px; }
+.select { font-family: var(--font); height: var(--input-h); padding: 0 8px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: var(--font-size); cursor: pointer; }
+.select:focus-visible { outline: 2px solid var(--color-blue-600); outline-offset: 0; border-color: var(--color-blue-600); }
+.select[aria-invalid="true"] { border-color: var(--danger); }
+.error { color: var(--danger); font-size: 12px; }
