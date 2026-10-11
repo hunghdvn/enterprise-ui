@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Toast, type ToastTone } from './Toast';
 import styles from './Toast.module.css';
 
@@ -30,15 +30,25 @@ export function ToastProvider({
 }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const ids = timers.current;
+    return () => {
+      ids.forEach((t) => window.clearTimeout(t));
+      ids.length = 0;
+    };
+  }, []);
 
   const push = useCallback(
     (message: string, tone: ToastTone) => {
       idRef.current += 1;
       const id = idRef.current;
       setToasts((prev) => [...prev, { id, message, tone }]);
-      window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, duration);
+      timers.current.push(timer);
     },
     [duration],
   );

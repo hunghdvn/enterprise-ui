@@ -3,6 +3,26 @@ import { Ctx, type Theme, type Density } from './ThemeContext';
 
 export { useTheme } from './ThemeContext';
 
+function readTheme(init: Theme): Theme {
+  try {
+    if (typeof window === 'undefined') return init;
+    const v = window.localStorage.getItem('eui-theme');
+    return v === 'light' || v === 'dark' ? v : init;
+  } catch {
+    return init;
+  }
+}
+
+function readDensity(init: Density): Density {
+  try {
+    if (typeof window === 'undefined') return init;
+    const v = window.localStorage.getItem('eui-density');
+    return v === 'compact' || v === 'comfortable' ? v : init;
+  } catch {
+    return init;
+  }
+}
+
 export function ThemeProvider({
   children,
   theme: init = 'light',
@@ -12,17 +32,23 @@ export function ThemeProvider({
   theme?: Theme;
   density?: Density;
 }) {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('eui-theme') as Theme) || init);
-  const [density, setDensity] = useState<Density>(
-    () => (localStorage.getItem('eui-density') as Density) || initD
-  );
+  const [theme, setTheme] = useState<Theme>(() => readTheme(init));
+  const [density, setDensity] = useState<Density>(() => readDensity(initD));
 
   useEffect(() => {
-    localStorage.setItem('eui-theme', theme);
+    try {
+      window.localStorage.setItem('eui-theme', theme);
+    } catch {
+      /* ignore */
+    }
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('eui-density', density);
+    try {
+      window.localStorage.setItem('eui-density', density);
+    } catch {
+      /* ignore */
+    }
   }, [density]);
 
   return (

@@ -22,6 +22,11 @@ export interface TableProps<T> {
   onSort?: (key: string) => void;
   selectedKeys?: string[];
   onSelect?: (keys: string[]) => void;
+  /**
+   * Derives a stable React key for a row. Required when data has no unique
+   * `key`/`code`/`id` field or when those values can repeat — duplicate keys
+   * cause wrong row rendering and selection acting on the wrong row.
+   */
   rowKey?: (row: T) => string;
   status?: Status;
   onRetry?: () => void;

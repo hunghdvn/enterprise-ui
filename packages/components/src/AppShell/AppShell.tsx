@@ -20,6 +20,8 @@ export function AppShell({
             <button
               key={i.key}
               data-active={i.key === activeKey}
+              aria-current={i.key === activeKey ? 'page' : undefined}
+              title={i.label}
               className={styles.nav}
               onClick={() => onNavigate(i.key)}
             >
@@ -36,7 +38,7 @@ export function AppShell({
       </aside>
       <div className={styles.main}>
         <header className={styles.header}>
-          <span>{breadcrumb}</span>
+          {breadcrumb ? <span>{breadcrumb}</span> : null}
           <span className={styles.spacer} />
           {headerRight}
         </header>

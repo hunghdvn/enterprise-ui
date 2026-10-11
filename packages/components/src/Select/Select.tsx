@@ -6,12 +6,12 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   error?: string;
 }
 
-export function Select({ size = 'sm', error, className = '', children, ...rest }: SelectProps) {
+export function Select({ size = 'sm', error, className = '', children, 'aria-invalid': ariaInvalid, ...rest }: SelectProps) {
   return (
     <span className={styles.wrap}>
       <select
         data-size={size}
-        aria-invalid={error ? 'true' : undefined}
+        aria-invalid={error ? 'true' : ariaInvalid}
         className={`${styles.select} ${className}`}
         {...rest}
       >
