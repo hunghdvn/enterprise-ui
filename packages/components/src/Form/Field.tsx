@@ -26,9 +26,10 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
   // The control is a sibling of the texts, so the hint and the error reach it
   // through aria-describedby. Wrapping the control in the label used to fold
   // them into the control's accessible name instead.
-  const describedBy = [existingDescribedBy, errorId, hint ? hintId : undefined]
-    .filter(Boolean)
-    .join(' ');
+  const describedBy =
+    [existingDescribedBy, resolvedError ? errorId : undefined, hint ? hintId : undefined]
+      .filter(Boolean)
+      .join(' ') || undefined;
 
   // Only set what actually applies: cloneElement with an explicit `undefined`
   // would drop a caller-supplied attribute instead of leaving it alone.

@@ -164,3 +164,71 @@ test('announces a hint on a control that renders its own label', () => {
   const describedBy = (checkbox.getAttribute('aria-describedby') ?? '').split(' ');
   expect(describedBy).toContain(hint.id);
 });
+
+// Regression guard: every id a control is described by must exist in the DOM,
+// otherwise assistive tech announces a dangling reference.
+function expectDescribedIdsResolve(control: HTMLElement) {
+  const ids = (control.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean);
+  for (const id of ids) {
+    expect(document.getElementById(id)).not.toBeNull();
+  }
+  return ids;
+}
+
+test('sets no aria-describedby when the field has neither error nor hint', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn">
+        <input aria-label="Mã đơn" />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText('Mã đơn');
+  expect(input).not.toHaveAttribute('aria-describedby');
+  expectDescribedIdsResolve(input);
+});
+
+test('a hint-only field describes the control with the existing hint element', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn" hint="Định dạng SO-2024-0001">
+        <input aria-label="Mã đơn" />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText('Mã đơn');
+  const hint = screen.getByText('Định dạng SO-2024-0001');
+  const ids = expectDescribedIdsResolve(input);
+  expect(ids).toEqual([hint.id]);
+});
+
+test('an error-only field describes the control with the existing error element', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn" error="Bắt buộc">
+        <input aria-label="Mã đơn" />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText('Mã đơn');
+  const error = screen.getByRole('alert');
+  const ids = expectDescribedIdsResolve(input);
+  expect(ids).toEqual([error.id]);
+});
+
+test('an error and a hint together both resolve to rendered elements', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn" error="Bắt buộc" hint="Định dạng SO-2024-0001">
+        <input aria-label="Mã đơn" />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText('Mã đơn');
+  const hint = screen.getByText('Định dạng SO-2024-0001');
+  const error = screen.getByRole('alert');
+  const ids = expectDescribedIdsResolve(input);
+  expect(ids).toContain(hint.id);
+  expect(ids).toContain(error.id);
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+});

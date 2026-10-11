@@ -16,10 +16,12 @@ export function Button({
       data-variant={variant}
       data-size={size}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={`${styles.btn} ${className}`}
       {...rest}
     >
-      {loading ? '...' : children}
+      {loading && <span aria-hidden="true">… </span>}
+      {children}
     </button>
   );
 }
