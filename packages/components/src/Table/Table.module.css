@@ -52,7 +52,40 @@ button.h:hover {
   color: var(--text);
 }
 
-button.h:focus-visible,
+.sortBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:hover {
+  color: var(--text);
+}
+
+.h[data-align="center"] .sortBtn {
+  justify-content: center;
+}
+
+.h[data-align="right"] .sortBtn {
+  justify-content: flex-end;
+}
+
+.h[data-align="left"] .sortBtn {
+  justify-content: flex-start;
+}
+
+.sortBtn:focus-visible,
 .check:focus-visible {
   outline: 2px solid var(--color-blue-600);
   outline-offset: -2px;

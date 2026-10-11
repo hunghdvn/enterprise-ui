@@ -18,3 +18,25 @@
   gap: 4px;
   margin-left: auto;
 }
+
+.jumper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.jumperLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.jumperInput {
+  width: 64px;
+}
+
+.jumperTotal {
+  white-space: nowrap;
+}

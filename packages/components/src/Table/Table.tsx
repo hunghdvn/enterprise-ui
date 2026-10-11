@@ -109,19 +109,24 @@ export function Table<T extends Record<string, unknown>>({
                 );
               }
               return (
-                <button
+                <div
                   key={c.key}
-                  type="button"
+                  role="columnheader"
                   aria-sort={ariaSort as 'ascending' | 'descending' | 'none'}
-                  className={`${styles.h} ${styles.sortable}`}
+                  className={styles.h}
                   data-align={c.align ?? 'left'}
-                  onClick={() => onSort?.(c.key)}
                 >
-                  <span>{c.title}</span>
-                  <span aria-hidden="true" className={styles.arrow}>
-                    {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onSort?.(c.key)}
+                    className={styles.sortBtn}
+                  >
+                    <span>{c.title}</span>
+                    <span aria-hidden="true" className={styles.arrow}>
+                      {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>

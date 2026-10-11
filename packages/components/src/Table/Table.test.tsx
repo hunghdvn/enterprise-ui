@@ -25,7 +25,7 @@ test('sorts, selects, shows empty and error', () => {
   expect(screen.getByRole('button', { name: /Thử lại/i })).toBeInTheDocument();
 });
 
-test('exposes grid role with aria-sort on the active column', () => {
+test('exposes grid role with aria-sort on the columnheader', () => {
   render(
     <Table
       columns={cols}
@@ -36,8 +36,9 @@ test('exposes grid role with aria-sort on the active column', () => {
     />,
   );
   expect(screen.getByRole('grid')).toBeInTheDocument();
-  const header = screen.getByText('Mã đơn').closest('button');
-  expect(header).toHaveAttribute('aria-sort', 'ascending');
+  const cell = screen.getByText('Mã đơn').closest('[role="columnheader"]');
+  expect(cell).toHaveAttribute('aria-sort', 'ascending');
+  expect(cell?.querySelector('button')).not.toBeNull();
 });
 
 test('selects rows via checkboxes', () => {
