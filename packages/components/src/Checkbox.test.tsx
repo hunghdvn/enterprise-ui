@@ -30,7 +30,7 @@ describe('Checkbox', () => {
 
     const checkbox = screen.getByRole('checkbox', { name: 'Accept terms' });
     expect(checkbox).toHaveAttribute('name', 'terms');
-    expect(checkbox).toHaveValue('accepted');
+    expect(checkbox).toHaveAttribute('value', 'accepted');
     expect(checkbox).toBeRequired();
   });
 
