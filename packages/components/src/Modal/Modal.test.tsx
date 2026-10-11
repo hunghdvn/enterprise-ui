@@ -2,6 +2,22 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { Drawer } from '../Drawer/Drawer';
 import { Modal } from './Modal';
 
+// The dialog stack renders as one fragment from the very first render so React
+// keeps every node identity across rerenders: remounting the root would swap
+// the trigger for a new node and the dialogs would capture `body` instead of
+// the focused trigger.
+const stack = (drawerOpen: boolean, triggerDisabled: boolean) => (
+  <>
+    <button disabled={triggerDisabled}>Trigger</button>
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button>Lưu</button>
+      <Drawer open={drawerOpen} onClose={() => {}} title="Bộ lọc">
+        <span>Tùy chọn lọc</span>
+      </Drawer>
+    </Modal>
+  </>
+);
+
 test('renders nothing when closed', () => {
   const { container } = render(
     <Modal open={false} onClose={() => {}} title="Tạo đơn">
@@ -247,54 +263,43 @@ test('body scroll stays locked until the last stacked dialog closes', () => {
 });
 
 test('returns focus into the still-open dialog when the saved target turns unfocusable', async () => {
-  const { rerender } = render(<button>Trigger</button>);
-  // Focus the trigger so the dialogs opened below capture it as prior focus.
+  const { rerender } = render(stack(false, false));
+  // Focus the trigger so the drawer opened below captures it as prior focus.
   screen.getByRole('button', { name: 'Trigger' }).focus();
-  rerender(
-    <>
-      <button>Trigger</button>
-      <Modal open onClose={() => {}} title="Tạo đơn">
-        <button>Lưu</button>
-        <Drawer open onClose={() => {}} title="Bộ lọc">
-          <span>Tùy chọn lọc</span>
-        </Drawer>
-      </Modal>
-    </>,
-  );
+  rerender(stack(true, false));
   const modalPanel = screen.getByRole('dialog', { name: 'Tạo đơn' });
   const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
   // The drawer on top holds focus while the stack is open.
   await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
 
-  // The saved target turns unfocusable while the stack is open: still in the
-  // document, but disabled — `focus()` on it is a no-op.
-  rerender(
-    <>
-      <button disabled>Trigger</button>
-      <Modal open onClose={() => {}} title="Tạo đơn">
-        <button>Lưu</button>
-        <Drawer open onClose={() => {}} title="Bộ lọc">
-          <span>Tùy chọn lọc</span>
-        </Drawer>
-      </Modal>
-    </>,
-  );
-
-  // Closing the drawer must not strand focus on `body`: it has to hand focus
-  // into the modal still open underneath.
-  rerender(
-    <>
-      <button disabled>Trigger</button>
-      <Modal open onClose={() => {}} title="Tạo đơn">
-        <button>Lưu</button>
-        <Drawer open={false} onClose={() => {}} title="Bộ lọc">
-          <span>Tùy chọn lọc</span>
-        </Drawer>
-      </Modal>
-    </>,
-  );
+  // The saved target turns unfocusable while the stack is open: same node and
+  // still connected, but disabled — `focus()` on it is a no-op. Closing the
+  // drawer must therefore not strand focus on `body` but hand it into the
+  // modal still open underneath.
+  rerender(stack(false, true));
   await waitFor(() => expect(modalPanel.contains(document.activeElement)).toBe(true));
+  expect(screen.getByRole('button', { name: 'Trigger' })).not.toHaveFocus();
   expect(document.activeElement).not.toBe(document.body);
+});
+
+test('closing a drawer on top does not send focus to a trigger behind the still-open modal', async () => {
+  const { rerender } = render(stack(false, false));
+  const trigger = screen.getByRole('button', { name: 'Trigger' });
+  // The page trigger sits outside every dialog; the drawer opened below must
+  // remember it as the prior focus.
+  trigger.focus();
+  rerender(stack(true, false));
+  const modalPanel = screen.getByRole('dialog', { name: 'Tạo đơn' });
+  const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
+
+  // The trigger is still mounted, connected and focusable, yet it lives behind
+  // the modal that stays open: restoring to it would park focus on a control
+  // the user cannot see. It has to move back inside the modal instead.
+  rerender(stack(false, false));
+  await waitFor(() => expect(trigger).not.toHaveFocus());
+  expect(document.activeElement).not.toBe(document.body);
+  expect(modalPanel.contains(document.activeElement)).toBe(true);
 });
 
 test('closing the innermost of three stacked dialogs returns focus to the middle dialog', async () => {

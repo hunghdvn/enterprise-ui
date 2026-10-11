@@ -82,34 +82,54 @@ export function registerDialog(panel: () => HTMLElement | null): DialogHandle {
 }
 
 /**
+ * Moves focus into `panel`: its first control the user can reach with Tab, or
+ * the panel itself when it holds none.
+ */
+function focusPanel(panel: HTMLElement): void {
+  const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
+  (items[0] ?? panel).focus();
+}
+
+/**
  * Hands focus back when a dialog closes.
  *
  * The dialog that opened remembers what was focused before it (`prev`); focus
  * returns there when that element is still usable. When it is not — `body`
  * still holds focus because the element would be an element behind the dialog,
- * it unmounted meanwhile, or it refuses focus — focus goes to the topmost
- * dialog still open, so it never lands on the page behind a modal. Call this
- * *after* disposing the closing dialog, so the stack holds the dialogs that
- * remain.
+ * it unmounted meanwhile, it refuses focus, or it sits outside the dialog that
+ * stays open — focus goes to the topmost dialog still open, so it never lands
+ * on the page behind a modal. Call this *after* disposing the closing dialog,
+ * so the stack holds the dialogs that remain.
  */
 export function restoreFocus(prev: Element | null): void {
-  if (
+  const target =
     prev instanceof HTMLElement &&
     prev !== document.body &&
     document.contains(prev) &&
     typeof prev.focus === 'function'
-  ) {
-    prev.focus();
-    // Being in the document is not the same as being focusable: a control
-    // disabled or hidden while the stack was open silently refuses focus, and
-    // returning here would strand focus on `body`. Confirm the move actually
-    // happened, and otherwise fall through to the dialog below.
-    if (document.activeElement === prev) return;
-  }
+      ? prev
+      : null;
   const panel = topmostPanel();
-  if (!panel) return;
-  const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
-  (items[0] ?? panel).focus();
+  if (panel) {
+    // A dialog remains open, so focus has to stay inside it. Returning to the
+    // saved target is only valid when that control lives in the panel: a page
+    // trigger behind the modal may be mounted and focusable, yet focusing it
+    // would park focus outside the active dialog.
+    if (target && panel.contains(target)) {
+      target.focus();
+      // Being in the document is not the same as being focusable: a control
+      // disabled or hidden while the stack was open silently refuses focus,
+      // and returning here would strand focus on `body`. Confirm the move
+      // actually happened, and otherwise fall through to the dialog below.
+      if (document.activeElement === target) return;
+    }
+    focusPanel(panel);
+    return;
+  }
+  if (target) {
+    target.focus();
+    if (document.activeElement === target) return;
+  }
 }
 
 let bodyLocks = 0;
