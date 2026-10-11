@@ -54,10 +54,18 @@ describe('Button', () => {
   });
 
   it('applies variant and size classes', () => {
-    const { rerender } = render(<Button variant="danger" size="sm">Delete</Button>);
+    const { rerender } = render(
+      <Button variant="danger" size="sm">
+        Delete
+      </Button>,
+    );
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass(styles.danger!, styles.sm!);
 
-    rerender(<Button variant="ghost" size="lg">Cancel</Button>);
+    rerender(
+      <Button variant="ghost" size="lg">
+        Cancel
+      </Button>,
+    );
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass(styles.ghost!, styles.lg!);
   });
 
