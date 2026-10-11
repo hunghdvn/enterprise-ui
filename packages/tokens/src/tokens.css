@@ -1,30 +1,83 @@
 :root {
   color-scheme: light;
+
+  /* Brand and semantic colors */
   --eui-color-primary: #2563eb;
   --eui-color-primary-hover: #1d4ed8;
+  --eui-color-primary-active: #1e40af;
   --eui-color-primary-foreground: #ffffff;
   --eui-color-text: #172033;
   --eui-color-text-muted: #667085;
+  --eui-color-text-disabled: #98a2b3;
   --eui-color-border: #d0d5dd;
+  --eui-color-border-strong: #98a2b3;
   --eui-color-surface: #ffffff;
   --eui-color-surface-muted: #f8fafc;
+  --eui-color-surface-raised: #ffffff;
   --eui-color-danger: #b42318;
+  --eui-color-danger-surface: #fef3f2;
+  --eui-color-success: #067647;
+  --eui-color-success-surface: #ecfdf3;
+  --eui-color-warning: #b54708;
+  --eui-color-warning-surface: #fffaeb;
+  --eui-color-info: #175cd3;
+  --eui-color-info-surface: #eff8ff;
   --eui-color-focus-ring: #84adff;
+
+  /* Border radius and widths */
+  --eui-radius-none: 0;
   --eui-radius-sm: 4px;
   --eui-radius-md: 8px;
   --eui-radius-lg: 12px;
+  --eui-radius-xl: 16px;
+  --eui-radius-full: 9999px;
+  --eui-border-width: 1px;
+  --eui-border-width-strong: 2px;
+
+  /* Spacing scale (4px base) */
+  --eui-spacing-0: 0;
   --eui-spacing-1: 4px;
   --eui-spacing-2: 8px;
   --eui-spacing-3: 12px;
   --eui-spacing-4: 16px;
+  --eui-spacing-5: 20px;
   --eui-spacing-6: 24px;
+  --eui-spacing-8: 32px;
+  --eui-spacing-10: 40px;
+  --eui-spacing-12: 48px;
+  --eui-spacing-16: 64px;
+
+  /* Typography */
   --eui-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     sans-serif;
+  --eui-font-size-xs: 0.75rem;
   --eui-font-size-sm: 0.875rem;
   --eui-font-size-md: 1rem;
+  --eui-font-size-lg: 1.125rem;
+  --eui-font-size-xl: 1.25rem;
+  --eui-font-size-2xl: 1.5rem;
+  --eui-font-weight-regular: 400;
+  --eui-font-weight-medium: 500;
+  --eui-font-weight-semibold: 600;
+  --eui-font-weight-bold: 700;
+  --eui-line-height-tight: 1.25;
+  --eui-line-height-normal: 1.5;
+  --eui-line-height-relaxed: 1.75;
+
+  /* Control sizing */
   --eui-control-height-sm: 32px;
   --eui-control-height-md: 40px;
   --eui-control-height-lg: 44px;
+
+  /* Motion, layering, and focus */
+  --eui-motion-duration-fast: 120ms;
+  --eui-motion-duration-normal: 200ms;
+  --eui-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --eui-z-index-dropdown: 1000;
+  --eui-z-index-sticky: 1100;
+  --eui-z-index-overlay: 1200;
+  --eui-z-index-modal: 1300;
+  --eui-z-index-toast: 1400;
   --eui-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--eui-color-focus-ring) 45%, transparent);
 }
 
@@ -32,12 +85,23 @@
   color-scheme: dark;
   --eui-color-primary: #84adff;
   --eui-color-primary-hover: #a4c2ff;
+  --eui-color-primary-active: #c0d4ff;
   --eui-color-primary-foreground: #10234f;
   --eui-color-text: #f2f4f7;
   --eui-color-text-muted: #98a2b3;
+  --eui-color-text-disabled: #667085;
   --eui-color-border: #475467;
+  --eui-color-border-strong: #667085;
   --eui-color-surface: #101828;
   --eui-color-surface-muted: #1d2939;
+  --eui-color-surface-raised: #344054;
   --eui-color-danger: #f97066;
+  --eui-color-danger-surface: #55160c;
+  --eui-color-success: #6ce9a6;
+  --eui-color-success-surface: #053321;
+  --eui-color-warning: #fec84b;
+  --eui-color-warning-surface: #4e1d09;
+  --eui-color-info: #84caff;
+  --eui-color-info-surface: #102a56;
   --eui-color-focus-ring: #84adff;
 }

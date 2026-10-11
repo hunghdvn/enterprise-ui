@@ -3,17 +3,17 @@
   align-items: center;
   justify-content: center;
   gap: var(--eui-spacing-2);
-  border: 1px solid transparent;
+  border: var(--eui-border-width) solid transparent;
   border-radius: var(--eui-radius-md);
   font-family: var(--eui-font-family);
   font-size: var(--eui-font-size-sm);
-  font-weight: 600;
-  line-height: 1.25;
+  font-weight: var(--eui-font-weight-semibold);
+  line-height: var(--eui-line-height-tight);
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    box-shadow 120ms ease;
+    background-color var(--eui-motion-duration-fast) var(--eui-motion-easing-standard),
+    border-color var(--eui-motion-duration-fast) var(--eui-motion-easing-standard),
+    box-shadow var(--eui-motion-duration-fast) var(--eui-motion-easing-standard);
 }
 .button:focus-visible {
   outline: none;
@@ -79,6 +79,6 @@
     transition: none;
   }
   .spinner {
-    animation-duration: 1400ms;
+    animation: none;
   }
 }
