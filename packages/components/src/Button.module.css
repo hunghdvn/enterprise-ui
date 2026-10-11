@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--eui-spacing-2);
-  border: 1px solid transparent;
+  border: var(--eui-border-width) solid transparent;
   border-radius: var(--eui-radius-md);
   font-family: var(--eui-font-family);
   font-size: var(--eui-font-size-sm);
