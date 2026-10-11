@@ -2,6 +2,11 @@
   "name": "@enterprise-ui/components",
   "version": "0.1.0",
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "peerDependencies": {
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

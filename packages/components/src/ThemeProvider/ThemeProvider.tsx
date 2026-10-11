@@ -1,6 +1,8 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { Ctx, type Theme, type Density } from './ThemeContext';
 
+export { useTheme } from './ThemeContext';
+
 export function ThemeProvider({
   children,
   theme: init = 'light',
