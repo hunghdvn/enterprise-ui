@@ -36,7 +36,11 @@ describe('Checkbox', () => {
 
   it('supports disabled state and size styling', async () => {
     const user = userEvent.setup();
-    render(<Checkbox disabled size="sm">Unavailable option</Checkbox>);
+    render(
+      <Checkbox disabled size="sm">
+        Unavailable option
+      </Checkbox>,
+    );
     const checkbox = screen.getByRole('checkbox', { name: 'Unavailable option' });
 
     expect(checkbox).toBeDisabled();
