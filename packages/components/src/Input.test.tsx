@@ -23,7 +23,7 @@ describe('Input', () => {
 
     const input = screen.getByRole('textbox', { name: 'Email' });
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(input).toHaveClass(styles.invalid);
+    expect(input).toHaveClass(styles.invalid!);
     expect(input).toHaveAttribute('aria-describedby', 'email-error');
     expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
   });
