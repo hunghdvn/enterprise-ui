@@ -57,8 +57,7 @@ a {
 .hero::before {
   position: absolute;
   z-index: -2;
-  background:
-    radial-gradient(ellipse at 82% 14%, rgb(56 189 248 / 28%), transparent 36%),
+  background: radial-gradient(ellipse at 82% 14%, rgb(56 189 248 / 28%), transparent 36%),
     linear-gradient(118deg, #0c4a6e 0%, #075985 52%, #0369a1 100%);
   content: '';
   inset: 0;
@@ -676,8 +675,7 @@ a {
 }
 
 [data-eui-theme='dark'] .hero::before {
-  background:
-    radial-gradient(ellipse at 82% 14%, rgb(56 189 248 / 16%), transparent 36%),
+  background: radial-gradient(ellipse at 82% 14%, rgb(56 189 248 / 16%), transparent 36%),
     linear-gradient(118deg, #020617 0%, #0c2438 55%, #0c4a6e 100%);
 }
 

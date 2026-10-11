@@ -324,12 +324,16 @@ export function App() {
             <article className="principle">
               <span className="principle__number">02</span>
               <h3>Structured density</h3>
-              <p>Spacing and control sizes support both compact data views and comfortable forms.</p>
+              <p>
+                Spacing and control sizes support both compact data views and comfortable forms.
+              </p>
             </article>
             <article className="principle">
               <span className="principle__number">03</span>
               <h3>Accessible contrast</h3>
-              <p>Visible focus, native semantics and readable contrast are part of the foundation.</p>
+              <p>
+                Visible focus, native semantics and readable contrast are part of the foundation.
+              </p>
             </article>
           </div>
         </section>
