@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Drawer } from '../Drawer/Drawer';
 import { Modal } from './Modal';
 
@@ -153,6 +153,52 @@ test('only the topmost stacked dialog closes on Escape', () => {
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(onCloseDrawer).toHaveBeenCalledTimes(1);
   expect(onCloseModal).not.toHaveBeenCalled();
+});
+
+test('stacked dialogs keep focus in the topmost dialog', async () => {
+  render(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button>Lưu</button>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <span>Tùy chọn lọc</span>
+      </Drawer>
+    </Modal>,
+  );
+  const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  const modalClose = screen.getAllByRole('button', { name: 'Đóng' })[0];
+
+  // The drawer on top owns initial focus: the modal's own timer fired later
+  // must not pull focus back onto the outer panel's close button.
+  await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
+  expect(modalClose).not.toHaveFocus();
+});
+
+test('stacked dialogs keep Tab trapping in the topmost dialog', () => {
+  render(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button>Lưu</button>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <span>Tùy chọn lọc</span>
+      </Drawer>
+    </Modal>,
+  );
+  const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  const modalClose = screen.getAllByRole('button', { name: 'Đóng' })[0];
+  const drawerClose = within(drawerPanel).getByRole('button', { name: 'Đóng' });
+
+  // The drawer's close button is the last tabbable control of the outer modal
+  // panel (the drawer is nested at the end of the modal body), so with an
+  // ungated Tab handler the underlying modal wraps it to its first control
+  // and steals focus out of the drawer.
+  drawerClose.focus();
+  expect(drawerPanel.contains(drawerClose)).toBe(true);
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(modalClose).not.toHaveFocus();
+  expect(drawerPanel.contains(document.activeElement)).toBe(true);
+
+  // Shift+Tab wraps inside the drawer panel too.
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(drawerPanel.contains(document.activeElement)).toBe(true);
 });
 
 test('body scroll stays locked until the last stacked dialog closes', () => {

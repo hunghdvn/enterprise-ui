@@ -25,6 +25,9 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
     const dialog = registerDialog(() => panelRef.current);
     const releaseScroll = lockBodyScroll();
     const timer = window.setTimeout(() => {
+      // The topmost dialog claims initial focus; one stacked under must not
+      // steal it once its own (later-running) timer fires.
+      if (!dialog.isTop()) return;
       const items = panel
         ? Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable)
         : [];
@@ -38,6 +41,9 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         return;
       }
       if (e.key === 'Tab' && panel) {
+        // The topmost dialog owns Tab containment; a dialog stacked under it
+        // keeps its listener silent so both cannot fight over focus.
+        if (!dialog.isTop()) return;
         const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
         if (items.length === 0) {
           e.preventDefault();
