@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { designTokens } from '../../tokens/src/index';
 
 const css = readFileSync(new URL('../../tokens/src/tokens.css', import.meta.url), 'utf8');
+const buttonCss = readFileSync(new URL('./Button.module.css', import.meta.url), 'utf8');
+const inputCss = readFileSync(new URL('./Input.module.css', import.meta.url), 'utf8');
 
 function flattenTokenValues(value: unknown): string[] {
   if (typeof value === 'string') return [value];
@@ -34,14 +36,20 @@ describe('design tokens', () => {
       '--eui-color-warning-surface',
       '--eui-color-info-surface',
     ]) {
-      expect(darkTheme, `Expected ${property} in the dark theme`).toMatch(
-        new RegExp(`\\\\${property}\\\\s*:`),
-      );
+      expect(darkTheme, `Expected ${property} in the dark theme`).toContain(`${property}:`);
     }
   });
 
   it('disables component motion for reduced-motion preferences', () => {
-    const reducedMotionBlocks = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)/g) ?? [];
-    expect(reducedMotionBlocks).toHaveLength(0);
+    for (const [name, stylesheet] of [
+      ['Button', buttonCss],
+      ['Input', inputCss],
+    ]) {
+      expect(stylesheet, `${name} should respect reduced motion`).toContain(
+        '@media (prefers-reduced-motion: reduce)',
+      );
+      expect(stylesheet, `${name} transitions should be disabled`).toContain('transition: none;');
+    }
+    expect(buttonCss).toContain('animation: none;');
   });
 });
