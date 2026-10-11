@@ -75,6 +75,8 @@ export function Table<T extends object>({
     onSelect(Array.from(next));
   };
 
+  const colCount = columns.length + (selectable ? 1 : 0);
+
   const gridTemplateColumns = selectable
     ? `36px repeat(${columns.length}, 1fr)`
     : `repeat(${columns.length}, 1fr)`;
@@ -85,8 +87,8 @@ export function Table<T extends object>({
         <div
           className={styles.grid}
           role="grid"
-          aria-rowcount={data.length + 1}
-          aria-colcount={columns.length + (selectable ? 1 : 0)}
+          aria-rowcount={data.length + 1 + (summary ? 1 : 0)}
+          aria-colcount={colCount}
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
             {selectable && (
@@ -184,7 +186,7 @@ export function Table<T extends object>({
           })}
           {summary && (
             <div className={styles.foot} role="row">
-              <span className={styles.footText} role="gridcell">
+              <span className={styles.footText} role="gridcell" aria-colspan={colCount}>
                 {summary}
               </span>
             </div>

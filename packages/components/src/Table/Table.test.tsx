@@ -161,6 +161,52 @@ test('summary footer is a grid row with a grid cell', () => {
   expect(within(footer).getByRole('gridcell')).toBeInTheDocument();
 });
 
+test('aria-rowcount includes the summary row, which spans every column', () => {
+  const threeCols = [
+    { key: 'code', title: 'Mã đơn' },
+    { key: 'customer', title: 'Khách hàng' },
+    { key: 'total', title: 'Giá trị', align: 'right' as const },
+  ];
+  const threeRows = [
+    { code: 'SO-1', customer: 'Acme', total: '₫ 300M' },
+    { code: 'SO-2', customer: 'Globex', total: '₫ 300M' },
+    { code: 'SO-3', customer: 'Initech', total: '₫ 246M' },
+  ];
+  const { rerender } = render(
+    <Table columns={threeCols} data={threeRows} summary={<span>Tổng 846M</span>} />,
+  );
+  const grid = screen.getByRole('grid');
+  expect(grid).toHaveAttribute('aria-rowcount', '5');
+  expect(grid).toHaveAttribute('aria-colcount', '3');
+
+  const rows = within(grid).getAllByRole('row');
+  expect(rows).toHaveLength(5);
+  const footer = rows[rows.length - 1];
+  expect(footer).toHaveTextContent('Tổng 846M');
+  expect(within(footer).getByRole('gridcell')).toHaveAttribute('aria-colspan', '3');
+
+  rerender(<Table columns={threeCols} data={threeRows} />);
+  expect(screen.getByRole('grid')).toHaveAttribute('aria-rowcount', '4');
+});
+
+test('summary colspan includes the checkbox column when selectable', () => {
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1', total: '₫ 10M' }]}
+      selectedKeys={[]}
+      onSelect={() => {}}
+      summary={<span>Tổng: 1 đơn</span>}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  expect(grid).toHaveAttribute('aria-colcount', '3');
+  expect(grid).toHaveAttribute('aria-rowcount', '3');
+  const rows = within(grid).getAllByRole('row');
+  const footer = rows[rows.length - 1];
+  expect(within(footer).getByRole('gridcell')).toHaveAttribute('aria-colspan', '3');
+});
+
 test('supports custom render and right alignment', () => {
   render(
     <Table
