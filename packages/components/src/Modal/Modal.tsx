@@ -11,6 +11,22 @@ export interface ModalProps {
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
+function isTabbable(el: HTMLElement): boolean {
+  // :disabled matches native disabled + fieldset-disabled descendants.
+  if (el.matches(':disabled')) return false;
+  if (el.tabIndex < 0) return false;
+  // getClientRects() is empty for display:none / hidden / detached controls in
+  // real browsers. jsdom has no layout (every rect list is empty), so fall back
+  // to computed style there — visible controls stay tabbable while
+  // display:none / visibility:hidden / hidden controls are still skipped.
+  if (el.getClientRects().length === 0) {
+    const cs = window.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    if (el.hasAttribute('hidden')) return false;
+  }
+  return true;
+}
+
 export function Modal({ open, onClose, title, children }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<Element | null>(null);
@@ -24,8 +40,10 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     prevFocus.current = document.activeElement;
     const panel = panelRef.current;
     const timer = window.setTimeout(() => {
-      const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-      (first ?? panel)?.focus();
+      const items = panel
+        ? Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable)
+        : [];
+      (items[0] ?? panel)?.focus();
     }, 0);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -34,19 +52,25 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         return;
       }
       if (e.key === 'Tab' && panel) {
-        const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-          (el) => !el.hasAttribute('disabled'),
-        );
+        const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
         if (items.length === 0) {
           e.preventDefault();
           return;
         }
         const first = items[0];
         const last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
+        const active = document.activeElement as HTMLElement | null;
+        if (!active || !panel.contains(active)) {
+          // Focus escaped the panel (e.g. Tab from the browser chrome or a
+          // control outside the dialog): pull it back inside (containment).
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+          return;
+        }
+        if (e.shiftKey && active === first) {
           e.preventDefault();
           last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+        } else if (!e.shiftKey && active === last) {
           e.preventDefault();
           first.focus();
         }

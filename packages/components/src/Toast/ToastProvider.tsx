@@ -39,13 +39,13 @@ export function ToastProvider({
 }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
-  const timers = useRef<number[]>([]);
+  const timers = useRef(new Map<number, number>());
 
   useEffect(() => {
-    const ids = timers.current;
+    const queued = timers.current;
     return () => {
-      ids.forEach((t) => window.clearTimeout(t));
-      ids.length = 0;
+      queued.forEach((timer) => window.clearTimeout(timer));
+      queued.clear();
     };
   }, []);
 
@@ -55,9 +55,10 @@ export function ToastProvider({
       const id = idRef.current;
       setToasts((prev) => [...prev, { id, message, tone }]);
       const timer = window.setTimeout(() => {
+        timers.current.delete(id);
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, duration);
-      timers.current.push(timer);
+      timers.current.set(id, timer);
     },
     [duration],
   );
@@ -72,6 +73,11 @@ export function ToastProvider({
   );
 
   const dismiss = useCallback((id: number) => {
+    const timer = timers.current.get(id);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      timers.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
