@@ -400,10 +400,18 @@ a {
   border-radius: var(--eui-radius-full);
 }
 
-.semantic-item__bar--primary { background: #0369a1; }
-.semantic-item__bar--success { background: #15803d; }
-.semantic-item__bar--warning { background: #b45309; }
-.semantic-item__bar--danger { background: #b42318; }
+.semantic-item__bar--primary {
+  background: #0369a1;
+}
+.semantic-item__bar--success {
+  background: #15803d;
+}
+.semantic-item__bar--warning {
+  background: #b45309;
+}
+.semantic-item__bar--danger {
+  background: #b42318;
+}
 
 .semantic-item > div {
   display: grid;
