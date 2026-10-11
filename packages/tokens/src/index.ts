@@ -26,6 +26,18 @@ export const designTokens = {
     infoSurface: 'var(--eui-color-info-surface)',
     focusRing: 'var(--eui-color-focus-ring)',
   },
+  border: {
+    width: 'var(--eui-border-width)',
+    widthStrong: 'var(--eui-border-width-strong)',
+  },
+  control: {
+    heightSm: 'var(--eui-control-height-sm)',
+    heightMd: 'var(--eui-control-height-md)',
+    heightLg: 'var(--eui-control-height-lg)',
+  },
+  shadow: {
+    focus: 'var(--eui-shadow-focus)',
+  },
   radius: {
     none: 'var(--eui-radius-none)',
     sm: 'var(--eui-radius-sm)',
