@@ -45,24 +45,34 @@ export interface DialogHandle {
 
 const openDialogs: { token: symbol; panel: () => HTMLElement | null }[] = [];
 
+/**
+ * The panel painted on top: the one no other open panel follows in document
+ * order. Same z-index everywhere, so document order decides stacking — and
+ * which dialog owns Escape — while registration order cannot (React mounts
+ * children before parents). Panels that unmounted without disposing report
+ * `null` and are ignored.
+ */
+function topmostPanel(): HTMLElement | null {
+  let top: HTMLElement | null = null;
+  for (const entry of openDialogs) {
+    const el = entry.panel();
+    if (!el) continue;
+    if (top === null || top.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
+      top = el;
+    }
+  }
+  return top;
+}
+
 export function registerDialog(panel: () => HTMLElement | null): DialogHandle {
   const token = Symbol('dialog');
   openDialogs.push({ token, panel });
   return {
     isTop: () => {
       const mine = panel();
-      // Same z-index everywhere, so the last dialog in document order is the
-      // one painted on top and the one that owns Escape. (Effect order cannot
-      // answer this: React mounts children before parents.)
+      // A dialog is top iff its panel is the topmost one (see topmostPanel).
       if (!mine) return false;
-      return openDialogs.every((other) => {
-        const el = other.panel();
-        return (
-          !el ||
-          el === mine ||
-          !(mine.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
-        );
-      });
+      return topmostPanel() === mine;
     },
     dispose: () => {
       const at = openDialogs.findIndex((d) => d.token === token);
@@ -77,9 +87,10 @@ export function registerDialog(panel: () => HTMLElement | null): DialogHandle {
  * The dialog that opened remembers what was focused before it (`prev`); focus
  * returns there when that element is still usable. When it is not — `body`
  * still holds focus because the element would be an element behind the dialog,
- * or it unmounted meanwhile — focus goes to the topmost dialog still open, so
- * it never lands on the page behind a modal. Call this *after* disposing the
- * closing dialog, so the stack holds the dialogs that remain.
+ * it unmounted meanwhile, or it refuses focus — focus goes to the topmost
+ * dialog still open, so it never lands on the page behind a modal. Call this
+ * *after* disposing the closing dialog, so the stack holds the dialogs that
+ * remain.
  */
 export function restoreFocus(prev: Element | null): void {
   if (
@@ -89,10 +100,13 @@ export function restoreFocus(prev: Element | null): void {
     typeof prev.focus === 'function'
   ) {
     prev.focus();
-    return;
+    // Being in the document is not the same as being focusable: a control
+    // disabled or hidden while the stack was open silently refuses focus, and
+    // returning here would strand focus on `body`. Confirm the move actually
+    // happened, and otherwise fall through to the dialog below.
+    if (document.activeElement === prev) return;
   }
-  const remaining = openDialogs[openDialogs.length - 1];
-  const panel = remaining?.panel();
+  const panel = topmostPanel();
   if (!panel) return;
   const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable);
   (items[0] ?? panel).focus();

@@ -245,3 +245,97 @@ test('body scroll stays locked until the last stacked dialog closes', () => {
   );
   expect(document.body.style.overflow).toBe('');
 });
+
+test('returns focus into the still-open dialog when the saved target turns unfocusable', async () => {
+  const { rerender } = render(<button>Trigger</button>);
+  // Focus the trigger so the dialogs opened below capture it as prior focus.
+  screen.getByRole('button', { name: 'Trigger' }).focus();
+  rerender(
+    <>
+      <button>Trigger</button>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+        <Drawer open onClose={() => {}} title="Bộ lọc">
+          <span>Tùy chọn lọc</span>
+        </Drawer>
+      </Modal>
+    </>,
+  );
+  const modalPanel = screen.getByRole('dialog', { name: 'Tạo đơn' });
+  const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  // The drawer on top holds focus while the stack is open.
+  await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
+
+  // The saved target turns unfocusable while the stack is open: still in the
+  // document, but disabled — `focus()` on it is a no-op.
+  rerender(
+    <>
+      <button disabled>Trigger</button>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+        <Drawer open onClose={() => {}} title="Bộ lọc">
+          <span>Tùy chọn lọc</span>
+        </Drawer>
+      </Modal>
+    </>,
+  );
+
+  // Closing the drawer must not strand focus on `body`: it has to hand focus
+  // into the modal still open underneath.
+  rerender(
+    <>
+      <button disabled>Trigger</button>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+        <Drawer open={false} onClose={() => {}} title="Bộ lọc">
+          <span>Tùy chọn lọc</span>
+        </Drawer>
+      </Modal>
+    </>,
+  );
+  await waitFor(() => expect(modalPanel.contains(document.activeElement)).toBe(true));
+  expect(document.activeElement).not.toBe(document.body);
+});
+
+test('closing the innermost of three stacked dialogs returns focus to the middle dialog', async () => {
+  const { rerender } = render(
+    <Modal open onClose={() => {}} title="Ngoài cùng">
+      <button>Lưu</button>
+      <Drawer open onClose={() => {}} title="Ở giữa">
+        <span>Lọc nâng cao</span>
+        <Modal open onClose={() => {}} title="Trong cùng">
+          <button>Xác nhận</button>
+        </Modal>
+      </Drawer>
+    </Modal>,
+  );
+  const outerPanel = screen.getByRole('dialog', { name: 'Ngoài cùng' });
+  const drawerPanel = screen.getByRole('dialog', { name: 'Ở giữa' });
+
+  // The innermost modal (last panel in document order) owns focus.
+  const innerPanel = screen.getByRole('dialog', { name: 'Trong cùng' });
+  await waitFor(() => expect(innerPanel.contains(document.activeElement)).toBe(true));
+
+  // Close only the innermost dialog; the middle drawer and the outer modal
+  // stay open. Effects register child-first, so registration order is
+  // [inner, drawer, outer] — a "last registered wins" fallback would focus
+  // the OUTER modal, and the innermost dialog captured `body` as prior focus,
+  // so focusing must land inside the MIDDLE dialog panel instead.
+  rerender(
+    <Modal open onClose={() => {}} title="Ngoài cùng">
+      <button>Lưu</button>
+      <Drawer open onClose={() => {}} title="Ở giữa">
+        <span>Lọc nâng cao</span>
+        <Modal open={false} onClose={() => {}} title="Trong cùng">
+          <button>Xác nhận</button>
+        </Modal>
+      </Drawer>
+    </Modal>,
+  );
+  const drawerClose = within(drawerPanel).getByRole('button', { name: 'Đóng' });
+  const outerClose = within(outerPanel).getAllByRole('button', { name: 'Đóng' })[0];
+  await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
+  expect(drawerClose).toHaveFocus();
+  expect(outerClose).not.toHaveFocus();
+  expect(document.activeElement).not.toBe(document.body);
+});
