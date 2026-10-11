@@ -74,6 +74,65 @@ test('selects rows via checkboxes', () => {
   expect(onSelect).toHaveBeenCalledWith([]);
 });
 
+test('select-all merges the current page into the selection', () => {
+  const onSelect = vi.fn();
+  const data = [
+    { code: 'SO-1', total: '₫ 10M' },
+    { code: 'SO-2', total: '₫ 20M' },
+  ];
+  const { rerender } = render(
+    <Table columns={cols} data={data} selectedKeys={['SO-9']} onSelect={onSelect} />,
+  );
+  // 'SO-9' belongs to another page and is not on this one — it must survive.
+  fireEvent.click(screen.getByRole('checkbox', { name: /chọn tất cả/i }));
+  expect(onSelect).toHaveBeenLastCalledWith(['SO-9', 'SO-1', 'SO-2']);
+  rerender(
+    <Table
+      columns={cols}
+      data={data}
+      selectedKeys={['SO-9', 'SO-1', 'SO-2']}
+      onSelect={onSelect}
+    />,
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: /chọn tất cả/i }));
+  // Unchecking removes this page's keys only, not the other page's.
+  expect(onSelect).toHaveBeenLastCalledWith(['SO-9']);
+});
+
+// `T extends object`: consumers hand us interface row types, not index
+// signatures — the constraint must not reject them and key extraction must
+// still work through the `key`/`code`/`id` fallback.
+interface Order {
+  code: string;
+  customer: string;
+}
+
+test('accepts an interface row type', () => {
+  const orders: Order[] = [
+    { code: 'SO-1', customer: 'Acme' },
+    { code: 'SO-2', customer: 'Globex' },
+  ];
+  render(
+    <Table<Order> columns={[...cols, { key: 'customer', title: 'Khách hàng' }]} data={orders} />,
+  );
+  expect(screen.getByText('SO-1')).toBeInTheDocument();
+  expect(screen.getByText('Globex')).toBeInTheDocument();
+});
+
+test('falls back to a rowKey interface field for keys', () => {
+  const onSelect = vi.fn();
+  render(
+    <Table<Order>
+      columns={cols}
+      data={[{ code: 'SO-1', customer: 'Acme' }]}
+      selectedKeys={[]}
+      onSelect={onSelect}
+    />,
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: /SO-1/i }));
+  expect(onSelect).toHaveBeenCalledWith(['SO-1']);
+});
+
 test('shows loading state and summary footer', () => {
   const { rerender } = render(<Table columns={cols} data={[]} status="loading" />);
   expect(screen.getByText(/Đang tải/i)).toBeInTheDocument();

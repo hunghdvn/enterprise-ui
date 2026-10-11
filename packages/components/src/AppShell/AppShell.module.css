@@ -102,6 +102,9 @@
   .item > span:last-child {
     display: none;
   }
+  .brandText {
+    display: none;
+  }
   .count {
     display: none;
   }

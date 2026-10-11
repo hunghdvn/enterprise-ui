@@ -27,6 +27,14 @@
 .select[aria-invalid='true'] {
   border-color: var(--danger);
 }
+.select:disabled,
+.select:disabled:hover,
+.select:disabled:focus {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
 .error {
   color: var(--danger);
   font-size: 12px;

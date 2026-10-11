@@ -2,7 +2,7 @@ import { Button } from '../Button/Button';
 import styles from './Table.module.css';
 import type { TableProps } from './types';
 
-export function Table<T extends Record<string, unknown>>({
+export function Table<T extends object>({
   columns,
   data,
   sortKey,
@@ -44,7 +44,8 @@ export function Table<T extends Record<string, unknown>>({
   const selected: string[] = selectedKeys ?? [];
   const keyOf = (row: T, index: number): string => {
     if (rowKey) return rowKey(row);
-    const raw: unknown = row['key'] ?? row['code'] ?? row['id'];
+    const fields = row as Record<string, unknown>;
+    const raw: unknown = fields['key'] ?? fields['code'] ?? fields['id'];
     if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
     return String(index);
   };
@@ -53,9 +54,18 @@ export function Table<T extends Record<string, unknown>>({
   const allSelected = selectable && data.length > 0 && selectedCount === data.length;
   const someSelected = selectedCount > 0 && selectedCount < allKeys.length;
 
+  // Select-all is page-scoped and merges: it unions the current page's keys
+  // with what is already selected, and unchecking removes only this page's
+  // keys — a selection made on another page survives. Row toggles behave the
+  // same way, so both paths keep the selection set global.
   const toggleAll = () => {
     if (!onSelect) return;
-    onSelect(allSelected ? [] : allKeys);
+    const next = new Set(selected);
+    for (const k of allKeys) {
+      if (allSelected) next.delete(k);
+      else next.add(k);
+    }
+    onSelect(Array.from(next));
   };
   const toggleOne = (k: string) => {
     if (!onSelect) return;
@@ -80,7 +90,11 @@ export function Table<T extends Record<string, unknown>>({
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
             {selectable && (
-              <div className={styles.h} role="columnheader" data-align="center">
+              <div
+                className={`${styles.h} ${styles.cellSelect}`}
+                role="columnheader"
+                data-align="center"
+              >
                 <input
                   type="checkbox"
                   aria-label="Chọn tất cả"
@@ -138,7 +152,11 @@ export function Table<T extends Record<string, unknown>>({
                 style={{ gridTemplateColumns }}
               >
                 {selectable && (
-                  <div className={styles.c} role="gridcell" data-align="center">
+                  <div
+                    className={`${styles.c} ${styles.cellSelect}`}
+                    role="gridcell"
+                    data-align="center"
+                  >
                     <input
                       type="checkbox"
                       aria-label={`Chọn dòng ${k}`}
@@ -149,7 +167,7 @@ export function Table<T extends Record<string, unknown>>({
                   </div>
                 )}
                 {columns.map((c) => {
-                  const value: unknown = row[c.key];
+                  const value: unknown = (row as Record<string, unknown>)[c.key];
                   return (
                     <div
                       key={c.key}

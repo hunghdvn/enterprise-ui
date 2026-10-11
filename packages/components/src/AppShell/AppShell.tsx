@@ -13,7 +13,8 @@ export function AppShell({
     <div className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Primary">
         <div className={styles.brand}>
-          <span className={styles.logo}>E</span> Enterprise
+          <span className={styles.logo}>E</span>{' '}
+          <span className={styles.brandText}>Enterprise</span>
         </div>
         <nav>
           {sidebar.map((i) => (

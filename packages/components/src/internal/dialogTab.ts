@@ -98,8 +98,10 @@ function focusPanel(panel: HTMLElement): void {
  * still holds focus because the element would be an element behind the dialog,
  * it unmounted meanwhile, it refuses focus, or it sits outside the dialog that
  * stays open — focus goes to the topmost dialog still open, so it never lands
- * on the page behind a modal. Call this *after* disposing the closing dialog,
- * so the stack holds the dialogs that remain.
+ * on the page behind a modal. Focus that already lives in that panel is left
+ * alone: moving it would pull the user out of the control they are in. Call
+ * this *after* disposing the closing dialog, so the stack holds the dialogs
+ * that remain.
  */
 export function restoreFocus(prev: Element | null): void {
   const target =
@@ -115,6 +117,7 @@ export function restoreFocus(prev: Element | null): void {
     // saved target is only valid when that control lives in the panel: a page
     // trigger behind the modal may be mounted and focusable, yet focusing it
     // would park focus outside the active dialog.
+    if (panel.contains(document.activeElement)) return;
     if (target && panel.contains(target)) {
       target.focus();
       // Being in the document is not the same as being focusable: a control

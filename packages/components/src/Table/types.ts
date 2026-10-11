@@ -20,7 +20,17 @@ export interface TableProps<T> {
   sortKey?: string;
   sortDir?: SortDir;
   onSort?: (key: string) => void;
+  /**
+   * Selection is **global** while every interaction with it is **page-scoped**:
+   * the table only ever sees the rows of the page it renders (`data`), so a
+   * row toggle adds/removes that row's key, select-all *unions* the current
+   * page's keys into the set, and unchecking select-all removes only the
+   * current page's keys. Keys selected on other pages are preserved, which is
+   * why callers must keep the whole selection in state and pass it back —
+   * a selection reduced to the visible page would silently drop the rest.
+   */
   selectedKeys?: string[];
+  /** Receives the full next selection (not just the page's delta). */
   onSelect?: (keys: string[]) => void;
   /**
    * Derives a stable React key for a row. Required when data has no unique

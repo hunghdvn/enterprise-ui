@@ -8,6 +8,11 @@ test('renders input and sets aria-invalid on error', () => {
   expect(screen.getByText('Bắt buộc')).toBeInTheDocument();
 });
 
+test('renders disabled input', () => {
+  render(<Input aria-label="Mã đơn" disabled />);
+  expect(screen.getByLabelText('Mã đơn')).toBeDisabled();
+});
+
 test('links the error span id via aria-describedby and keeps explicit id', () => {
   render(<Input id="order-code" aria-label="Mã đơn" error="Bắt buộc" />);
   const input = screen.getByLabelText('Mã đơn');

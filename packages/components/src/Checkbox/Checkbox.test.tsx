@@ -8,6 +8,11 @@ test('renders label and reflects checked', () => {
   expect(screen.getByText('Đồng ý')).toBeInTheDocument();
 });
 
+test('renders disabled checkbox', () => {
+  render(<Checkbox disabled>Đồng ý</Checkbox>);
+  expect(screen.getByRole('checkbox')).toBeDisabled();
+});
+
 test('checked prop and onChange', () => {
   const fn = vi.fn();
   render(

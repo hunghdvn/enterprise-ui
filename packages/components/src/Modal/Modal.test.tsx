@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Drawer } from '../Drawer/Drawer';
 import { Modal } from './Modal';
 
@@ -42,6 +42,49 @@ test('renders dialog, closes on Esc and overlay, returns focus', () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByTestId('modal-overlay'));
   expect(onClose).toHaveBeenCalledTimes(2);
+});
+
+test('a press that starts inside the panel does not close on the overlay', () => {
+  const onClose = vi.fn();
+  render(
+    <Modal open onClose={onClose} title="Tạo đơn">
+      <button>Lưu</button>
+    </Modal>,
+  );
+  const overlay = screen.getByTestId('modal-overlay');
+  const save = screen.getByRole('button', { name: 'Lưu' });
+
+  // Pressing a control and releasing on the overlay still fires a click whose
+  // target is the overlay (its nearest common ancestor with the press target):
+  // only where the press started may decide whether the dialog closes.
+  fireEvent.mouseDown(save);
+  fireEvent.mouseUp(overlay);
+  fireEvent.click(overlay);
+  expect(onClose).not.toHaveBeenCalled();
+
+  // A press that starts on the overlay itself does close.
+  fireEvent.mouseDown(overlay);
+  fireEvent.click(overlay);
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('a control focused with autoFocus keeps focus', async () => {
+  render(
+    <Modal open onClose={() => {}} title="Tạo đơn">
+      <button autoFocus>Đầu</button>
+      <button>Sau</button>
+    </Modal>,
+  );
+  const auto = screen.getByRole('button', { name: 'Đầu' });
+  const close = screen.getByRole('button', { name: 'Đóng' });
+  await waitFor(() => expect(auto).toHaveFocus());
+  // Run past the mount timer: it must not yank focus back to the first control
+  // and override the control the caller asked to focus with autoFocus.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(auto).toHaveFocus();
+  expect(close).not.toHaveFocus();
 });
 
 test('focus trap wraps, skips hidden controls, pulls outside focus inside', async () => {
@@ -93,6 +136,33 @@ test('focus trap wraps, skips hidden controls, pulls outside focus inside', asyn
   one.focus();
   fireEvent.keyDown(document, { key: 'Tab' });
   expect(one).toHaveFocus();
+});
+
+test('Tab contained when the panel itself holds focus', async () => {
+  render(
+    <>
+      <button>Outside</button>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Một</button>
+        <button>Hai</button>
+      </Modal>
+    </>,
+  );
+  const panel = screen.getByRole('dialog', { name: 'Tạo đơn' });
+  const close = screen.getByRole('button', { name: 'Đóng' });
+  const two = screen.getByRole('button', { name: 'Hai' });
+  await waitFor(() => expect(close).toHaveFocus());
+
+  // Clicking the panel padding focuses the panel itself. It is neither the
+  // first nor the last control, so only the escape check keeps Tab in.
+  panel.focus();
+  expect(panel).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(two).toHaveFocus();
+
+  panel.focus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(close).toHaveFocus();
 });
 
 test('focus trap ignores controls hidden by an ancestor wrapper', async () => {
@@ -343,4 +413,40 @@ test('closing the innermost of three stacked dialogs returns focus to the middle
   expect(drawerClose).toHaveFocus();
   expect(outerClose).not.toHaveFocus();
   expect(document.activeElement).not.toBe(document.body);
+});
+
+test('closing a parent dialog leaves focus where the stacked dialog already has it', async () => {
+  const { rerender } = render(
+    <>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+      </Modal>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <button>Một</button>
+        <button>Hai</button>
+      </Drawer>
+    </>,
+  );
+  const drawerPanel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  const two = within(drawerPanel).getByRole('button', { name: 'Hai' });
+  // The drawer on top holds focus; park it on a control that is not its first.
+  await waitFor(() => expect(drawerPanel.contains(document.activeElement)).toBe(true));
+  two.focus();
+
+  // Closing the modal underneath: focus already lives inside the dialog that
+  // stays open, so moving it to that panel's first control would yank the user
+  // out of the control they are working in.
+  rerender(
+    <>
+      <Modal open={false} onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+      </Modal>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <button>Một</button>
+        <button>Hai</button>
+      </Drawer>
+    </>,
+  );
+  expect(two).toHaveFocus();
+  expect(drawerPanel.contains(document.activeElement)).toBe(true);
 });

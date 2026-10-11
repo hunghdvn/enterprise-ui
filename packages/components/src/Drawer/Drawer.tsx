@@ -20,6 +20,12 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<Element | null>(null);
   const onCloseRef = useRef(onClose);
+  // Whether the pointer press that ends under the overlay started on it. A
+  // press begun on a control inside the panel and released on the overlay
+  // still fires a click on the overlay (its nearest common ancestor with the
+  // panel), so remembering the press target is the only way to tell that drag
+  // from a genuine click on the backdrop.
+  const pressOnOverlay = useRef(true);
   useEffect(() => {
     onCloseRef.current = onClose;
   });
@@ -34,6 +40,9 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
       // The topmost dialog claims initial focus; one stacked under must not
       // steal it once its own (later-running) timer fires.
       if (!dialog.isTop()) return;
+      // A control React already focused keeps it (autoFocus on a child): the
+      // caller chose where focus belongs, so the timer must not override it.
+      if (panel?.contains(document.activeElement)) return;
       const items = panel
         ? Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(isTabbable)
         : [];
@@ -58,9 +67,11 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         const first = items[0];
         const last = items[items.length - 1];
         const active = document.activeElement as HTMLElement | null;
-        if (!active || !panel.contains(active)) {
-          // Focus escaped the panel (e.g. Tab from the browser chrome or a
-          // control outside the dialog): pull it back inside (containment).
+        if (!active || active === panel || !panel.contains(active)) {
+          // Focus escaped the panel — the panel itself has it (clicking the
+          // padding gives a tabIndex=-1 panel focus), focus sits outside the
+          // dialog, or nothing has focus yet: pull it back inside so Tab never
+          // walks onto the page behind the dialog.
           e.preventDefault();
           (e.shiftKey ? last : first).focus();
           return;
@@ -89,7 +100,18 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
 
   if (!open) return null;
   return (
-    <div className={styles.overlay} data-testid="drawer-overlay" onClick={onClose}>
+    <div
+      className={styles.overlay}
+      data-testid="drawer-overlay"
+      onMouseDown={(e) => {
+        pressOnOverlay.current = e.target === e.currentTarget;
+      }}
+      onClick={() => {
+        // The panel stops propagation on its own clicks; the overlay closes
+        // only for a press that started on the backdrop itself.
+        if (pressOnOverlay.current) onClose();
+      }}
+    >
       <div
         ref={panelRef}
         role="dialog"

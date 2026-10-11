@@ -24,6 +24,8 @@ const must = [
   '--row-height',
   '--row-hover-bg',
   '--row-selected-bg',
+  '--row-selected-marker: #1e47c4',
+  '--row-selected-marker: #60a5fa',
   '--action-text',
   '--nav-active-bg',
   '--scrim',

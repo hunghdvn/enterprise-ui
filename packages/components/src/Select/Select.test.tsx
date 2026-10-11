@@ -12,6 +12,15 @@ test('renders options', () => {
   expect(screen.getByText('A')).toBeInTheDocument();
 });
 
+test('renders disabled select', () => {
+  render(
+    <Select aria-label="Kho" disabled>
+      <option value="">Chọn</option>
+    </Select>,
+  );
+  expect(screen.getByLabelText('Kho')).toBeDisabled();
+});
+
 test('sets aria-invalid and shows error', () => {
   render(
     <Select aria-label="Kho" error="Bắt buộc">

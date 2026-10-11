@@ -12,6 +12,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      type="button"
       data-variant={variant}
       data-size={size}
       disabled={disabled || loading}

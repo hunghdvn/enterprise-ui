@@ -112,3 +112,55 @@ test('does not nest labels when the child renders its own', () => {
   expect(screen.getByRole('checkbox', { name: 'Tôi đồng ý' })).toBeInTheDocument();
   expect(screen.getByText('Đồng ý điều khoản')).toBeInTheDocument();
 });
+
+test('exposes the hint as the control description and keeps it out of the label', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn" hint="Định dạng SO-2024-0001">
+        <input />
+      </Field>
+    </Form>,
+  );
+  // The label element no longer wraps the control, so its accessible name is
+  // the label text alone — the hint cannot leak into it.
+  const input = screen.getByLabelText('Mã đơn');
+  expect(input.tagName).toBe('INPUT');
+  const hint = screen.getByText('Định dạng SO-2024-0001');
+  expect(hint.id).not.toBe('');
+  const describedBy = input.getAttribute('aria-describedby') ?? '';
+  expect(describedBy.split(' ')).toContain(hint.id);
+});
+
+test('shows the hint alongside an error, both described by the control', () => {
+  render(
+    <Form>
+      <Field label="Mã đơn" error="Bắt buộc" hint="Định dạng SO-2024-0001">
+        <input />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText('Mã đơn');
+  const hint = screen.getByText('Định dạng SO-2024-0001');
+  const error = screen.getByRole('alert');
+  expect(hint.id).not.toBe('');
+  expect(error.id).not.toBe('');
+  const describedBy = (input.getAttribute('aria-describedby') ?? '').split(' ');
+  expect(describedBy).toContain(hint.id);
+  expect(describedBy).toContain(error.id);
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+});
+
+test('announces a hint on a control that renders its own label', () => {
+  render(
+    <Form>
+      <Field label="Điều khoản" hint="Bắt buộc để tiếp tục">
+        <Checkbox>Tôi đồng ý</Checkbox>
+      </Field>
+    </Form>,
+  );
+  const checkbox = screen.getByRole('checkbox', { name: 'Tôi đồng ý' });
+  const hint = screen.getByText('Bắt buộc để tiếp tục');
+  expect(hint.id).not.toBe('');
+  const describedBy = (checkbox.getAttribute('aria-describedby') ?? '').split(' ');
+  expect(describedBy).toContain(hint.id);
+});

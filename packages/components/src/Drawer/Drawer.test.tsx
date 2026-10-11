@@ -111,3 +111,54 @@ test('focus trap wraps, skips hidden controls, pulls outside focus inside', asyn
   fireEvent.keyDown(document, { key: 'Tab' });
   expect(one).toHaveFocus();
 });
+
+test('Tab contained when the panel itself holds focus', async () => {
+  render(
+    <>
+      <button>Outside</button>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <button>Một</button>
+        <button>Hai</button>
+      </Drawer>
+    </>,
+  );
+  const panel = screen.getByRole('dialog', { name: 'Bộ lọc' });
+  const close = screen.getByRole('button', { name: 'Đóng' });
+  const two = screen.getByRole('button', { name: 'Hai' });
+  await waitFor(() => expect(close).toHaveFocus());
+
+  // Clicking the panel padding focuses the panel itself. It is neither the
+  // first nor the last control, so only the escape check keeps Tab in.
+  panel.focus();
+  expect(panel).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(two).toHaveFocus();
+
+  panel.focus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(close).toHaveFocus();
+});
+
+test('a press that starts inside the panel does not close on the overlay', () => {
+  const onClose = vi.fn();
+  render(
+    <Drawer open onClose={onClose} title="Bộ lọc">
+      <button>Áp dụng</button>
+    </Drawer>,
+  );
+  const overlay = screen.getByTestId('drawer-overlay');
+  const apply = screen.getByRole('button', { name: 'Áp dụng' });
+
+  // Pressing a control and releasing on the overlay still fires a click whose
+  // target is the overlay (its nearest common ancestor with the press target):
+  // only where the press started may decide whether the dialog closes.
+  fireEvent.mouseDown(apply);
+  fireEvent.mouseUp(overlay);
+  fireEvent.click(overlay);
+  expect(onClose).not.toHaveBeenCalled();
+
+  // A press that starts on the overlay itself does close.
+  fireEvent.mouseDown(overlay);
+  fireEvent.click(overlay);
+  expect(onClose).toHaveBeenCalledTimes(1);
+});

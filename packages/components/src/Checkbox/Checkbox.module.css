@@ -29,3 +29,14 @@
   outline: 2px solid var(--color-blue-600);
   outline-offset: 2px;
 }
+/* The box keeps its accent color when enabled, so disabled is driven through
+   accent-color first and the author background/border do not paint over it. */
+.box:disabled,
+.box:disabled:hover,
+.box:disabled:focus {
+  accent-color: var(--text-muted);
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}

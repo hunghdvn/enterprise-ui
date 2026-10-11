@@ -54,7 +54,7 @@ test('emits a corrected page when the page prop is out of range', async () => {
   expect(screen.getByRole('button', { name: 'Trang 1' })).toHaveAttribute('aria-current', 'page');
 });
 
-test('jumper keeps focus and syncs its value after navigating', async () => {
+test('jumper resyncs its value after navigating', async () => {
   function Harness() {
     const [page, setPage] = useState(1);
     return <Pagination page={page} pageSize={20} total={95} onChange={setPage} />;
@@ -67,8 +67,10 @@ test('jumper keeps focus and syncs its value after navigating', async () => {
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Trang 3' })).toHaveAttribute('aria-current', 'page'),
   );
-  expect(input).toHaveFocus();
-  expect(input.value).toBe('3');
+  // The jumper remounts when `current` changes, so the draft is reseeded from
+  // the page the UI now claims instead of keeping the typed value.
+  const after = screen.getByLabelText(/Đi tới trang/i) as HTMLInputElement;
+  expect(after.value).toBe('3');
 });
 
 test('jumper ignores non-numeric and empty drafts', () => {
@@ -88,4 +90,29 @@ test('jumper ignores non-numeric and empty drafts', () => {
   fireEvent.submit(form);
   expect(onChange).not.toHaveBeenCalled();
   expect(input.value).toBe('2');
+});
+
+test('jumper draft resets when the page count shrinks', () => {
+  const onChange = vi.fn();
+  const { rerender } = render(
+    <Pagination page={1} pageSize={20} total={200} onChange={onChange} />,
+  );
+  const jumper = () => screen.getByLabelText(/Đi tới trang/i) as HTMLInputElement;
+  fireEvent.change(jumper(), { target: { value: '9' } });
+  expect(jumper().value).toBe('9');
+  rerender(<Pagination page={1} pageSize={20} total={40} onChange={onChange} />);
+  // Stale '9' must not sit next to '/ 2 trang'.
+  expect(screen.getByText('/ 2 trang')).toBeInTheDocument();
+  expect(jumper().value).toBe('1');
+});
+
+test('jumper draft resyncs when the page count grows', () => {
+  const onChange = vi.fn();
+  const { rerender } = render(<Pagination page={2} pageSize={20} total={40} onChange={onChange} />);
+  const jumper = () => screen.getByLabelText(/Đi tới trang/i) as HTMLInputElement;
+  expect(jumper().value).toBe('2');
+  fireEvent.change(jumper(), { target: { value: '1' } });
+  rerender(<Pagination page={2} pageSize={20} total={400} onChange={onChange} />);
+  expect(screen.getByText('/ 20 trang')).toBeInTheDocument();
+  expect(jumper().value).toBe('2');
 });

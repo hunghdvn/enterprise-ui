@@ -7,6 +7,8 @@
   --text-muted: #64748b;
   --row-hover-bg: #eff6ff;
   --row-selected-bg: #dbeafe;
+  /* Left edge of a selected table row — must read on --row-selected-bg. */
+  --row-selected-marker: #1e47c4;
   --action-text: #1e47c4;
   --nav-active-bg: #eff6ff;
   --scrim: rgba(15, 23, 42, 0.45);

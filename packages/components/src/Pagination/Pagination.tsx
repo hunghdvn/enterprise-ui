@@ -78,7 +78,16 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
           ›
         </Button>
       </span>
-      <PageJumper current={current} totalPages={totalPages} onGo={go} />
+      {/* The draft is component state keyed to the numbers it is derived from,
+          so a change in the page (real navigation) or in totalPages (a filter
+          that shrank the result set) remounts the jumper and re-seeds the
+          input instead of leaving a page number that no longer exists. */}
+      <PageJumper
+        key={`${current}-${totalPages}`}
+        current={current}
+        totalPages={totalPages}
+        onGo={go}
+      />
     </nav>
   );
 }
@@ -93,12 +102,6 @@ function PageJumper({
   onGo: (p: number) => void;
 }) {
   const [draft, setDraft] = useState(String(current));
-  const shownPage = useRef(current);
-  useEffect(() => {
-    if (shownPage.current === current) return;
-    shownPage.current = current;
-    setDraft(String(current));
-  }, [current]);
 
   const commitJumper = () => {
     const wanted = draft.trim();
