@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { designTokens } from '../../tokens/src/index';
 
-const css = readFileSync(new URL('../../tokens/src/tokens.css', import.meta.url), 'utf8');
-const buttonCss = readFileSync(new URL('./Button.module.css', import.meta.url), 'utf8');
-const inputCss = readFileSync(new URL('./Input.module.css', import.meta.url), 'utf8');
+const css = readFileSync(resolve(process.cwd(), '../tokens/src/tokens.css'), 'utf8');
+const buttonCss = readFileSync(resolve(process.cwd(), 'src/Button.module.css'), 'utf8');
+const inputCss = readFileSync(resolve(process.cwd(), 'src/Input.module.css'), 'utf8');
 
 function flattenTokenValues(value: unknown): string[] {
   if (typeof value === 'string') return [value];
