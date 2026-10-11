@@ -24,24 +24,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      # Bootstrap the initial lockfile once. Format existing sources in the same
-      # bootstrap commit so the newly enabled formatting gate starts clean.
-      - name: Bootstrap lockfile if missing
-        if: hashFiles('pnpm-lock.yaml') == ''
-        run: |
-          pnpm install --lockfile-only
-          pnpm install --frozen-lockfile
-          pnpm format
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "build: add pnpm lockfile and format sources"
-          TARGET_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          git push origin "HEAD:${TARGET_BRANCH}"
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Apply Prettier formatting
+        run: |
+          pnpm format
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "style: apply Prettier formatting"
+            TARGET_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            git push origin "HEAD:${TARGET_BRANCH}"
+          fi
       - name: Type-check
         run: pnpm typecheck
       - name: Test
