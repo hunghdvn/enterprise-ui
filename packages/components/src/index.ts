@@ -1,3 +1,5 @@
+import '@enterprise-ui/tokens/all.css';
+
 export { ThemeProvider, useTheme } from './ThemeProvider/ThemeProvider';
 export type { Theme, Density, ThemeCtx } from './ThemeProvider/ThemeContext';
 export { Button } from './Button/Button';

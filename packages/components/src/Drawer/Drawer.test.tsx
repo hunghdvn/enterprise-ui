@@ -1,6 +1,41 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Drawer } from './Drawer';
 
+test('focus trap ignores controls hidden by an ancestor wrapper', async () => {
+  render(
+    <>
+      <button>Outside</button>
+      <Drawer open onClose={() => {}} title="Bộ lọc">
+        <button>Áp dụng</button>
+        <div style={{ display: 'none' }}>
+          <button>Trong nhóm display none</button>
+        </div>
+        <div hidden>
+          <button>Theo thuộc tính hidden</button>
+        </div>
+      </Drawer>
+    </>,
+  );
+  const close = screen.getByRole('button', { name: 'Đóng' });
+  const apply = screen.getByRole('button', { name: 'Áp dụng' });
+  const outside = screen.getByRole('button', { name: 'Outside' });
+  await waitFor(() => expect(close).toHaveFocus());
+
+  // Both descendants are unreachable (their ancestors are display:none), so
+  // they must not act as trap boundaries in either direction.
+  close.focus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(apply).toHaveFocus();
+  apply.focus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(close).toHaveFocus();
+
+  // Containment target is the last *visible* control.
+  outside.focus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(apply).toHaveFocus();
+});
+
 test('keeps focus + overflow across onClose identity change while open', async () => {
   const { rerender } = render(
     <Drawer open onClose={() => {}} title="Bộ lọc">

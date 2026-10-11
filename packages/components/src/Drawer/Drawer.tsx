@@ -1,30 +1,13 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../Button/Button';
 import styles from './Drawer.module.css';
+import { FOCUSABLE, isTabbable } from '../internal/dialogTab';
 
 export interface DrawerProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
-}
-
-const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-function isTabbable(el: HTMLElement): boolean {
-  // :disabled matches native disabled + fieldset-disabled descendants.
-  if (el.matches(':disabled')) return false;
-  if (el.tabIndex < 0) return false;
-  // getClientRects() is empty for display:none / hidden / detached controls in
-  // real browsers. jsdom has no layout (every rect list is empty), so fall back
-  // to computed style there — visible controls stay tabbable while
-  // display:none / visibility:hidden / hidden controls are still skipped.
-  if (el.getClientRects().length === 0) {
-    const cs = window.getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
-    if (el.hasAttribute('hidden')) return false;
-  }
-  return true;
 }
 
 export function Drawer({ open, onClose, title, children }: DrawerProps) {

@@ -78,6 +78,41 @@ test('focus trap wraps, skips hidden controls, pulls outside focus inside', asyn
   expect(one).toHaveFocus();
 });
 
+test('focus trap ignores controls hidden by an ancestor wrapper', async () => {
+  render(
+    <>
+      <button>Outside</button>
+      <Modal open onClose={() => {}} title="Tạo đơn">
+        <button>Lưu</button>
+        <div style={{ display: 'none' }}>
+          <button>Trong nhóm display none</button>
+        </div>
+        <div hidden>
+          <button>Theo thuộc tính hidden</button>
+        </div>
+      </Modal>
+    </>,
+  );
+  const close = screen.getByRole('button', { name: 'Đóng' });
+  const save = screen.getByRole('button', { name: 'Lưu' });
+  const outside = screen.getByRole('button', { name: 'Outside' });
+  await waitFor(() => expect(close).toHaveFocus());
+
+  // Both descendants are unreachable (their ancestors are display:none), so
+  // they must not act as trap boundaries in either direction.
+  close.focus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(save).toHaveFocus();
+  save.focus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(close).toHaveFocus();
+
+  // Containment target is the last *visible* control.
+  outside.focus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(save).toHaveFocus();
+});
+
 test('keeps focus + overflow across onClose identity change while open', async () => {
   const { rerender } = render(
     <Modal open onClose={() => {}} title="Tạo đơn">

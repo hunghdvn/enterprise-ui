@@ -2,7 +2,8 @@
 
 React 18 + TypeScript ERP component kit (zero runtime dependencies). Components are
 presentational-only: data in via props, events out via `onChange`/`onSort`/`onPage`.
-Styling is CSS Modules driven by CSS custom properties from `@enterprise-ui/tokens`.
+Styling is CSS Modules driven by CSS custom properties whose token layer
+(`@enterprise-ui/tokens`) is bundled straight into the built stylesheet.
 
 ## Install
 
@@ -10,22 +11,27 @@ Styling is CSS Modules driven by CSS custom properties from `@enterprise-ui/toke
 npm install @enterprise-ui/components @enterprise-ui/tokens
 ```
 
-Both packages are required. `@enterprise-ui/tokens` ships the CSS variables
-(`@enterprise-ui/tokens/*.css`) that `@enterprise-ui/components/style.css` reads at
-runtime; React stays a peer dependency.
+Both packages are required — `@enterprise-ui/tokens` stays a dependency of
+`@enterprise-ui/components` — but you no longer have to import it yourself: the
+component stylesheet already carries the CSS variables it reads at runtime.
+React stays a peer dependency.
 
 ## Styles
 
-Import the component stylesheet and the token bundle together — one import each:
+One import is enough:
 
 ```ts
 import '@enterprise-ui/components/style.css';
-import '@enterprise-ui/tokens/all.css';
 ```
 
-`@enterprise-ui/tokens/all.css` re-exports `tokens.css`, `theme-light.css`,
-`theme-dark.css`, `density.css` and `breakpoints.css`, so a single import gives you
-the full token set.
+`@enterprise-ui/components/style.css` includes the full token set, so a consumer
+importing only the component stylesheet resolves every `var(--…)`.
+
+If you prefer to own the token layer (custom additions, separate cache lifetime,
+or your own build pipeline), importing `@enterprise-ui/tokens/all.css` yourself
+stays supported — it re-exports `tokens.css`, `theme-light.css`,
+`theme-dark.css`, `density.css` and `breakpoints.css`. It is optional and no
+longer required.
 
 ## Theming
 
