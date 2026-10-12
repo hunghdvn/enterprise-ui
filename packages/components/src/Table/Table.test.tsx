@@ -3,8 +3,10 @@ import { Table } from './Table';
 
 const cols = [
   { key: 'code', title: 'Mã đơn', sortable: true },
-  { key: 'total', title: 'Giá trị', align: 'right' as const },
+  { key: 'total', title: 'Giá trị', align: 'right' as const, sortable: true },
 ];
+
+const rows = [{ code: 'SO-1', total: '₫ 10M' }];
 
 test('sorts, selects, shows empty and error', () => {
   const onSort = vi.fn();
@@ -12,13 +14,12 @@ test('sorts, selects, shows empty and error', () => {
     <Table
       columns={cols}
       data={[{ code: 'SO-1', total: '₫ 10M' }]}
-      sortKey="code"
-      sortDir="asc"
+      sorts={[{ key: 'code', dir: 'asc' }]}
       onSort={onSort}
     />,
   );
   fireEvent.click(screen.getByText('Mã đơn'));
-  expect(onSort).toHaveBeenCalled();
+  expect(onSort).toHaveBeenCalledWith([{ key: 'code', dir: 'desc' }]);
   rerender(<Table columns={cols} data={[]} status="empty" />);
   expect(screen.getByText(/Không có dữ liệu/i)).toBeInTheDocument();
   rerender(<Table columns={cols} data={[]} status="error" onRetry={() => {}} />);
@@ -30,8 +31,7 @@ test('exposes grid role with aria-sort on the columnheader', () => {
     <Table
       columns={cols}
       data={[{ code: 'SO-1', total: '₫ 10M' }]}
-      sortKey="code"
-      sortDir="asc"
+      sorts={[{ key: 'code', dir: 'asc' }]}
       onSort={() => {}}
     />,
   );
@@ -39,6 +39,100 @@ test('exposes grid role with aria-sort on the columnheader', () => {
   const cell = screen.getByText('Mã đơn').closest('[role="columnheader"]');
   expect(cell).toHaveAttribute('aria-sort', 'ascending');
   expect(cell?.querySelector('button')).not.toBeNull();
+});
+
+test('sort cycles none-asc-desc-none on plain click', () => {
+  const onSort = vi.fn();
+  render(<Table columns={cols} data={rows} sorts={[]} onSort={onSort} />);
+  fireEvent.click(screen.getByText('Mã đơn'));
+  expect(onSort).toHaveBeenCalledWith([{ key: 'code', dir: 'asc' }]);
+});
+
+test('shift-click keeps the previous column rule', () => {
+  const onSort = vi.fn();
+  render(
+    <Table columns={cols} data={rows} sorts={[{ key: 'code', dir: 'asc' }]} onSort={onSort} />,
+  );
+  fireEvent.click(screen.getByText('Giá trị'), { shiftKey: true });
+  expect(onSort).toHaveBeenCalledWith([
+    { key: 'code', dir: 'asc' },
+    { key: 'total', dir: 'asc' },
+  ]);
+});
+
+test('aria-sort follows the entry through the full cycle', () => {
+  const onSort = vi.fn();
+  const { rerender } = render(<Table columns={cols} data={rows} sorts={[]} onSort={onSort} />);
+  const header = () => screen.getByText('Mã đơn').closest('[role="columnheader"]');
+  expect(header()).toHaveAttribute('aria-sort', 'none');
+  fireEvent.click(screen.getByText('Mã đơn'));
+  expect(onSort).toHaveBeenLastCalledWith([{ key: 'code', dir: 'asc' }]);
+  rerender(
+    <Table columns={cols} data={rows} sorts={[{ key: 'code', dir: 'asc' }]} onSort={onSort} />,
+  );
+  expect(header()).toHaveAttribute('aria-sort', 'ascending');
+  fireEvent.click(screen.getByText('Mã đơn'));
+  expect(onSort).toHaveBeenLastCalledWith([{ key: 'code', dir: 'desc' }]);
+  rerender(
+    <Table columns={cols} data={rows} sorts={[{ key: 'code', dir: 'desc' }]} onSort={onSort} />,
+  );
+  expect(header()).toHaveAttribute('aria-sort', 'descending');
+  fireEvent.click(screen.getByText('Mã đơn'));
+  expect(onSort).toHaveBeenLastCalledWith([]);
+  rerender(<Table columns={cols} data={rows} sorts={[]} onSort={onSort} />);
+  expect(header()).toHaveAttribute('aria-sort', 'none');
+});
+
+test('plain click resets a multi-column sort to the clicked column', () => {
+  const onSort = vi.fn();
+  render(
+    <Table
+      columns={cols}
+      data={rows}
+      sorts={[
+        { key: 'code', dir: 'asc' },
+        { key: 'total', dir: 'asc' },
+      ]}
+      onSort={onSort}
+    />,
+  );
+  fireEvent.click(screen.getByText('Mã đơn'));
+  expect(onSort).toHaveBeenCalledWith([{ key: 'code', dir: 'desc' }]);
+});
+
+test('modifier click edits only the clicked entry, keeping order', () => {
+  const onSort = vi.fn();
+  const { rerender } = render(
+    <Table
+      columns={cols}
+      data={rows}
+      sorts={[
+        { key: 'code', dir: 'desc' },
+        { key: 'total', dir: 'asc' },
+      ]}
+      onSort={onSort}
+    />,
+  );
+  // desc → none: only that entry disappears, the rest keeps its order.
+  fireEvent.click(screen.getByText('Mã đơn'), { ctrlKey: true });
+  expect(onSort).toHaveBeenLastCalledWith([{ key: 'total', dir: 'asc' }]);
+  rerender(
+    <Table
+      columns={cols}
+      data={rows}
+      sorts={[
+        { key: 'code', dir: 'asc' },
+        { key: 'total', dir: 'asc' },
+      ]}
+      onSort={onSort}
+    />,
+  );
+  // asc → desc: the entry flips in place, position unchanged.
+  fireEvent.click(screen.getByText('Giá trị'), { metaKey: true });
+  expect(onSort).toHaveBeenLastCalledWith([
+    { key: 'code', dir: 'asc' },
+    { key: 'total', dir: 'desc' },
+  ]);
 });
 
 test('selects rows via checkboxes', () => {

@@ -15,7 +15,7 @@ export type { CheckboxProps } from './Checkbox/Checkbox';
 export { AppShell } from './AppShell/AppShell';
 export type { AppShellProps, NavItem } from './AppShell/types';
 export { Table } from './Table/Table';
-export type { Column, TableProps, Status, Align, SortDir } from './Table/types';
+export type { Column, TableProps, Status, Align, SortDir, SortEntry } from './Table/types';
 export { Pagination } from './Pagination/Pagination';
 export type { PaginationProps } from './Pagination/Pagination';
 export { FilterBar } from './FilterBar/FilterBar';

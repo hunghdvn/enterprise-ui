@@ -6,6 +6,11 @@ export type Align = 'left' | 'right' | 'center';
 
 export type SortDir = 'asc' | 'desc';
 
+export interface SortEntry {
+  key: string;
+  dir: 'asc' | 'desc';
+}
+
 export interface Column<T> {
   key: string;
   title: string;
@@ -17,9 +22,15 @@ export interface Column<T> {
 export interface TableProps<T> {
   columns: Column<T>[];
   data: T[];
-  sortKey?: string;
-  sortDir?: SortDir;
-  onSort?: (key: string) => void;
+  /**
+   * Ordered multi-sort rules: first entry has the highest priority. The table
+   * is presentational, so it never sorts `data` itself — callers apply `sorts`
+   * to the rows they pass in and hand the result back through `onSort`.
+   * Absent or empty means unsorted.
+   */
+  sorts?: SortEntry[];
+  /** Receives the full next sort array (not a per-column delta). */
+  onSort?: (next: SortEntry[]) => void;
   /**
    * Selection is **global** while every interaction with it is **page-scoped**:
    * the table only ever sees the rows of the page it renders (`data`), so a

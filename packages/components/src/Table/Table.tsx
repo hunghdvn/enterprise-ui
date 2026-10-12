@@ -1,12 +1,12 @@
+import type { MouseEvent } from 'react';
 import { Button } from '../Button/Button';
 import styles from './Table.module.css';
-import type { TableProps } from './types';
+import type { SortEntry, TableProps } from './types';
 
 export function Table<T extends object>({
   columns,
   data,
-  sortKey,
-  sortDir,
+  sorts = [],
   onSort,
   selectedKeys,
   onSelect,
@@ -110,8 +110,6 @@ export function Table<T extends object>({
               </div>
             )}
             {columns.map((c) => {
-              const active = sortKey === c.key;
-              const ariaSort = active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
               if (!c.sortable) {
                 return (
                   <div
@@ -124,18 +122,47 @@ export function Table<T extends object>({
                   </div>
                 );
               }
+              const entry = sorts.find((s) => s.key === c.key);
+              const ariaSort = entry ? (entry.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+              // none → asc → desc → none, for this column only.
+              const cycled = (): SortEntry | undefined => {
+                if (!entry) return { key: c.key, dir: 'asc' };
+                if (entry.dir === 'asc') return { key: c.key, dir: 'desc' };
+                return undefined;
+              };
+              const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+                if (!onSort) return;
+                const nextEntry = cycled();
+                if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
+                  // Plain click resets the array to just this column's rule
+                  // (empty when the rule was just removed).
+                  onSort(nextEntry ? [nextEntry] : []);
+                  return;
+                }
+                // Shift/Ctrl/Meta edits this column's entry in place, keeping
+                // every other entry and its priority order untouched.
+                const index = sorts.findIndex((s) => s.key === c.key);
+                const next = [...sorts];
+                if (nextEntry) {
+                  if (index === -1) next.push(nextEntry);
+                  else next[index] = nextEntry;
+                } else if (index !== -1) {
+                  next.splice(index, 1);
+                }
+                onSort(next);
+              };
               return (
                 <div
                   key={c.key}
                   role="columnheader"
-                  aria-sort={ariaSort as 'ascending' | 'descending' | 'none'}
+                  aria-sort={ariaSort}
                   className={styles.h}
                   data-align={c.align ?? 'left'}
                 >
-                  <button type="button" onClick={() => onSort?.(c.key)} className={styles.sortBtn}>
+                  <button type="button" onClick={handleClick} className={styles.sortBtn}>
                     <span>{c.title}</span>
                     <span aria-hidden="true" className={styles.arrow}>
-                      {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+                      {!entry ? '↕' : entry.dir === 'asc' ? '↑' : '↓'}
                     </span>
                   </button>
                 </div>
