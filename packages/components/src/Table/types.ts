@@ -17,6 +17,21 @@ export interface Column<T> {
   align?: Align;
   sortable?: boolean;
   render?: (row: T) => ReactNode;
+  /**
+   * Pins the column to the left or right edge while the table scrolls
+   * horizontally. The sticky offset accumulates: a left-pinned column sits at
+   * the summed `width`s of the pinned columns before it, a right-pinned one
+   * at the summed `width`s of the pinned columns after it.
+   */
+  pinned?: 'left' | 'right';
+  /**
+   * Track width in px. Required when `pinned` — the sticky offset and the px
+   * track are computed from it, so a pinned column without a width cannot
+   * line up. On a regular column it becomes the grid track's minimum
+   * (`minmax(width, 1fr)`): the column never shrinks below it but still
+   * flexes, keeping the horizontal scroll the pins exist for.
+   */
+  width?: number;
 }
 
 export interface TableProps<T> {

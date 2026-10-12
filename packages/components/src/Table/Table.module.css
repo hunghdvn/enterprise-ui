@@ -215,6 +215,29 @@ button.h:hover {
   background: var(--bg);
 }
 
+/* Explicit pins (Column.pinned): the class owns sticky + stacking while the
+   inline style on each cell owns the cumulative offset — the stylesheet
+   cannot know the px widths of the neighbouring pinned columns. P1's
+   first/last defaults above stay for tables that never declare a pin. */
+.pinL,
+.pinR {
+  position: sticky;
+  z-index: 2;
+}
+
+/* Pinned body cells inherit the row's background (zebra/hover/selected) just
+   like the first/last defaults, so scrolled content never shows through. */
+.row > .c.pinL,
+.row > .c.pinR {
+  background: inherit;
+  border-bottom: inherit;
+}
+
+.head > .h.pinL,
+.head > .h.pinR {
+  background: var(--bg);
+}
+
 .c {
   padding: var(--cell-py) var(--cell-px);
   min-height: var(--row-height);

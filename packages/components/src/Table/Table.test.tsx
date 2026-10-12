@@ -319,6 +319,60 @@ test('supports custom render and right alignment', () => {
   expect(screen.getByText('₫ 10M').closest('[data-align="right"]')).not.toBeNull();
 });
 
+test('pinned columns stick with inline offsets and px widths', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', pinned: 'left', width: 120 },
+        { key: 'customer', title: 'KH' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', customer: 'A', total: '1' }]}
+    />,
+  );
+  const head = screen.getByText('Mã').closest('[role="columnheader"]')!;
+  expect(head.className).toMatch(/pinL/);
+  expect(head).toHaveStyle({ left: '0px' });
+  const tail = screen.getByText('Tổng').closest('[role="columnheader"]')!;
+  expect(tail.className).toMatch(/pinR/);
+  expect(tail).toHaveStyle({ right: '0px' });
+});
+
+test('pinned offsets accumulate and reach body cells in plain and virtual rows', () => {
+  const pinCols = [
+    { key: 'code', title: 'Mã', pinned: 'left' as const, width: 120 },
+    { key: 'customer', title: 'KH', pinned: 'left' as const, width: 80 },
+    { key: 'status', title: 'TT' },
+    { key: 'total', title: 'Tổng', pinned: 'right' as const, width: 100 },
+    { key: 'note', title: 'GC', pinned: 'right' as const, width: 60 },
+  ];
+  const data = [{ code: 'SO-1', customer: 'A', status: 'open', total: '9', note: 'x' }];
+  const check = () => {
+    const headL = screen.getByText('KH').closest('[role="columnheader"]')!;
+    expect(headL.className).toMatch(/pinL/);
+    // 120px = the width of "Mã", the pinned column before it.
+    expect(headL).toHaveStyle({ left: '120px' });
+    const headR = screen.getByText('Tổng').closest('[role="columnheader"]')!;
+    expect(headR.className).toMatch(/pinR/);
+    // 60px = the width of "GC", the pinned column after it.
+    expect(headR).toHaveStyle({ right: '60px' });
+    const bodyL = screen.getByText('SO-1').closest('[role="gridcell"]')!;
+    expect(bodyL.className).toMatch(/pinL/);
+    expect(bodyL).toHaveStyle({ left: '0px' });
+    const bodyR = screen.getByText('x').closest('[role="gridcell"]')!;
+    expect(bodyR.className).toMatch(/pinR/);
+    expect(bodyR).toHaveStyle({ right: '0px' });
+    // One shared template: pinned tracks in px, regular columns minmax(min, 1fr).
+    const row = screen.getByText('SO-1').parentElement as HTMLElement;
+    expect(row.style.gridTemplateColumns).toContain('120px');
+    expect(row.style.gridTemplateColumns).toContain('minmax(');
+  };
+  const { rerender } = render(<Table columns={pinCols} data={data} />);
+  check();
+  rerender(<Table columns={pinCols} data={data} virtual />);
+  check();
+});
+
 test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
   const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
   render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);

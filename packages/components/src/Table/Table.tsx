@@ -2,10 +2,61 @@ import { useLayoutEffect, useRef, useState, type MouseEvent, type UIEvent } from
 import { Button } from '../Button/Button';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
-import type { SortEntry, TableProps } from './types';
+import type { Column, SortEntry, TableProps } from './types';
 
 /** Scrollport cap applied when `maxHeight` is omitted in virtual mode. */
 const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
+
+const cx = (...parts: string[]): string => parts.filter(Boolean).join(' ');
+
+/**
+ * One track per column for the single grid template every row shares — header,
+ * body, virtual, and the filter/group/detail rows later tasks add. A pinned
+ * column is a fixed `width` px track so its sticky offset (the px sum of the
+ * pinned columns before/after it) lines up with the track exactly; a regular
+ * column stays flexible with a floor of its `width`, or the default cell
+ * minimum when unset, so the grid can overflow and scroll horizontally — which
+ * is what the pins exist for.
+ */
+function trackOf<T>(column: Column<T>): string {
+  if (column.pinned && column.width != null) return `${column.width}px`;
+  const min = column.width != null ? `${column.width}px` : 'var(--cell-min-width)';
+  return `minmax(${min}, 1fr)`;
+}
+
+function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean): string {
+  const tracks = columns.map(trackOf);
+  return (selectable ? ['36px', ...tracks] : tracks).join(' ');
+}
+
+/**
+ * Cumulative sticky offsets in px: a left-pinned column sticks at the summed
+ * `width`s of the pinned columns before it, a right-pinned column at the
+ * summed `width`s of the pinned columns after it (accumulated right-to-left),
+ * so neighbouring pins never overlap. The stylesheet cannot know these sums,
+ * which is why each cell gets its offset inline.
+ */
+function pinOffsetsOf<T>(columns: Column<T>[]): {
+  left: Map<string, number>;
+  right: Map<string, number>;
+} {
+  const left = new Map<string, number>();
+  const right = new Map<string, number>();
+  let acc = 0;
+  for (const column of columns) {
+    if (column.pinned !== 'left') continue;
+    left.set(column.key, acc);
+    acc += column.width ?? 0;
+  }
+  acc = 0;
+  for (let i = columns.length - 1; i >= 0; i -= 1) {
+    const column = columns[i];
+    if (column.pinned !== 'right') continue;
+    right.set(column.key, acc);
+    acc += column.width ?? 0;
+  }
+  return { left, right };
+}
 
 export function Table<T extends object>(props: TableProps<T>) {
   const {
@@ -122,9 +173,19 @@ export function Table<T extends object>(props: TableProps<T>) {
 
   const colCount = columns.length + (selectable ? 1 : 0);
 
-  const gridTemplateColumns = selectable
-    ? `36px repeat(${columns.length}, 1fr)`
-    : `repeat(${columns.length}, 1fr)`;
+  const gridTemplateColumns = gridTemplateOf(columns, selectable);
+  const pinOffsets = pinOffsetsOf(columns);
+  // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
+  // `position: sticky` and the stacking, the inline style owns the offset —
+  // same pair on header and body cells, so every row path (plain, virtual,
+  // and the ones later tasks add) pins identically.
+  const pinClass = (c: Column<T>): string =>
+    c.pinned === 'left' ? styles.pinL : c.pinned === 'right' ? styles.pinR : '';
+  const pinStyle = (c: Column<T>): { left: string } | { right: string } | undefined => {
+    if (c.pinned === 'left') return { left: `${pinOffsets.left.get(c.key) ?? 0}px` };
+    if (c.pinned === 'right') return { right: `${pinOffsets.right.get(c.key) ?? 0}px` };
+    return undefined;
+  };
 
   // Window over the rows when virtual; without it `win` covers every row, so
   // both modes share one render path. The slice index `i` stays local so
@@ -161,7 +222,13 @@ export function Table<T extends object>(props: TableProps<T>) {
         {columns.map((c) => {
           const value: unknown = (row as Record<string, unknown>)[c.key];
           return (
-            <div key={c.key} className={styles.c} role="gridcell" data-align={c.align ?? 'left'}>
+            <div
+              key={c.key}
+              className={cx(styles.c, pinClass(c))}
+              style={pinStyle(c)}
+              role="gridcell"
+              data-align={c.align ?? 'left'}
+            >
               {c.render ? c.render(row) : value == null ? '' : String(value)}
             </div>
           );
@@ -209,7 +276,8 @@ export function Table<T extends object>(props: TableProps<T>) {
                 return (
                   <div
                     key={c.key}
-                    className={styles.h}
+                    className={cx(styles.h, pinClass(c))}
+                    style={pinStyle(c)}
                     role="columnheader"
                     data-align={c.align ?? 'left'}
                   >
@@ -251,7 +319,8 @@ export function Table<T extends object>(props: TableProps<T>) {
                   key={c.key}
                   role="columnheader"
                   aria-sort={ariaSort}
-                  className={styles.h}
+                  className={cx(styles.h, pinClass(c))}
+                  style={pinStyle(c)}
                   data-align={c.align ?? 'left'}
                 >
                   <button type="button" onClick={handleClick} className={styles.sortBtn}>
