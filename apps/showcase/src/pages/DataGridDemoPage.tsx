@@ -177,15 +177,19 @@ export default function DataGridDemoPage() {
 
   // Export via the `onExport` override: the whole filtered+sorted set, not
   // just the rows of the current page (the default path would CSV the
-  // `data` the table was handed). Same BOM CSV through a Blob anchor.
+  // `data` the table was handed). Same BOM CSV through a Blob anchor —
+  // attached to the document before the click (detached clicks race some
+  // browsers) and revoked 100ms later so the download is not cut off early.
   const handleExport = (_rows: Order[], exportColumns: Column<Order>[]) => {
     const blob = new Blob([toCSV(sorted, exportColumns)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'don-hang-10k.csv';
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   return (
@@ -282,7 +286,9 @@ export default function DataGridDemoPage() {
         <code>data</code> truyền vào — không checkbox chọn, không dòng filter, không header nhóm,
         không dòng summary trong grid (lọc/sort vẫn áp qua <code>data</code>); nút <em>Chi tiết</em>{' '}
         mở <code>renderExpanded</code> ngay trong card; footer (tóm tắt + phân trang + export) vẫn
-        hiển thị dưới cards. Desktop giữ nguyên grid đầy đủ controls.
+        hiển thị dưới cards. Export: trang này truyền <code>onExport</code> nên tải toàn bộ tập đã
+        lọc + sắp xếp, trong khi export mặc định của Table (không <code>onExport</code>) chỉ tải CSV
+        của trang hiện tại (<code>data</code> truyền vào). Desktop giữ nguyên grid đầy đủ controls.
       </p>
     </div>
   );

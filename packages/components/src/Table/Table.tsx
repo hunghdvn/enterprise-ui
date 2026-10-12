@@ -270,14 +270,19 @@ export function Table<T extends object>(props: TableProps<T>) {
       return;
     }
     // Default: BOM CSV of the visible rows/columns (already filtered/sorted
-    // by the caller) downloaded through a temporary Blob anchor.
+    // by the caller) downloaded through a Blob anchor. The anchor goes into
+    // the document before the click — detached-anchor clicks race some
+    // browsers — and the object URL is revoked 100ms after the click, not
+    // synchronously, so the download is not cut off while it resolves.
     const blob = new Blob([toCSV(data, columns)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = exportFileName ?? 'datagrid.csv';
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
   const footerBar = hasFooterBar ? (
     <div className={styles.gridFoot}>
@@ -350,9 +355,14 @@ export function Table<T extends object>(props: TableProps<T>) {
         key={card.key}
         className={virtual ? `${styles.card} ${styles.vrow}` : styles.card}
         style={
+          // Virtual cards sit in fixed slots — the window math offsets them by
+          // `cardItemHeight` px, so the height must be exact. Non-virtual cards
+          // are in normal flow: `cardHeight` is only a floor (min-height), and
+          // a fixed height there would turn every card into a cramped scrollbox
+          // (content scrolling inside an 80px slot).
           virtual
             ? { height: cardItemHeight, top: cardWin.offsetY + i * cardItemHeight }
-            : { height: cardItemHeight }
+            : { minHeight: cardItemHeight }
         }
       >
         {renderCard ? renderCard(card.row) : fallbackCard(card.row, card.key)}

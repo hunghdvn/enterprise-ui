@@ -62,6 +62,13 @@ export interface Column<T> {
   filterType?: 'text' | 'select' | 'number' | 'date';
   /** Choices rendered by a `filterType: 'select'` filter cell. */
   filterOptions?: FilterOption[];
+  /**
+   * Declares how the column's values aggregate (spec §5 hint field): `sum` /
+   * `avg` over numeric values, `count` over rows. Type-level hint only — the
+   * table renders no aggregate today; callers use it to build `summary` or
+   * `renderGroupSummary` output themselves.
+   */
+  aggregate?: 'sum' | 'avg' | 'count';
 }
 
 export interface TableProps<T> {
@@ -182,6 +189,11 @@ export interface TableProps<T> {
    * table is presentational). Table-level footer chrome — summary text,
    * pagination and the export button — does render below the cards. With
    * `renderExpanded`, an expanded card shows its detail content too.
+   *
+   * A custom `renderCard` owns its own expand affordance: the built-in
+   * `Chi tiết` toggle renders only in the fallback card (the
+   * `renderExpanded` content still appears inside the expanded card either
+   * way).
    */
   renderCard?: (row: T) => ReactNode;
   /**

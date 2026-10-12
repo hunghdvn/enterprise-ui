@@ -820,6 +820,26 @@ test('card fallback shows a title, label/value pairs and a Chi tiết button', (
   }
 });
 
+test('non-virtual cards use min-height so content grows, virtual cards keep the fixed slot', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    const data = [{ code: 'SO-1', total: '₫ 10M' }];
+    const { rerender } = render(<Table columns={cols} data={data} cardHeight={80} />);
+    const card = screen.getByRole('article');
+    // Non-virtual: `cardHeight` is a floor, never a fixed box — long content
+    // grows the card instead of scrolling inside a cramped 80px slot.
+    expect(card.style.minHeight).toBe('80px');
+    expect(card.style.height).toBe('');
+    // Virtual: the window offsets cards by fixed slots, so height stays exact.
+    rerender(<Table columns={cols} data={data} cardHeight={80} virtual />);
+    const vcard = screen.getByRole('article');
+    expect(vcard.style.height).toBe('80px');
+    expect(vcard.style.minHeight).toBe('');
+  } finally {
+    restore();
+  }
+});
+
 test('virtual cards window with cardHeight', () => {
   const restore = stubMatchMedia(true);
   try {
@@ -990,12 +1010,15 @@ test('footer bar groups summary, pagination and export below the scrollport', ()
   expect(bar.previousElementSibling).toBe(grid.parentElement);
 });
 
-test('export downloads default csv when no onExport', () => {
+test('export downloads default csv when no onExport', async () => {
   const { restore } = stubObjectURL();
   try {
     render(<Table columns={cols} data={[{ code: 'SO-1' }]} exportable exportFileName="d.csv" />);
     fireEvent.click(screen.getByRole('button', { name: /Xuất CSV/ }));
     expect(URL.createObjectURL).toHaveBeenCalled();
+    // The revoke is deferred 100ms after the click — let it run against the
+    // stub before restoring jsdom's (absent) original, or the timer throws.
+    await new Promise((resolve) => setTimeout(resolve, 150));
   } finally {
     restore();
   }
@@ -1015,6 +1038,9 @@ test('default export downloads a BOM csv of the visible rows and columns', async
     const bytes = await blobBytes(blobs[0]);
     expect(Array.from(bytes.slice(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
     expect(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes)).toBe(toCSV(data, cols));
+    // Let the deferred 100ms revoke run against the stub before restoring
+    // jsdom's (absent) original, or the timer throws after the test.
+    await new Promise((resolve) => setTimeout(resolve, 150));
   } finally {
     restore();
   }
