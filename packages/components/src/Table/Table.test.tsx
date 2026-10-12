@@ -545,6 +545,34 @@ test('virtual groups count each header as one windowed row', () => {
   expect(screen.getByRole('button', { name: /Thu gọn done/ })).toBeInTheDocument();
 });
 
+test('grouped rows keep distinct keys when the same object appears twice', () => {
+  // The same instance at two positions, without key/code/id fields: plain
+  // mode derives keys by index and stays distinct — grouped rendering must
+  // reproduce that invariant instead of collapsing both rows to one key.
+  const shared = { status: 'open', note: 'ghi chú' };
+  const data = [shared, shared];
+  const columns = [{ key: 'note', title: 'Ghi chú' }];
+  const keysInGrid = (): (string | null)[] =>
+    within(screen.getByRole('grid'))
+      .getAllByRole('checkbox', { name: /^Chọn dòng/ })
+      .map((box) => box.getAttribute('aria-label'));
+  const { rerender } = render(
+    <Table
+      columns={columns}
+      data={data}
+      groupBy={['status']}
+      collapsedGroups={[]}
+      onToggleGroup={() => {}}
+      selectedKeys={[]}
+      onSelect={() => {}}
+    />,
+  );
+  expect(keysInGrid()).toEqual(['Chọn dòng 0', 'Chọn dòng 1']);
+  // Plain (ungrouped) mode keeps the same distinct keys for the same data.
+  rerender(<Table columns={columns} data={data} selectedKeys={[]} onSelect={() => {}} />);
+  expect(keysInGrid()).toEqual(['Chọn dòng 0', 'Chọn dòng 1']);
+});
+
 test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
   const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
   render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);

@@ -171,18 +171,27 @@ export function Table<T extends object>(props: TableProps<T>) {
   const allSelected = selectable && data.length > 0 && selectedCount === data.length;
   const someSelected = selectedCount > 0 && selectedCount < allKeys.length;
 
-  // Every row's React key is derived with the table's key logic (`keyOf`
-  // above) over the full `data` BEFORE grouping, and that precomputed array
-  // is what `buildGroups`' `rowKey` contract reads — bucketing never
-  // re-derives keys itself. `groupBy` empty → no groups, plain body.
+  // `keyOf` runs over the full `data` BEFORE grouping, so every position has
+  // its precomputed key. Grouped rendering must reproduce plain mode's "one
+  // distinct key per position" invariant even when the same object instance
+  // sits at two positions (no key/code/id → plain mode stays distinct via the
+  // index fallback). `buildGroups` buckets row references in input order, so
+  // keys are queued per reference in `data` order and consumed once per
+  // occurrence while the groups iterate — a repeated instance yields its own
+  // key per position instead of collapsing to the last index. Note
+  // `buildGroups` ignores its `rowKey` argument (`void rowKey` — it buckets
+  // on groupBy field values and never re-derives keys); the precomputed-key
+  // function is passed only for its spec §5 signature. `groupBy` empty → no
+  // groups, plain body.
   const groups = buildGroups(data, groupBy, (_row, i) => allKeys[i]);
   const collapsed = new Set<string>(collapsedGroups);
-  // Row → key lookup for grouped rendering: `buildGroups` buckets row
-  // references (input order preserved), so each grouped row's key comes from
-  // the precomputed map instead of a window index.
-  const keyByRow = new Map<T, string>();
+  const keysByRow = new Map<T, string[]>();
   if (groups.length > 0) {
-    data.forEach((row, i) => keyByRow.set(row, allKeys[i]));
+    data.forEach((row, i) => {
+      const queue = keysByRow.get(row);
+      if (queue) queue.push(allKeys[i]);
+      else keysByRow.set(row, [allKeys[i]]);
+    });
   }
 
   // Select-all is page-scoped and merges: it unions the current page's keys
@@ -235,7 +244,10 @@ export function Table<T extends object>(props: TableProps<T>) {
             header,
             ...group.rows.map((row) => ({
               kind: 'row' as const,
-              key: keyByRow.get(row) as string,
+              // Queued once per `data` position above, consumed once here (a
+              // reference belongs to exactly one group, in input order), so
+              // the queue always has a key for this occurrence — no cast.
+              key: keysByRow.get(row)?.shift() ?? '',
               row,
             })),
           ];
