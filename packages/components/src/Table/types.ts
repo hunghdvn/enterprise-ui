@@ -131,4 +131,37 @@ export interface TableProps<T> {
   onToggleGroup?: (groupKey: string) => void;
   /** Per-group summary rendered inside the group header (count/sum/…). */
   renderGroupSummary?: (groupKey: string, rows: T[]) => ReactNode;
+  /**
+   * Renders the master-detail panel for an expanded row: the table adds an
+   * expand toggle column (first, after the select checkbox) and one extra
+   * `role=row` with a full-colspan gridcell right under the expanded row.
+   * Opt-in — providing this is what turns the feature on (default undefined).
+   */
+  renderExpanded?: (row: T) => ReactNode;
+  /**
+   * Row keys whose detail rows are shown. Controlled: the table never expands
+   * on its own — a toggle click comes back through `onToggleExpand` and the
+   * caller passes the updated array back.
+   */
+  expandedKeys?: string[];
+  /** Receives the row key on every expand/collapse toggle click, collapsed or not. */
+  onToggleExpand?: (key: string) => void;
+  /**
+   * Detail row height in px. Fixed — the virtual window budgets exactly this
+   * many pixels for the detail instead of measuring it at runtime (default
+   * `Math.round(rowHeight * 2.5)`).
+   */
+  expandedHeight?: number;
+  /**
+   * Renders a mobile card for a row. On viewports at most 768px wide the
+   * table swaps the grid for a list of `<article>` cards; without it the
+   * fallback card renders the first column as the title and the rest as
+   * `label: value` pairs. Desktop always keeps the grid.
+   */
+  renderCard?: (row: T) => ReactNode;
+  /**
+   * Card height in px — fixed so the virtual window can offset cards without
+   * measuring them (default `Math.round(rowHeight * 2.5)`).
+   */
+  cardHeight?: number;
 }

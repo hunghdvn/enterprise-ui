@@ -624,6 +624,229 @@ test('virtual window re-measures the viewport on resize without a scroll event',
   expect(screen.queryByText('SO-0')).toBeNull();
 });
 
+// --- Task 7: master-detail expand + mobile cards ----------------------------
+
+/**
+ * Stubs `window.matchMedia` for `useIsMobile`, returning the restore function
+ * (same shape as `internal/useIsMobile.test.ts`). Card tests must stub it —
+ * jsdom's own matchMedia decides desktop for every table that does not.
+ */
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  const mql = (query: string): MediaQueryList =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+  Object.defineProperty(window, 'matchMedia', {
+    value: mql,
+    configurable: true,
+    writable: true,
+  });
+  return () =>
+    Object.defineProperty(window, 'matchMedia', {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+}
+
+test('expand toggles detail with full colspan', () => {
+  const onToggleExpand = vi.fn();
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1', total: '1' }]}
+      renderExpanded={(r) => <div>Chi tiết {String(r['code'])}</div>}
+      expandedKeys={[]}
+      onToggleExpand={onToggleExpand}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Mở rộng SO-1/ }));
+  expect(onToggleExpand).toHaveBeenCalledWith('SO-1');
+});
+
+test('expanded row renders one detail row spanning every column', () => {
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1', total: '1' }]}
+      renderExpanded={(r) => <div>Chi tiết {String(r['code'])}</div>}
+      expandedKeys={['SO-1']}
+      onToggleExpand={() => {}}
+      expandedHeight={96}
+    />,
+  );
+  const detailRow = screen.getByText('Chi tiết SO-1').closest<HTMLElement>('[role="row"]')!;
+  // One role=row holding exactly one gridcell spanning all tracks: 2 columns
+  // plus the toggle column.
+  expect(within(detailRow).getAllByRole('gridcell')).toHaveLength(1);
+  expect(within(detailRow).getByRole('gridcell')).toHaveAttribute('aria-colspan', '3');
+  expect(detailRow).toHaveStyle({ height: '96px' });
+  expect(screen.getByRole('button', { name: /Thu gọn SO-1/ })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});
+
+test('virtual offsets stay correct with expand and group combined', () => {
+  const data = [
+    { code: 'SO-1', total: '1', status: 'open' },
+    { code: 'SO-2', total: '2', status: 'open' },
+    { code: 'SO-3', total: '3', status: 'done' },
+    { code: 'SO-4', total: '4', status: 'done' },
+  ];
+  render(
+    <Table
+      columns={cols}
+      data={data}
+      groupBy={['status']}
+      collapsedGroups={[]}
+      onToggleGroup={() => {}}
+      renderExpanded={(r) => <div>Chi tiết {String(r['code'])}</div>}
+      expandedKeys={['SO-1']}
+      onToggleExpand={() => {}}
+      virtual
+      rowHeight={32}
+      overscan={8}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  // Items: open header, SO-1, detail, SO-2, done header, SO-3, SO-4 = 7 rows
+  // plus the column header row. The detail counts as one row, not 2.5.
+  expect(grid).toHaveAttribute('aria-rowcount', '8');
+  const spacer = grid.querySelector('[role="presentation"]')!;
+  expect(spacer).toHaveStyle({ height: '272px' }); // 6 × 32 + the 80px detail
+  const detailRow = screen.getByText('Chi tiết SO-1').closest<HTMLElement>('[role="row"]')!;
+  expect(detailRow).toHaveStyle({ top: '64px' }); // group header (32) + SO-1 (32)
+  const so2Row = screen.getByText('SO-2').closest<HTMLElement>('[role="row"]')!;
+  expect(so2Row).toHaveStyle({ top: '144px' }); // 64 + the detail's 80px slot
+});
+
+test('virtual window spends expandedHeight slots on an expanded detail', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}`, total: String(i) }));
+  render(
+    <Table
+      columns={cols}
+      data={data}
+      renderExpanded={(r) => <div>Chi tiết {String(r['code'])}</div>}
+      expandedKeys={['SO-0']}
+      onToggleExpand={() => {}}
+      virtual
+      rowHeight={32}
+      overscan={8}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  // Rowcount counts rows (10000 + 1 detail), not pixel slots.
+  expect(grid).toHaveAttribute('aria-rowcount', '10002');
+  const spacer = grid.querySelector('[role="presentation"]')!;
+  // 10000 × 32 + 80 (the default round(32 × 2.5)) — the detail's exact budget.
+  expect(spacer).toHaveStyle({ height: `${10000 * 32 + 80}px` });
+  const detailRow = screen.getByText('Chi tiết SO-0').closest<HTMLElement>('[role="row"]')!;
+  expect(detailRow).toHaveStyle({ top: '32px' }); // right under SO-0
+  const scroller = grid.parentElement as HTMLElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  expect(within(grid).getAllByRole('row').length).toBeLessThan(60);
+  expect(screen.queryByText('SO-0')).toBeNull();
+  // 80 + 32k ≤ 5000 → SO-153 (offset 4976) is the last row at/before the top,
+  // so it sits inside the window — offsets shifted by the detail, not by 0.
+  expect(screen.getByText('SO-153')).toBeInTheDocument();
+});
+
+test('mobile renders card articles instead of the grid', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    render(
+      <Table
+        columns={cols}
+        data={rows}
+        renderCard={(r) => <span>Card {String(r['code'])}</span>}
+      />,
+    );
+    expect(screen.queryByRole('grid')).toBeNull();
+    const cards = screen.getAllByRole('article');
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent('Card SO-1');
+  } finally {
+    restore();
+  }
+});
+
+test('desktop keeps the grid when renderCard is provided', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(<Table columns={cols} data={rows} renderCard={() => <span>Card</span>} />);
+    expect(screen.getByRole('grid')).toBeInTheDocument();
+    expect(screen.queryByRole('article')).toBeNull();
+  } finally {
+    restore();
+  }
+});
+
+test('card fallback shows a title, label/value pairs and a Chi tiết button', () => {
+  const onToggleExpand = vi.fn();
+  const restore = stubMatchMedia(true);
+  try {
+    render(
+      <Table
+        columns={cols}
+        data={[{ code: 'SO-1', total: '₫ 10M' }]}
+        renderExpanded={(r) => <div>Chi tiết {String(r['code'])}</div>}
+        expandedKeys={[]}
+        onToggleExpand={onToggleExpand}
+      />,
+    );
+    expect(screen.queryByRole('grid')).toBeNull();
+    const card = screen.getByRole('article');
+    // First column is the title — it does not repeat as a label/value pair.
+    expect(card).toHaveTextContent('SO-1');
+    expect(card).not.toHaveTextContent('Mã đơn');
+    // Remaining columns render as label: value (label = column title).
+    expect(card).toHaveTextContent('Giá trị');
+    expect(card).toHaveTextContent('₫ 10M');
+    fireEvent.click(within(card).getByRole('button', { name: /Chi tiết/ }));
+    expect(onToggleExpand).toHaveBeenCalledWith('SO-1');
+  } finally {
+    restore();
+  }
+});
+
+test('virtual cards window with cardHeight', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    const data = Array.from({ length: 100 }, (_, i) => ({ code: `SO-${i}`, total: String(i) }));
+    render(
+      <Table
+        columns={cols}
+        data={data}
+        renderCard={(r) => <span>{String(r['code'])}</span>}
+        virtual
+        rowHeight={32}
+        overscan={8}
+        cardHeight={64}
+      />,
+    );
+    expect(screen.getAllByRole('article').length).toBeLessThan(60);
+    const scroller = document.querySelector<HTMLElement>('[data-virtual="true"]')!;
+    Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+    fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+    expect(screen.queryByText('SO-0')).toBeNull();
+    // floor(5000 / 64) = 78, minus overscan 8 → the window opens at SO-70.
+    expect(screen.getByText('SO-70')).toBeInTheDocument();
+    expect(screen.getAllByRole('article').length).toBeLessThan(60);
+  } finally {
+    restore();
+  }
+});
+
 test('virtual observes the scrollport with ResizeObserver and cleans up', () => {
   const observe = vi.fn();
   const disconnect = vi.fn();

@@ -139,6 +139,27 @@
   margin-left: auto;
 }
 
+/* Master-detail: an expanded row is followed by one full-width role=row —
+   a single cell spanning every track of the same shared grid template, at a
+   fixed expandedHeight px (inline from Table.tsx) so the virtual window can
+   budget the detail's slots ahead of paint instead of measuring it. The pane
+   scrolls its own overflow rather than pushing the rows below off their
+   offsets. */
+.detail {
+  display: grid;
+  box-sizing: border-box;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-muted);
+  overflow: auto;
+}
+
+.detailCell {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--cell-py) var(--cell-px);
+}
+
 /* Row/cell height must come out at `--row-height`, padding included: without
    border-box the min-height plus padding renders 40px compact (68px
    comfortable) instead of the 32/44px the spec asks for. */
@@ -356,6 +377,69 @@ button.h:hover {
   height: 16px;
   accent-color: var(--color-blue-600);
   cursor: pointer;
+}
+
+/* Mobile card list (viewport ≤ 768px): replaces the grid with <article>
+   cards — the caller's renderCard, or the fallback (first column as title,
+   remaining columns as label/value pairs, plus the Chi tiết toggle) built in
+   Table.tsx. Virtual mode shares the windowing: cards sit absolute in the
+   spacer (.vrow) at cardHeight slots. */
+.cards {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.card {
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--cell-py) var(--cell-px);
+  overflow: auto;
+}
+
+.cardTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cardFields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  font-size: 12px;
+}
+
+.cardFields dt {
+  color: var(--text-muted);
+}
+
+.cardFields dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.cardAction {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-blue-600);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Same inward focus-ring trick as .groupToggle/.sortBtn: the ring draws
+   inside so the card's overflow never clips it. */
+.cardAction:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
 }
 
 .state {

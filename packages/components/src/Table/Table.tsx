@@ -1,8 +1,17 @@
-import { useLayoutEffect, useRef, useState, type MouseEvent, type UIEvent } from 'react';
+import {
+  Fragment,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+  type UIEvent,
+} from 'react';
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
 import { Select } from '../Select/Select';
 import { buildGroups, type Group } from '../internal/gridLogic';
+import { useIsMobile } from '../internal/useIsMobile';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
 import type { Column, SortEntry, TableProps } from './types';
@@ -16,12 +25,62 @@ const FILTER_ALL_LABEL = 'Tất cả';
 const cx = (...parts: string[]): string => parts.filter(Boolean).join(' ');
 
 /**
- * One windowable body item: a data row, or a group header — which is a full
+ * One windowable body item: a data row, a group header — which is a full
  * `role=row` of its own (toggle + label + count + summary) and therefore
- * counts as exactly one row in the window math, per the ledger ruling.
+ * counts as exactly one row of the window math, per the ledger ruling — or an
+ * expanded detail row, which likewise renders as one `role=row` but occupies
+ * `expandedHeight` pixels instead of `rowHeight`. Group headers and rows cost
+ * `rowHeight` px each; details cost `expandedHeight` px — heights are no
+ * longer uniform once a row is expanded, which is why the offsets below are
+ * built here rather than through the fixed-height `windowing` helpers.
  */
 type BodyItem<T> =
-  { kind: 'row'; key: string; row: T } | { kind: 'group'; key: string; group: Group<T> };
+  | { kind: 'row'; key: string; row: T }
+  | { kind: 'group'; key: string; group: Group<T> }
+  | { kind: 'detail'; key: string; row: T };
+
+/**
+ * First index in `offsets` (strictly ascending px, one sentinel entry past
+ * the last item) whose offset exceeds `value` — an upper-bound binary search,
+ * so scrolling costs O(log n) whatever the row count.
+ */
+function firstOffsetAfter(offsets: number[], value: number): number {
+  let lo = 0;
+  let hi = offsets.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (offsets[mid] > value) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+/**
+ * Variable-height sibling of `computeWindow` (windowing.ts stays fixed-height
+ * and pure per the ledger ruling; this mapping is owned locally by Table).
+ * `offsets[i]` is the px start of item `i` and `offsets[n]` the total height,
+ * so a window [start, end) spans `overscan` items around the viewport in px,
+ * not in uniform row steps — an expanded detail shifts everything after it by
+ * `expandedHeight` and the offsets follow. On uniform rows this reduces to
+ * exactly `computeWindow`'s floor/ceil math.
+ */
+function variableWindow(
+  offsets: number[],
+  scrollTop: number,
+  viewportHeight: number,
+  overscan: number,
+): { start: number; end: number; offsetY: number } {
+  const total = offsets.length - 1;
+  // Last item starting at or before the viewport top, minus the overscan pad…
+  const start = Math.max(0, firstOffsetAfter(offsets, scrollTop) - 1 - overscan);
+  // …first item still starting below the viewport bottom (mirrors
+  // `ceil((top + height) / row)`) plus the same pad, capped at the content.
+  const end = Math.min(
+    total,
+    Math.max(start, firstOffsetAfter(offsets, scrollTop + viewportHeight - 1) + overscan),
+  );
+  return { start, end, offsetY: offsets[Math.min(start, total)] };
+}
 
 /**
  * One track per column for the single grid template every row shares — header,
@@ -38,9 +97,13 @@ function trackOf<T>(column: Column<T>): string {
   return `minmax(${min}, 1fr)`;
 }
 
-function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean): string {
+function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable: boolean): string {
   const tracks = columns.map(trackOf);
-  return (selectable ? ['36px', ...tracks] : tracks).join(' ');
+  // Fixed 36px control tracks come first: select, then the master-detail
+  // toggle, then every data column — one template shared by the header,
+  // filter, body, group and detail rows.
+  const controls = [...(selectable ? ['36px'] : []), ...(expandable ? ['36px'] : [])];
+  return [...controls, ...tracks].join(' ');
 }
 
 /**
@@ -94,7 +157,16 @@ export function Table<T extends object>(props: TableProps<T>) {
     collapsedGroups = [],
     onToggleGroup,
     renderGroupSummary,
+    renderExpanded,
+    expandedKeys = [],
+    onToggleExpand,
+    expandedHeight,
+    renderCard,
+    cardHeight,
   } = props;
+  // Breakpoint state lives with the windowing state above the status
+  // early-returns so the hook order is identical whatever `status` says.
+  const isMobileView = useIsMobile();
   // Windowing state lives above the status early-returns so the hook order is
   // identical whatever `status` says. The scroll listener sits on `.scroll`
   // (the element the window is measured against) and is removed with the
@@ -167,6 +239,97 @@ export function Table<T extends object>(props: TableProps<T>) {
     return String(index);
   };
   const allKeys = data.map((r, i) => keyOf(r, i));
+
+  // Master-detail opt-in hinges on `renderExpanded` alone: it both adds the
+  // toggle column and renders the detail content. Heights are fixed px
+  // defaults per spec §4.6/§4.7 — never measured at runtime, because the
+  // virtual window budgets them ahead of paint.
+  const expandable = renderExpanded !== undefined;
+  const detailHeight = Math.round(expandedHeight ?? rowHeight * 2.5);
+  const cardItemHeight = Math.round(cardHeight ?? rowHeight * 2.5);
+  const expanded = new Set(expandedKeys);
+
+  if (isMobileView) {
+    // Below the breakpoint the grid is replaced by a list of `<article>`
+    // cards — same scroll container, same windowing (uniform `cardHeight`
+    // slots, so the fixed-height helper applies directly). Fallback card:
+    // first column is the title, the rest are `label: value` pairs, plus the
+    // Chi tiết toggle when master-detail is on. Header/filter/summary are
+    // header-of-grid concerns and stay in the desktop grid.
+    const cards = data.map((row, i) => ({ key: allKeys[i], row }));
+    const cardWin = virtual
+      ? computeWindow(scrollTop, viewportHeight, cardItemHeight, cards.length, overscan)
+      : { start: 0, end: cards.length, offsetY: 0 };
+    const fallbackCard = (row: T, key: string): ReactNode => {
+      const [titleColumn, ...fieldColumns] = columns;
+      const valueOf = (c: Column<T>): ReactNode => {
+        const raw: unknown = (row as Record<string, unknown>)[c.key];
+        return c.render ? c.render(row) : raw == null ? '' : String(raw);
+      };
+      return (
+        <>
+          <div className={styles.cardTitle}>{titleColumn ? valueOf(titleColumn) : key}</div>
+          <dl className={styles.cardFields}>
+            {fieldColumns.map((c) => (
+              <Fragment key={c.key}>
+                <dt>{c.title}</dt>
+                <dd>{valueOf(c)}</dd>
+              </Fragment>
+            ))}
+          </dl>
+          {expandable && (
+            <button
+              type="button"
+              className={styles.cardAction}
+              aria-expanded={expanded.has(key)}
+              onClick={() => onToggleExpand?.(key)}
+            >
+              Chi tiết
+            </button>
+          )}
+        </>
+      );
+    };
+    const cardNodes = cards.slice(cardWin.start, cardWin.end).map((card, i) => (
+      <article
+        key={card.key}
+        className={virtual ? `${styles.card} ${styles.vrow}` : styles.card}
+        style={
+          virtual
+            ? { height: cardItemHeight, top: cardWin.offsetY + i * cardItemHeight }
+            : { height: cardItemHeight }
+        }
+      >
+        {renderCard ? renderCard(card.row) : fallbackCard(card.row, card.key)}
+      </article>
+    ));
+    return (
+      <div className={styles.wrap}>
+        <div
+          className={styles.scroll}
+          data-virtual={virtual}
+          ref={scrollRef}
+          onScroll={handleScroll}
+          style={virtual ? { maxHeight: scrollMaxHeight } : undefined}
+        >
+          <div className={styles.cards}>
+            {virtual ? (
+              <div
+                className={styles.spacer}
+                role="presentation"
+                style={{ height: contentHeight(cards.length, cardItemHeight) }}
+              >
+                {cardNodes}
+              </div>
+            ) : (
+              cardNodes
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const selectedCount = allKeys.filter((k) => selected.includes(k)).length;
   const allSelected = selectable && data.length > 0 && selectedCount === data.length;
   const someSelected = selectedCount > 0 && selectedCount < allKeys.length;
@@ -215,9 +378,9 @@ export function Table<T extends object>(props: TableProps<T>) {
     onSelect(Array.from(next));
   };
 
-  const colCount = columns.length + (selectable ? 1 : 0);
+  const colCount = columns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0);
 
-  const gridTemplateColumns = gridTemplateOf(columns, selectable);
+  const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable);
   const pinOffsets = pinOffsetsOf(columns);
   // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
   // `position: sticky` and the stacking, the inline style owns the offset —
@@ -235,7 +398,7 @@ export function Table<T extends object>(props: TableProps<T>) {
   // rows (the rows drop out while the group is collapsed); without it every
   // item is a data row — so plain, grouped, virtual and non-virtual bodies
   // share one render path.
-  const items: BodyItem<T>[] =
+  const visibleItems: BodyItem<T>[] =
     groups.length > 0
       ? groups.flatMap((group): BodyItem<T>[] => {
           const header: BodyItem<T> = { kind: 'group', key: `group:${group.key}`, group };
@@ -254,14 +417,41 @@ export function Table<T extends object>(props: TableProps<T>) {
         })
       : data.map((row, i) => ({ kind: 'row' as const, key: allKeys[i], row }));
 
-  // Window over the items when virtual — a group header is exactly one row of
-  // the window, headers and data rows interleaved; without it `win` covers
-  // every item, so both modes share one render path. The slice index `i`
-  // stays local for Task 7's detail rows in the same window math.
+  // Master-detail: an expanded row is followed by its detail `role=row` in
+  // the flat list, so the window slices rows and details together and a
+  // collapsed group still hides its expanded rows' details with them.
+  const items: BodyItem<T>[] = expandable
+    ? visibleItems.flatMap((item): BodyItem<T>[] =>
+        item.kind === 'row' && expanded.has(item.key)
+          ? [item, { kind: 'detail', key: `detail:${item.key}`, row: item.row }]
+          : [item],
+      )
+    : visibleItems;
+
+  // Pixel start of every item (rows/group headers at `rowHeight`, details at
+  // `expandedHeight`) plus one sentinel holding the total. The virtual spacer
+  // is exactly that total and each windowed item sits at `offsets[index]` —
+  // the variable-height mapping the ledger assigns to this task. Without
+  // virtual the offsets stay unused; rendering every item keeps it simple.
+  const offsets: number[] = [];
+  let contentTotal = 0;
+  for (const item of items) {
+    offsets.push(contentTotal);
+    contentTotal += item.kind === 'detail' ? detailHeight : rowHeight;
+  }
+  offsets.push(contentTotal);
+
+  // Window over the items when virtual — a group header costs one row of
+  // height, an expanded detail `expandedHeight` px — without it `win` covers
+  // every item, so both modes share one render path.
   const win = virtual
-    ? computeWindow(scrollTop, viewportHeight, rowHeight, items.length, overscan)
+    ? variableWindow(offsets, scrollTop, viewportHeight, overscan)
     : { start: 0, end: items.length, offsetY: 0 };
   const body = items.slice(win.start, win.end).map((item, i) => {
+    // Absolute px start of this item — with uniform rows it equals
+    // `win.offsetY + i * rowHeight`, with an expanded detail in the window
+    // it follows the pixel offsets instead of the row count.
+    const top = offsets[win.start + i];
     if (item.kind === 'group') {
       const { group } = item;
       const isCollapsed = collapsed.has(group.key);
@@ -271,9 +461,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           className={virtual ? `${styles.groupRow} ${styles.vrow}` : styles.groupRow}
           role="row"
           style={
-            virtual
-              ? { gridTemplateColumns, top: win.offsetY + i * rowHeight, height: rowHeight }
-              : { gridTemplateColumns }
+            virtual ? { gridTemplateColumns, top, height: rowHeight } : { gridTemplateColumns }
           }
         >
           <div className={styles.groupCell} role="gridcell" aria-colspan={colCount}>
@@ -297,19 +485,37 @@ export function Table<T extends object>(props: TableProps<T>) {
         </div>
       );
     }
+    if (item.kind === 'detail') {
+      // One `role=row` with a single full-colspan gridcell, at a fixed
+      // `expandedHeight` px — in virtual mode that height is the row's whole
+      // slot budget, so the offsets above never need to measure content.
+      return (
+        <div
+          key={item.key}
+          className={virtual ? `${styles.detail} ${styles.vrow}` : styles.detail}
+          role="row"
+          style={
+            virtual
+              ? { gridTemplateColumns, top, height: detailHeight }
+              : { gridTemplateColumns, height: detailHeight }
+          }
+        >
+          <div className={styles.detailCell} role="gridcell" aria-colspan={colCount}>
+            {renderExpanded?.(item.row)}
+          </div>
+        </div>
+      );
+    }
     const { row, key: k } = item;
     const isSelected = selected.includes(k);
+    const isExpanded = expanded.has(k);
     return (
       <div
         key={k}
         className={virtual ? `${styles.row} ${styles.vrow}` : styles.row}
         role="row"
         data-selected={isSelected}
-        style={
-          virtual
-            ? { gridTemplateColumns, top: win.offsetY + i * rowHeight, height: rowHeight }
-            : { gridTemplateColumns }
-        }
+        style={virtual ? { gridTemplateColumns, top, height: rowHeight } : { gridTemplateColumns }}
       >
         {selectable && (
           <div className={`${styles.c} ${styles.cellSelect}`} role="gridcell" data-align="center">
@@ -320,6 +526,22 @@ export function Table<T extends object>(props: TableProps<T>) {
               checked={isSelected}
               onChange={() => toggleOne(k)}
             />
+          </div>
+        )}
+        {expandable && (
+          // The master-detail toggle column sits first after the select
+          // checkbox: same 36px control track, `aria-expanded` mirrors the
+          // controlled `expandedKeys`.
+          <div className={`${styles.c} ${styles.cellSelect}`} role="gridcell" data-align="center">
+            <button
+              type="button"
+              className={styles.groupToggle}
+              aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} ${k}`}
+              aria-expanded={isExpanded}
+              onClick={() => onToggleExpand?.(k)}
+            >
+              <span aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+            </button>
           </div>
         )}
         {columns.map((c) => {
@@ -352,9 +574,9 @@ export function Table<T extends object>(props: TableProps<T>) {
         <div
           className={styles.grid}
           role="grid"
-          // Group headers are rows too: `items.length` is data rows in plain
-          // mode and headers + visible rows (collapsed rows hidden) when
-          // grouped, so rowcount tracks what actually renders.
+          // Rows all count: data rows, group headers (each one row) and one
+          // row per expanded detail — `items.length` tracks exactly what the
+          // body renders, collapsed groups' rows excluded.
           aria-rowcount={items.length + 1 + (showFilterRow ? 1 : 0) + (summary ? 1 : 0)}
           aria-colcount={colCount}
         >
@@ -376,6 +598,15 @@ export function Table<T extends object>(props: TableProps<T>) {
                   onChange={toggleAll}
                 />
               </div>
+            )}
+            {expandable && (
+              // Toggle column header: an empty control track, mirroring the
+              // select one, so every row below keeps its toggle first.
+              <div
+                className={`${styles.h} ${styles.cellSelect}`}
+                role="columnheader"
+                data-align="center"
+              />
             )}
             {columns.map((c) => {
               if (!c.sortable) {
@@ -448,6 +679,7 @@ export function Table<T extends object>(props: TableProps<T>) {
             // `onColumnFilter`; filtering `data` stays the caller's job.
             <div className={styles.filterRow} role="row" style={{ gridTemplateColumns }}>
               {selectable && <div className={cx(styles.c, styles.cellSelect)} role="gridcell" />}
+              {expandable && <div className={cx(styles.c, styles.cellSelect)} role="gridcell" />}
               {columns.map((c) => {
                 const cellClass = cx(styles.c, pinClass(c));
                 const cellStyle = pinStyle(c);
@@ -496,15 +728,12 @@ export function Table<T extends object>(props: TableProps<T>) {
             </div>
           )}
           {virtual ? (
-            // The spacer owns the full scroll height (contentHeight) while
-            // only the window is in the DOM; rows sit absolute inside it at
-            // their pixel offset. `presentation` keeps the rows owned by the
-            // grid for assistive tech.
-            <div
-              className={styles.spacer}
-              role="presentation"
-              style={{ height: contentHeight(items.length, rowHeight) }}
-            >
+            // The spacer owns the full scroll height — the sum of every
+            // item's own height (rows/group headers at rowHeight, details at
+            // expandedHeight) — while only the window is in the DOM; rows sit
+            // absolute inside it at their pixel offset. `presentation` keeps
+            // the rows owned by the grid for assistive tech.
+            <div className={styles.spacer} role="presentation" style={{ height: contentTotal }}>
               {body}
             </div>
           ) : (
