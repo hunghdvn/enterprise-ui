@@ -318,3 +318,17 @@ test('supports custom render and right alignment', () => {
   );
   expect(screen.getByText('₫ 10M').closest('[data-align="right"]')).not.toBeNull();
 });
+
+test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);
+  const grid = screen.getByRole('grid');
+  const scroller = grid.parentElement!;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  const first = within(grid).getAllByRole('row').length;
+  expect(first).toBeLessThan(60);
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  expect(within(grid).getAllByRole('row').length).toBeLessThan(60);
+  expect(screen.queryByText('SO-0')).toBeNull();
+  expect(screen.getByText('SO-156')).toBeInTheDocument();
+});

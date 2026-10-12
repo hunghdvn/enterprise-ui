@@ -13,6 +13,14 @@
   min-width: 100%;
 }
 
+/* Virtual mode: the windowing reads `.scroll` (onScroll + clientHeight), so
+   it has to be the real scrollport — bounded, with the spacer's full height
+   scrolling inside the card instead of stretching the page to contentHeight. */
+.scroll[data-virtual='true'] {
+  overflow: auto;
+  max-height: 70vh;
+}
+
 .grid {
   min-width: 100%;
   /* Each row is its own grid, so a row only pins its first/last cell while it
@@ -157,6 +165,23 @@ button.h:hover {
 .row[data-selected='true'] {
   background: var(--row-selected-bg);
   box-shadow: inset 2px 0 0 var(--row-selected-marker);
+}
+
+/* Virtual body: the spacer carries the full contentHeight so the scrollbar
+   spans every row while only the window is in the DOM, and the windowed rows
+   are absolute inside it at their pixel offset. `border-box` keeps each row's
+   box at exactly rowHeight (height + bottom border), so consecutive tops never
+   overlap and the separator line stays visible. No overflow clipping here —
+   it would turn the row into the sticky cells' scrollport and unpin them. */
+.spacer {
+  position: relative;
+}
+
+.vrow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
 }
 
 /* Pinned columns: the first column stays on the left edge and the last on the

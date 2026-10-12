@@ -1,5 +1,6 @@
-import type { MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type UIEvent } from 'react';
 import { Button } from '../Button/Button';
+import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
 import type { SortEntry, TableProps } from './types';
 
@@ -14,7 +15,29 @@ export function Table<T extends object>({
   status = 'idle',
   onRetry,
   summary,
+  virtual = false,
+  rowHeight = 32,
+  overscan = 8,
 }: TableProps<T>) {
+  // Windowing state lives above the status early-returns so the hook order is
+  // identical whatever `status` says. The scroll listener sits on `.scroll`
+  // (the element the window is measured against) and is removed with the
+  // component — no leak.
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    const scroller = event.currentTarget;
+    setScrollTop(scroller.scrollTop);
+    setViewportHeight(scroller.clientHeight);
+  };
+  // Measure the viewport when virtual turns on (the scroller only gets a
+  // bounded height then); the scroll handler keeps it fresh afterwards.
+  useEffect(() => {
+    if (!virtual) return;
+    setViewportHeight(scrollRef.current?.clientHeight ?? 0);
+  }, [virtual]);
+
   if (status === 'empty') {
     return (
       <div className={styles.state} role="status">
@@ -81,9 +104,53 @@ export function Table<T extends object>({
     ? `36px repeat(${columns.length}, 1fr)`
     : `repeat(${columns.length}, 1fr)`;
 
+  // Window over the rows when virtual; without it `win` covers every row, so
+  // both modes share one render path. The slice index `i` stays local so
+  // Task 6/7 can count group headers/detail rows in the same window math.
+  const win = virtual
+    ? computeWindow(scrollTop, viewportHeight, rowHeight, data.length, overscan)
+    : { start: 0, end: data.length, offsetY: 0 };
+  const body = data.slice(win.start, win.end).map((row, i) => {
+    const k = allKeys[win.start + i];
+    const isSelected = selected.includes(k);
+    return (
+      <div
+        key={k}
+        className={virtual ? `${styles.row} ${styles.vrow}` : styles.row}
+        role="row"
+        data-selected={isSelected}
+        style={
+          virtual
+            ? { gridTemplateColumns, top: win.offsetY + i * rowHeight, height: rowHeight }
+            : { gridTemplateColumns }
+        }
+      >
+        {selectable && (
+          <div className={`${styles.c} ${styles.cellSelect}`} role="gridcell" data-align="center">
+            <input
+              type="checkbox"
+              aria-label={`Chọn dòng ${k}`}
+              className={styles.check}
+              checked={isSelected}
+              onChange={() => toggleOne(k)}
+            />
+          </div>
+        )}
+        {columns.map((c) => {
+          const value: unknown = (row as Record<string, unknown>)[c.key];
+          return (
+            <div key={c.key} className={styles.c} role="gridcell" data-align={c.align ?? 'left'}>
+              {c.render ? c.render(row) : value == null ? '' : String(value)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  });
+
   return (
     <div className={styles.wrap}>
-      <div className={styles.scroll}>
+      <div className={styles.scroll} data-virtual={virtual} ref={scrollRef} onScroll={handleScroll}>
         <div
           className={styles.grid}
           role="grid"
@@ -169,48 +236,21 @@ export function Table<T extends object>({
               );
             })}
           </div>
-          {data.map((row, i) => {
-            const k = allKeys[i];
-            const isSelected = selected.includes(k);
-            return (
-              <div
-                key={k}
-                className={styles.row}
-                role="row"
-                data-selected={isSelected}
-                style={{ gridTemplateColumns }}
-              >
-                {selectable && (
-                  <div
-                    className={`${styles.c} ${styles.cellSelect}`}
-                    role="gridcell"
-                    data-align="center"
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Chọn dòng ${k}`}
-                      className={styles.check}
-                      checked={isSelected}
-                      onChange={() => toggleOne(k)}
-                    />
-                  </div>
-                )}
-                {columns.map((c) => {
-                  const value: unknown = (row as Record<string, unknown>)[c.key];
-                  return (
-                    <div
-                      key={c.key}
-                      className={styles.c}
-                      role="gridcell"
-                      data-align={c.align ?? 'left'}
-                    >
-                      {c.render ? c.render(row) : value == null ? '' : String(value)}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+          {virtual ? (
+            // The spacer owns the full scroll height (contentHeight) while
+            // only the window is in the DOM; rows sit absolute inside it at
+            // their pixel offset. `presentation` keeps the rows owned by the
+            // grid for assistive tech.
+            <div
+              className={styles.spacer}
+              role="presentation"
+              style={{ height: contentHeight(data.length, rowHeight) }}
+            >
+              {body}
+            </div>
+          ) : (
+            body
+          )}
           {summary && (
             <div className={styles.foot} role="row">
               <span className={styles.footText} role="gridcell" aria-colspan={colCount}>

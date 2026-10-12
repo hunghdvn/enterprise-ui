@@ -52,4 +52,15 @@ export interface TableProps<T> {
   status?: Status;
   onRetry?: () => void;
   summary?: ReactNode;
+  /**
+   * Opt-in fixed-height windowing: only the rows around the viewport render,
+   * the rest exist as scroll height only. Never turns itself on by row count —
+   * a table that silently switches rendering strategy on data growth is a
+   * surprise, so callers flip it explicitly (default false).
+   */
+  virtual?: boolean;
+  /** Fixed row height in px the window math uses: 32 compact / 44 comfortable. Default 32. */
+  rowHeight?: number;
+  /** Rows rendered above and below the viewport as a scroll buffer. Default 8. */
+  overscan?: number;
 }
