@@ -459,6 +459,92 @@ test('filter row sits under the header with a cell per column in virtual mode', 
   expect(grid).toHaveAttribute('aria-rowcount', '10002');
 });
 
+test('groups collapse and show group summary', () => {
+  const onToggleGroup = vi.fn();
+  render(
+    <Table
+      columns={cols}
+      data={[
+        { code: 'SO-1', status: 'open' },
+        { code: 'SO-2', status: 'open' },
+        { code: 'SO-3', status: 'done' },
+      ]}
+      groupBy={['status']}
+      collapsedGroups={[]}
+      onToggleGroup={onToggleGroup}
+      renderGroupSummary={(_, rows) => <span>{rows.length} đơn</span>}
+    />,
+  );
+  expect(screen.getByText(/open/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Thu gọn open/ }));
+  expect(onToggleGroup).toHaveBeenCalledWith('open');
+  expect(screen.getAllByText(/2 đơn/).length).toBeGreaterThan(0);
+});
+
+test('collapsed group hides its rows but keeps the header and summary', () => {
+  const groupRows = [
+    { code: 'SO-1', status: 'open' },
+    { code: 'SO-2', status: 'open' },
+    { code: 'SO-3', status: 'done' },
+  ];
+  const summaryOf = (_key: string, rows: typeof groupRows) => <span>{rows.length} đơn</span>;
+  const { rerender } = render(
+    <Table
+      columns={cols}
+      data={groupRows}
+      groupBy={['status']}
+      collapsedGroups={['open']}
+      onToggleGroup={() => {}}
+      renderGroupSummary={summaryOf}
+    />,
+  );
+  // Header + summary stay, the collapsed group's rows are hidden.
+  expect(screen.getByText('open')).toBeInTheDocument();
+  expect(screen.getByText('2 đơn')).toBeInTheDocument();
+  expect(screen.queryByText('SO-1')).toBeNull();
+  expect(screen.queryByText('SO-2')).toBeNull();
+  // The other group is untouched.
+  expect(screen.getByText('SO-3')).toBeInTheDocument();
+  rerender(
+    <Table
+      columns={cols}
+      data={groupRows}
+      groupBy={['status']}
+      collapsedGroups={[]}
+      onToggleGroup={() => {}}
+      renderGroupSummary={summaryOf}
+    />,
+  );
+  expect(screen.getByText('SO-1')).toBeInTheDocument();
+  expect(screen.getByText('SO-2')).toBeInTheDocument();
+});
+
+test('virtual groups count each header as one windowed row', () => {
+  const data = Array.from({ length: 100 }, (_, i) => ({
+    code: `SO-${i}`,
+    status: i % 2 === 0 ? 'done' : 'open',
+  }));
+  render(
+    <Table
+      columns={cols}
+      data={data}
+      groupBy={['status']}
+      collapsedGroups={[]}
+      onToggleGroup={() => {}}
+      virtual
+      rowHeight={32}
+      overscan={8}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  // 1 header row + 100 data rows + 2 group headers = 103.
+  expect(grid).toHaveAttribute('aria-rowcount', '103');
+  const rows = within(grid).getAllByRole('row');
+  // Header + windowed items (the group header included) stay under 60.
+  expect(rows.length).toBeLessThan(60);
+  expect(screen.getByRole('button', { name: /Thu gọn done/ })).toBeInTheDocument();
+});
+
 test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
   const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
   render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);

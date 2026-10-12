@@ -78,6 +78,67 @@
   outline-offset: -2px;
 }
 
+/* Group header: one role=row per group on the same shared grid template as
+   every other row path, so tracks/pins/scroll never drift. Its single cell
+   spans all tracks (the full colspan) and holds the collapse toggle, the
+   group label + row count, and the per-group summary. Counts as exactly one
+   row in the virtual window math. */
+.groupRow {
+  display: grid;
+  box-sizing: border-box;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.groupCell {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--row-height);
+  padding: var(--cell-py) var(--cell-px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Same in-cell focus-ring trick as .sortBtn/.check: the ring draws inward so
+   the cell's overflow never clips it. */
+.groupToggle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.groupToggle:hover {
+  color: var(--text);
+}
+
+.groupToggle:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.groupLabel {
+  font-weight: 600;
+}
+
+.groupCount,
+.groupSummary {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.groupSummary {
+  margin-left: auto;
+}
+
 /* Row/cell height must come out at `--row-height`, padding included: without
    border-box the min-height plus padding renders 40px compact (68px
    comfortable) instead of the 32/44px the spec asks for. */

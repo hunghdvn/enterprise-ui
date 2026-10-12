@@ -113,4 +113,22 @@ export interface TableProps<T> {
   columnFilters?: Record<string, string>;
   /** Receives the column key and its next raw string value on every edit. */
   onColumnFilter?: (key: string, value: string) => void;
+  /**
+   * Groups the body: one header row per group (toggle + label + row count +
+   * `renderGroupSummary`) above that group's rows. Column keys — `buildGroups`
+   * buckets by at most the first two (spec §4.8 caps it there this round).
+   * Presentational: the table never reorders `data` itself, so callers pass
+   * rows already in the order they want groups to appear in.
+   */
+  groupBy?: string[];
+  /**
+   * Group keys whose rows are hidden. The header row (label, count, summary)
+   * stays visible — only the group's body rows disappear. Controlled: remove
+   * a key and the rows come back.
+   */
+  collapsedGroups?: string[];
+  /** Receives the group key on every header toggle click, collapsed or not. */
+  onToggleGroup?: (groupKey: string) => void;
+  /** Per-group summary rendered inside the group header (count/sum/…). */
+  renderGroupSummary?: (groupKey: string, rows: T[]) => ReactNode;
 }

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type MouseEvent, type UIEvent } from
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
 import { Select } from '../Select/Select';
+import { buildGroups, type Group } from '../internal/gridLogic';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
 import type { Column, SortEntry, TableProps } from './types';
@@ -13,6 +14,14 @@ const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
 const FILTER_ALL_LABEL = 'Tất cả';
 
 const cx = (...parts: string[]): string => parts.filter(Boolean).join(' ');
+
+/**
+ * One windowable body item: a data row, or a group header — which is a full
+ * `role=row` of its own (toggle + label + count + summary) and therefore
+ * counts as exactly one row in the window math, per the ledger ruling.
+ */
+type BodyItem<T> =
+  { kind: 'row'; key: string; row: T } | { kind: 'group'; key: string; group: Group<T> };
 
 /**
  * One track per column for the single grid template every row shares — header,
@@ -81,6 +90,10 @@ export function Table<T extends object>(props: TableProps<T>) {
     showFilterRow = false,
     columnFilters,
     onColumnFilter,
+    groupBy = [],
+    collapsedGroups = [],
+    onToggleGroup,
+    renderGroupSummary,
   } = props;
   // Windowing state lives above the status early-returns so the hook order is
   // identical whatever `status` says. The scroll listener sits on `.scroll`
@@ -158,6 +171,20 @@ export function Table<T extends object>(props: TableProps<T>) {
   const allSelected = selectable && data.length > 0 && selectedCount === data.length;
   const someSelected = selectedCount > 0 && selectedCount < allKeys.length;
 
+  // Every row's React key is derived with the table's key logic (`keyOf`
+  // above) over the full `data` BEFORE grouping, and that precomputed array
+  // is what `buildGroups`' `rowKey` contract reads — bucketing never
+  // re-derives keys itself. `groupBy` empty → no groups, plain body.
+  const groups = buildGroups(data, groupBy, (_row, i) => allKeys[i]);
+  const collapsed = new Set<string>(collapsedGroups);
+  // Row → key lookup for grouped rendering: `buildGroups` buckets row
+  // references (input order preserved), so each grouped row's key comes from
+  // the precomputed map instead of a window index.
+  const keyByRow = new Map<T, string>();
+  if (groups.length > 0) {
+    data.forEach((row, i) => keyByRow.set(row, allKeys[i]));
+  }
+
   // Select-all is page-scoped and merges: it unions the current page's keys
   // with what is already selected, and unchecking removes only this page's
   // keys — a selection made on another page survives. Row toggles behave the
@@ -195,14 +222,70 @@ export function Table<T extends object>(props: TableProps<T>) {
     return undefined;
   };
 
-  // Window over the rows when virtual; without it `win` covers every row, so
-  // both modes share one render path. The slice index `i` stays local so
-  // Task 6/7 can count group headers/detail rows in the same window math.
+  // Body items: with `groupBy` each group contributes one header row plus its
+  // rows (the rows drop out while the group is collapsed); without it every
+  // item is a data row — so plain, grouped, virtual and non-virtual bodies
+  // share one render path.
+  const items: BodyItem<T>[] =
+    groups.length > 0
+      ? groups.flatMap((group): BodyItem<T>[] => {
+          const header: BodyItem<T> = { kind: 'group', key: `group:${group.key}`, group };
+          if (collapsed.has(group.key)) return [header];
+          return [
+            header,
+            ...group.rows.map((row) => ({
+              kind: 'row' as const,
+              key: keyByRow.get(row) as string,
+              row,
+            })),
+          ];
+        })
+      : data.map((row, i) => ({ kind: 'row' as const, key: allKeys[i], row }));
+
+  // Window over the items when virtual — a group header is exactly one row of
+  // the window, headers and data rows interleaved; without it `win` covers
+  // every item, so both modes share one render path. The slice index `i`
+  // stays local for Task 7's detail rows in the same window math.
   const win = virtual
-    ? computeWindow(scrollTop, viewportHeight, rowHeight, data.length, overscan)
-    : { start: 0, end: data.length, offsetY: 0 };
-  const body = data.slice(win.start, win.end).map((row, i) => {
-    const k = allKeys[win.start + i];
+    ? computeWindow(scrollTop, viewportHeight, rowHeight, items.length, overscan)
+    : { start: 0, end: items.length, offsetY: 0 };
+  const body = items.slice(win.start, win.end).map((item, i) => {
+    if (item.kind === 'group') {
+      const { group } = item;
+      const isCollapsed = collapsed.has(group.key);
+      return (
+        <div
+          key={item.key}
+          className={virtual ? `${styles.groupRow} ${styles.vrow}` : styles.groupRow}
+          role="row"
+          style={
+            virtual
+              ? { gridTemplateColumns, top: win.offsetY + i * rowHeight, height: rowHeight }
+              : { gridTemplateColumns }
+          }
+        >
+          <div className={styles.groupCell} role="gridcell" aria-colspan={colCount}>
+            <button
+              type="button"
+              className={styles.groupToggle}
+              aria-label={`${isCollapsed ? 'Mở rộng' : 'Thu gọn'} ${group.label}`}
+              aria-expanded={!isCollapsed}
+              onClick={() => onToggleGroup?.(group.key)}
+            >
+              <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span>
+            </button>
+            <span className={styles.groupLabel}>{group.label}</span>
+            <span className={styles.groupCount}>({group.rows.length})</span>
+            {renderGroupSummary && (
+              <span className={styles.groupSummary}>
+                {renderGroupSummary(group.key, group.rows)}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+    const { row, key: k } = item;
     const isSelected = selected.includes(k);
     return (
       <div
@@ -257,7 +340,10 @@ export function Table<T extends object>(props: TableProps<T>) {
         <div
           className={styles.grid}
           role="grid"
-          aria-rowcount={data.length + 1 + (showFilterRow ? 1 : 0) + (summary ? 1 : 0)}
+          // Group headers are rows too: `items.length` is data rows in plain
+          // mode and headers + visible rows (collapsed rows hidden) when
+          // grouped, so rowcount tracks what actually renders.
+          aria-rowcount={items.length + 1 + (showFilterRow ? 1 : 0) + (summary ? 1 : 0)}
           aria-colcount={colCount}
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
@@ -405,7 +491,7 @@ export function Table<T extends object>(props: TableProps<T>) {
             <div
               className={styles.spacer}
               role="presentation"
-              style={{ height: contentHeight(data.length, rowHeight) }}
+              style={{ height: contentHeight(items.length, rowHeight) }}
             >
               {body}
             </div>
