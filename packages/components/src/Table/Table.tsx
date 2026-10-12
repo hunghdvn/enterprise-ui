@@ -9,8 +9,10 @@ import {
 } from 'react';
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
-import { Select } from '../Select/Select';
+import { toCSV } from '../internal/exportCsv';
 import { buildGroups, type Group } from '../internal/gridLogic';
+import { Pagination } from '../Pagination/Pagination';
+import { Select } from '../Select/Select';
 import { useIsMobile } from '../internal/useIsMobile';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
@@ -163,6 +165,10 @@ export function Table<T extends object>(props: TableProps<T>) {
     expandedHeight,
     renderCard,
     cardHeight,
+    pagination,
+    exportable = false,
+    exportFileName,
+    onExport,
   } = props;
   // Breakpoint state lives with the windowing state above the status
   // early-returns so the hook order is identical whatever `status` says.
@@ -249,13 +255,62 @@ export function Table<T extends object>(props: TableProps<T>) {
   const cardItemHeight = Math.round(cardHeight ?? rowHeight * 2.5);
   const expanded = new Set(expandedKeys);
 
+  // Footer bar (spec §4.10): summary + Pagination + export, built once for
+  // both render branches (cards get it too — it is table-level chrome, not a
+  // row affordance). `Pagination` owns the out-of-range clamp and calls
+  // `onPage` back with the clamped page, so no slice math lives here — the
+  // table stays presentational. When the bar exists the in-grid summary row
+  // steps aside (one summary, never two); without bar props P1's sticky
+  // grid-footer row is untouched. Status early-returns above keep it out of
+  // loading/empty/error states, same as the grid itself.
+  const hasFooterBar = pagination !== undefined || exportable;
+  const handleExport = () => {
+    if (onExport) {
+      onExport(data, columns);
+      return;
+    }
+    // Default: BOM CSV of the visible rows/columns (already filtered/sorted
+    // by the caller) downloaded through a temporary Blob anchor.
+    const blob = new Blob([toCSV(data, columns)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = exportFileName ?? 'datagrid.csv';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+  const footerBar = hasFooterBar ? (
+    <div className={styles.gridFoot}>
+      {summary && <span className={styles.gridFootSummary}>{summary}</span>}
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onChange={pagination.onPage}
+        />
+      )}
+      {exportable && (
+        <Button variant="secondary" size="sm" className={styles.exportBtn} onClick={handleExport}>
+          Xuất CSV
+        </Button>
+      )}
+    </div>
+  ) : null;
+
   if (isMobileView) {
     // Below the breakpoint the grid is replaced by a list of `<article>`
     // cards — same scroll container, same windowing (uniform `cardHeight`
-    // slots, so the fixed-height helper applies directly). Fallback card:
-    // first column is the title, the rest are `label: value` pairs, plus the
-    // Chi tiết toggle when master-detail is on. Header/filter/summary are
-    // header-of-grid concerns and stay in the desktop grid.
+    // slots, so the fixed-height helper applies directly). Documented scope:
+    // cards are READ-ONLY-FLAT — they render `data` as a flat list, so the
+    // grid-only affordances (selection checkboxes, filter row, group
+    // headers, the grid summary row) never reach this branch whatever props
+    // are passed; filtering/sorting still apply through the caller's `data`.
+    // Table-level chrome does come along: the footer bar (summary +
+    // pagination + export) renders under the cards, and an expanded card
+    // shows its `renderExpanded` content (key in `expandedKeys`). Fallback
+    // card: first column is the title, the rest are `label: value` pairs,
+    // plus the Chi tiết toggle when master-detail is on.
     const cards = data.map((row, i) => ({ key: allKeys[i], row }));
     const cardWin = virtual
       ? computeWindow(scrollTop, viewportHeight, cardItemHeight, cards.length, overscan)
@@ -301,6 +356,12 @@ export function Table<T extends object>(props: TableProps<T>) {
         }
       >
         {renderCard ? renderCard(card.row) : fallbackCard(card.row, card.key)}
+        {renderExpanded && expanded.has(card.key) && (
+          // Master-detail in card mode: the same detail content the grid's
+          // detail row shows, inside the expanded card (the card's own
+          // overflow scrolls it) — so Chi tiết is never a dead control.
+          <div className={styles.cardDetail}>{renderExpanded(card.row)}</div>
+        )}
       </article>
     ));
     return (
@@ -326,6 +387,7 @@ export function Table<T extends object>(props: TableProps<T>) {
             )}
           </div>
         </div>
+        {footerBar}
       </div>
     );
   }
@@ -576,8 +638,12 @@ export function Table<T extends object>(props: TableProps<T>) {
           role="grid"
           // Rows all count: data rows, group headers (each one row) and one
           // row per expanded detail — `items.length` tracks exactly what the
-          // body renders, collapsed groups' rows excluded.
-          aria-rowcount={items.length + 1 + (showFilterRow ? 1 : 0) + (summary ? 1 : 0)}
+          // body renders, collapsed groups' rows excluded. The summary counts
+          // only while it is a grid row; with a footer bar it lives there,
+          // outside the grid.
+          aria-rowcount={
+            items.length + 1 + (showFilterRow ? 1 : 0) + (summary && !hasFooterBar ? 1 : 0)
+          }
           aria-colcount={colCount}
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
@@ -739,7 +805,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           ) : (
             body
           )}
-          {summary && (
+          {summary && !hasFooterBar && (
             <div className={styles.foot} role="row">
               <span className={styles.footText} role="gridcell" aria-colspan={colCount}>
                 {summary}
@@ -748,6 +814,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           )}
         </div>
       </div>
+      {footerBar}
     </div>
   );
 }

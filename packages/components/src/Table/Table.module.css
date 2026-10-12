@@ -472,3 +472,42 @@ button.h:hover {
 .footText {
   min-width: 0;
 }
+
+/* Footer bar (spec §4.10): summary + Pagination + export, sitting after the
+   scrollport inside .wrap — in virtual mode the scrollport is capped at its
+   max-height, so the bar stays visible while rows scroll under it. Sticky
+   bottom so a non-virtual long body keeps the controls pinned to the card's
+   edge whenever .wrap itself scrolls. Summary first (pushes the rest right),
+   nav + export right, never shrinking when the bar wraps. */
+.gridFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: var(--cell-py) var(--cell-px);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.gridFootSummary {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.exportBtn {
+  flex-shrink: 0;
+}
+
+/* Master-detail inside a mobile card: the same renderExpanded content the
+   grid's detail row shows, under the card body — the card's own overflow
+   scrolls it when the fixed cardHeight slot cannot hold it all. */
+.cardDetail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}

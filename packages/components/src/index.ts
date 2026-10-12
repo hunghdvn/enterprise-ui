@@ -15,7 +15,22 @@ export type { CheckboxProps } from './Checkbox/Checkbox';
 export { AppShell } from './AppShell/AppShell';
 export type { AppShellProps, NavItem } from './AppShell/types';
 export { Table } from './Table/Table';
-export type { Column, TableProps, Status, Align, SortDir, SortEntry } from './Table/types';
+export type {
+  Column,
+  TableProps,
+  Status,
+  Align,
+  SortDir,
+  SortEntry,
+  FilterOption,
+  TablePagination,
+} from './Table/types';
+// Pure grid logic (spec §5): callers/showcase filter+sort the rows they pass
+// to Table — the component itself never touches `data`. Exported here so no
+// consumer has to deep-import `src/internal`.
+export { applyColumnFilters, applySorts, buildGroups } from './internal/gridLogic';
+export type { Group, FilterableColumn, FilterType } from './internal/gridLogic';
+export { toCSV } from './internal/exportCsv';
 export { Pagination } from './Pagination/Pagination';
 export type { PaginationProps } from './Pagination/Pagination';
 export { FilterBar } from './FilterBar/FilterBar';

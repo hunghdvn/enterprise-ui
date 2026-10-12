@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { toCSV } from '../internal/exportCsv';
 import { Table } from './Table';
 
 const cols = [
@@ -880,5 +881,239 @@ test('virtual observes the scrollport with ResizeObserver and cleans up', () => 
     expect(disconnect).toHaveBeenCalled();
   } finally {
     vi.unstubAllGlobals();
+  }
+});
+
+// --- Task 8: pagination footer + export + mobile card scope ------------------
+
+/**
+ * jsdom ships no `URL.createObjectURL`/`revokeObjectURL`, so the default CSV
+ * download path only becomes observable with both stubbed (same
+ * save/define/restore shape as `stubMatchMedia` above). `blobs` collects the
+ * payloads the table tried to download.
+ */
+/** Reads a Blob's bytes — jsdom's Blob has no `.text()`, FileReader works. */
+function blobBytes(blob: Blob): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+function stubObjectURL(): { blobs: Blob[]; restore: () => void } {
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  const blobs: Blob[] = [];
+  const create = vi.fn((blob: Blob) => {
+    blobs.push(blob);
+    return `blob:mock-${blobs.length}`;
+  });
+  const revoke = vi.fn();
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: create,
+    configurable: true,
+    writable: true,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: revoke,
+    configurable: true,
+    writable: true,
+  });
+  return {
+    blobs,
+    restore: () => {
+      Object.defineProperty(URL, 'createObjectURL', {
+        value: originalCreate,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(URL, 'revokeObjectURL', {
+        value: originalRevoke,
+        configurable: true,
+        writable: true,
+      });
+    },
+  };
+}
+
+test('pagination footer clamps out-of-range page', () => {
+  const onPage = vi.fn();
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1' }]}
+      pagination={{ page: 99, pageSize: 5, total: 8, onPage }}
+    />,
+  );
+  expect(screen.getByRole('navigation', { name: /Phân trang/ })).toBeInTheDocument();
+  // The clamp must also report back: ceil(8 / 5) = 2 is the page the parent
+  // should re-slice to, not the out-of-range 99 it passed in.
+  expect(onPage).toHaveBeenCalledWith(2);
+});
+
+test('pagination footer forwards page changes to onPage', () => {
+  const onPage = vi.fn();
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1' }]}
+      pagination={{ page: 1, pageSize: 5, total: 8, onPage }}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+  expect(onPage).toHaveBeenLastCalledWith(2);
+});
+
+test('footer bar groups summary, pagination and export below the scrollport', () => {
+  render(
+    <Table
+      columns={cols}
+      data={[{ code: 'SO-1' }]}
+      summary={<span>Tổng: 1 đơn</span>}
+      pagination={{ page: 1, pageSize: 5, total: 8, onPage: () => {} }}
+      exportable
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  // With a footer bar the summary leaves the grid rows — exactly one instance,
+  // in the bar — so the grid's aria-rowcount stops counting it.
+  expect(within(grid).queryByText('Tổng: 1 đơn')).toBeNull();
+  expect(grid).toHaveAttribute('aria-rowcount', '2');
+  const nav = screen.getByRole('navigation', { name: /Phân trang/ });
+  const bar = nav.parentElement!;
+  expect(bar).toContainElement(screen.getByText('Tổng: 1 đơn'));
+  expect(bar).toContainElement(screen.getByRole('button', { name: /Xuất CSV/ }));
+  // The bar sits outside the scrollport (the grid's parent), so rows scroll
+  // under it while the controls stay put.
+  expect(bar.previousElementSibling).toBe(grid.parentElement);
+});
+
+test('export downloads default csv when no onExport', () => {
+  const { restore } = stubObjectURL();
+  try {
+    render(<Table columns={cols} data={[{ code: 'SO-1' }]} exportable exportFileName="d.csv" />);
+    fireEvent.click(screen.getByRole('button', { name: /Xuất CSV/ }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+  } finally {
+    restore();
+  }
+});
+
+test('default export downloads a BOM csv of the visible rows and columns', async () => {
+  const { blobs, restore } = stubObjectURL();
+  try {
+    const data = [{ code: 'SO-1', total: '₫ 10M' }];
+    render(<Table columns={cols} data={data} exportable exportFileName="d.csv" />);
+    fireEvent.click(screen.getByRole('button', { name: /Xuất CSV/ }));
+    expect(blobs).toHaveLength(1);
+    expect(blobs[0].type).toBe('text/csv;charset=utf-8');
+    // The payload is exactly what `toCSV` builds from the visible data —
+    // BOM bytes first, then header titles + RFC4180 escapes (unit-tested in
+    // exportCsv.test). jsdom's Blob has no `.text()`, so FileReader reads it.
+    const bytes = await blobBytes(blobs[0]);
+    expect(Array.from(bytes.slice(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
+    expect(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes)).toBe(toCSV(data, cols));
+  } finally {
+    restore();
+  }
+});
+
+test('export button prefers the onExport override over the default download', () => {
+  const onExport = vi.fn();
+  const { restore } = stubObjectURL();
+  try {
+    render(<Table columns={cols} data={rows} exportable onExport={onExport} />);
+    fireEvent.click(screen.getByRole('button', { name: /Xuất CSV/ }));
+    expect(onExport).toHaveBeenCalledWith(rows, cols);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  } finally {
+    restore();
+  }
+});
+
+test('export button stays hidden without exportable', () => {
+  render(<Table columns={cols} data={rows} />);
+  expect(screen.queryByRole('button', { name: /Xuất CSV/ })).toBeNull();
+});
+
+test('expanded card renders its renderExpanded content', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    const view = (expandedKeys: string[]) => (
+      <Table
+        columns={cols}
+        data={rows}
+        renderExpanded={(r) => <div>Nội dung {String(r['code'])}</div>}
+        expandedKeys={expandedKeys}
+        onToggleExpand={() => {}}
+      />
+    );
+    const { rerender } = render(view([]));
+    const card = screen.getByRole('article');
+    // Collapsed: no detail content, toggle reports collapsed.
+    expect(card).not.toHaveTextContent('Nội dung SO-1');
+    expect(within(card).getByRole('button', { name: /Chi tiết/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    // Controlled expand (the key arrives through expandedKeys) — the card
+    // shows the detail content instead of a dead Chi tiết toggle (T7 gap).
+    rerender(view(['SO-1']));
+    const expandedCard = screen.getByRole('article');
+    expect(within(expandedCard).getByText('Nội dung SO-1')).toBeInTheDocument();
+    expect(within(expandedCard).getByRole('button', { name: /Chi tiết/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    // Controlled collapse removes it again.
+    rerender(view([]));
+    expect(screen.queryByText('Nội dung SO-1')).toBeNull();
+  } finally {
+    restore();
+  }
+});
+
+test('cards are read-only-flat: no select, filter row, group headers or grid summary', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    render(
+      <Table
+        columns={cols}
+        data={[
+          { code: 'SO-1', total: '₫ 10M', status: 'open' },
+          { code: 'SO-2', total: '₫ 20M', status: 'open' },
+        ]}
+        selectedKeys={[]}
+        onSelect={() => {}}
+        showFilterRow
+        columnFilters={{}}
+        onColumnFilter={() => {}}
+        groupBy={['status']}
+        collapsedGroups={[]}
+        onToggleGroup={() => {}}
+        summary={<span>Tổng: 2 đơn</span>}
+        pagination={{ page: 1, pageSize: 5, total: 2, onPage: () => {} }}
+        exportable
+      />,
+    );
+    // Documented contract (read-only-flat): cards render `data` as a flat
+    // list — grid-only affordances (selection, filter row, group headers,
+    // the grid's summary row) never reach the card branch, whatever props
+    // are passed. Filtering/sorting still apply through `data` itself.
+    expect(screen.queryByRole('grid')).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryByLabelText(/^Lọc /)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Thu gọn/ })).toBeNull();
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    // The table-level footer (summary + pagination + export) is not a row
+    // affordance — it still renders below the cards.
+    const nav = screen.getByRole('navigation', { name: /Phân trang/ });
+    const bar = nav.parentElement!;
+    expect(bar).toContainElement(screen.getByText('Tổng: 2 đơn'));
+    expect(bar).toContainElement(screen.getByRole('button', { name: /Xuất CSV/ }));
+  } finally {
+    restore();
   }
 });

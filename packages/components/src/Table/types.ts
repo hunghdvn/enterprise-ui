@@ -17,6 +17,20 @@ export interface FilterOption {
   label: string;
 }
 
+/**
+ * Pagination state handed to the shared `Pagination` the table embeds in its
+ * footer bar. `page` is 1-indexed and can arrive out of range (a filter
+ * shrank `total`): `Pagination` clamps it to the valid range itself and
+ * reports the clamped value back through `onPage`.
+ */
+export interface TablePagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Receives the next 1-based page — already clamped to `[1, ceil(total/pageSize)]`. */
+  onPage: (page: number) => void;
+}
+
 export interface Column<T> {
   key: string;
   title: string;
@@ -135,7 +149,9 @@ export interface TableProps<T> {
    * Renders the master-detail panel for an expanded row: the table adds an
    * expand toggle column (first, after the select checkbox) and one extra
    * `role=row` with a full-colspan gridcell right under the expanded row.
-   * Opt-in — providing this is what turns the feature on (default undefined).
+   * In mobile card mode the same content renders inside the expanded card,
+   * under the fallback card's Chi tiết toggle. Opt-in — providing this is
+   * what turns the feature on (default undefined).
    */
   renderExpanded?: (row: T) => ReactNode;
   /**
@@ -157,6 +173,15 @@ export interface TableProps<T> {
    * table swaps the grid for a list of `<article>` cards; without it the
    * fallback card renders the first column as the title and the rest as
    * `label: value` pairs. Desktop always keeps the grid.
+   *
+   * **Cards are read-only-flat** (documented scope, pinned by tests): cards
+   * render `data` as a flat list — the selection checkboxes, filter row,
+   * group headers and the grid's summary row are grid-only affordances and
+   * never render in card mode, whatever props are passed. Filtering and
+   * sorting still reach cards through the `data` the caller passes (the
+   * table is presentational). Table-level footer chrome — summary text,
+   * pagination and the export button — does render below the cards. With
+   * `renderExpanded`, an expanded card shows its detail content too.
    */
   renderCard?: (row: T) => ReactNode;
   /**
@@ -164,4 +189,27 @@ export interface TableProps<T> {
    * measuring them (default `Math.round(rowHeight * 2.5)`).
    */
   cardHeight?: number;
+  /**
+   * Renders the sticky footer bar under the scrollport: `summary` (which
+   * then leaves the grid rows — one summary, never two), the shared
+   * `Pagination` (it clamps out-of-range pages itself and reports the
+   * clamped page via `onPage`), and, with `exportable`, the export button.
+   * Presentational: the table never slices `data` — callers paginate
+   * upstream and pass the current page's rows. The bar also renders under
+   * the mobile card list. Without `pagination` and `exportable`, P1
+   * behaviour is untouched: `summary` stays the grid's sticky footer row.
+   */
+  pagination?: TablePagination;
+  /** Adds the "Xuất CSV" button to the footer bar (default false). */
+  exportable?: boolean;
+  /** Downloaded file name for the default CSV export. Default `'datagrid.csv'`. */
+  exportFileName?: string;
+  /**
+   * Overrides the default CSV download, called with the rows and columns
+   * the button would have written — `data` as passed in (already
+   * filtered/sorted by the caller: presentational) and every column.
+   * Default builds `toCSV(data, columns)` (UTF-8 BOM + RFC4180 escapes)
+   * and downloads it through a Blob anchor.
+   */
+  onExport?: (rows: T[], columns: Column<T>[]) => void;
 }
