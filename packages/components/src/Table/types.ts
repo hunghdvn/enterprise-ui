@@ -63,4 +63,12 @@ export interface TableProps<T> {
   rowHeight?: number;
   /** Rows rendered above and below the viewport as a scroll buffer. Default 8. */
   overscan?: number;
+  /**
+   * Bounds the virtual scrollport height (inline `max-height` on the scroll
+   * container). Omitted → the table's `70vh` default; pass any CSS height
+   * (`'480px'`, `'100%'`, `'calc(100vh - 320px)'`) to fit an embedding
+   * card/modal; pass `undefined` explicitly to drop the table's cap so the
+   * caller's own layout sizes the scrollport. Only meaningful with `virtual`.
+   */
+  maxHeight?: string;
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Table } from './Table';
 
 const cols = [
@@ -331,4 +331,77 @@ test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
   expect(within(grid).getAllByRole('row').length).toBeLessThan(60);
   expect(screen.queryByText('SO-0')).toBeNull();
   expect(screen.getByText('SO-156')).toBeInTheDocument();
+});
+
+test('virtual scrollport maxHeight defaults to 70vh and takes a caller override', () => {
+  const data = [{ code: 'SO-1' }, { code: 'SO-2' }];
+  const { rerender } = render(<Table columns={cols} data={data} virtual />);
+  const scroller = screen.getByRole('grid').parentElement as HTMLDivElement;
+  // Default preserved: the table bounds its own scrollport at 70vh.
+  expect(scroller.style.maxHeight).toBe('70vh');
+  // Any CSS height wins — e.g. embedding in a fixed-height card or modal.
+  rerender(<Table columns={cols} data={data} virtual maxHeight="480px" />);
+  expect(scroller.style.maxHeight).toBe('480px');
+  // Explicit undefined: no table-imposed cap — the layout sizes the
+  // scrollport itself.
+  rerender(<Table columns={cols} data={data} virtual maxHeight={undefined} />);
+  expect(scroller.style.maxHeight).toBe('');
+  // Not virtual → no scrollport cap; .wrap keeps owning overflow as before.
+  rerender(<Table columns={cols} data={data} />);
+  expect(scroller.style.maxHeight).toBe('');
+});
+
+test('virtual window re-measures the viewport on resize without a scroll event', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);
+  const grid = screen.getByRole('grid');
+  const scroller = grid.parentElement as HTMLDivElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  // Window [148, 175): SO-200 is outside it.
+  expect(screen.queryByText('SO-200')).toBeNull();
+  const before = within(grid).getAllByRole('row').length;
+  // The scrollport grows; a window resize must re-read clientHeight and widen
+  // the window — no scroll event involved.
+  Object.defineProperty(scroller, 'clientHeight', { value: 3200, configurable: true });
+  fireEvent(window, new Event('resize'));
+  expect(within(grid).getAllByRole('row').length).toBeGreaterThan(before);
+  expect(screen.getByText('SO-200')).toBeInTheDocument();
+  expect(screen.queryByText('SO-0')).toBeNull();
+});
+
+test('virtual observes the scrollport with ResizeObserver and cleans up', () => {
+  const observe = vi.fn();
+  const disconnect = vi.fn();
+  let roCallback: ResizeObserverCallback | undefined;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = observe;
+      disconnect = disconnect;
+      constructor(callback: ResizeObserverCallback) {
+        roCallback = callback;
+      }
+    },
+  );
+  try {
+    const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+    const { unmount } = render(
+      <Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />,
+    );
+    const grid = screen.getByRole('grid');
+    const scroller = grid.parentElement as HTMLDivElement;
+    expect(observe).toHaveBeenCalledWith(scroller);
+    Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+    fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+    expect(screen.queryByText('SO-200')).toBeNull();
+    // Container resize (maxHeight change, card layout) → same re-measure path.
+    Object.defineProperty(scroller, 'clientHeight', { value: 3200, configurable: true });
+    act(() => roCallback?.([], {} as ResizeObserver));
+    expect(screen.getByText('SO-200')).toBeInTheDocument();
+    unmount();
+    expect(disconnect).toHaveBeenCalled();
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

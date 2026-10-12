@@ -1,24 +1,28 @@
-import { useEffect, useRef, useState, type MouseEvent, type UIEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type MouseEvent, type UIEvent } from 'react';
 import { Button } from '../Button/Button';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
 import type { SortEntry, TableProps } from './types';
 
-export function Table<T extends object>({
-  columns,
-  data,
-  sorts = [],
-  onSort,
-  selectedKeys,
-  onSelect,
-  rowKey,
-  status = 'idle',
-  onRetry,
-  summary,
-  virtual = false,
-  rowHeight = 32,
-  overscan = 8,
-}: TableProps<T>) {
+/** Scrollport cap applied when `maxHeight` is omitted in virtual mode. */
+const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
+
+export function Table<T extends object>(props: TableProps<T>) {
+  const {
+    columns,
+    data,
+    sorts = [],
+    onSort,
+    selectedKeys,
+    onSelect,
+    rowKey,
+    status = 'idle',
+    onRetry,
+    summary,
+    virtual = false,
+    rowHeight = 32,
+    overscan = 8,
+  } = props;
   // Windowing state lives above the status early-returns so the hook order is
   // identical whatever `status` says. The scroll listener sits on `.scroll`
   // (the element the window is measured against) and is removed with the
@@ -31,12 +35,30 @@ export function Table<T extends object>({
     setScrollTop(scroller.scrollTop);
     setViewportHeight(scroller.clientHeight);
   };
-  // Measure the viewport when virtual turns on (the scroller only gets a
-  // bounded height then); the scroll handler keeps it fresh afterwards.
-  useEffect(() => {
+  // Measure before paint — an overscan-only first frame would flash — and
+  // re-measure whenever the scrollport or the window resizes, so the window is
+  // never stale before the next scroll event. ResizeObserver is guarded (jsdom
+  // has none) and catches container resizes such as `maxHeight` edits or card
+  // layout. Both listeners detach on unmount or when virtual turns off.
+  useLayoutEffect(() => {
     if (!virtual) return;
-    setViewportHeight(scrollRef.current?.clientHeight ?? 0);
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const measure = () => setViewportHeight(scroller.clientHeight);
+    measure();
+    window.addEventListener('resize', measure);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    observer?.observe(scroller);
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer?.disconnect();
+    };
   }, [virtual]);
+  // Scrollport bound is a prop, not CSS: omitted → the 70vh default, any CSS
+  // height wins, explicit `undefined` means "no table cap" (the embedding
+  // layout sizes the scrollport). Key presence is checked because a
+  // destructuring default would swallow an explicit undefined.
+  const scrollMaxHeight = 'maxHeight' in props ? props.maxHeight : DEFAULT_VIRTUAL_MAX_HEIGHT;
 
   if (status === 'empty') {
     return (
@@ -150,7 +172,13 @@ export function Table<T extends object>({
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.scroll} data-virtual={virtual} ref={scrollRef} onScroll={handleScroll}>
+      <div
+        className={styles.scroll}
+        data-virtual={virtual}
+        ref={scrollRef}
+        onScroll={handleScroll}
+        style={virtual ? { maxHeight: scrollMaxHeight } : undefined}
+      >
         <div
           className={styles.grid}
           role="grid"
