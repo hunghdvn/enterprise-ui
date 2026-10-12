@@ -18,6 +18,7 @@ Modules + `var(--...)`, zero runtime deps, TS strict.
 ## 2. Goals / Non-goals / Anti-goals
 
 Goals:
+
 - G1: 10k rows scroll mượt bằng windowing opt-in, DOM rows < ~60.
 - G2: Multi-sort có thứ tự ưu tiên, single-sort là trường hợp riêng.
 - G3: Pin cột trái/phải tuỳ chọn, scroll ngang vẫn thấy cột chốt.
@@ -36,12 +37,14 @@ Goals:
   hành vi; demo P1 không vỡ (trừ sort đổi API có migrate).
 
 Non-goals:
+
 - Column resize, drag-reorder, ẩn/hiện cột (để đợt sau).
 - Variable row height đo runtime, cell editing, virtual cột ngang.
 - Server pagination/sort trong grid, saved views, tree, wizard, upload,
   notification center, date-range picker custom.
 
 Anti-goals (thất bại dù test xanh):
+
 - Tự bật virtual theo ngưỡng row count (gây bất ngờ render).
 - Table tự sort data (vi phạm presentational-only).
 - Thêm dep ngoài (react-window,…) hay hex cứng trong CSS.
@@ -77,7 +80,7 @@ Anti-goals (thất bại dù test xanh):
    thêm/đảo cột đó trong mảng, giữ các entry khác. Table không sort data.
    Breaking duy nhất so với P1 (`sortKey`/`sortDir`/`onSort(key)`), chấp
    nhận vì lib 0.1.0 và chỉ showcase nội bộ dùng — plan migrate showcase
-   + tests P1 sang API mới.
+   - tests P1 sang API mới.
 3. **Virtual opt-in, row cao cố định.** Props `virtual?: boolean`
    (default false), `rowHeight?: number` (default 32), `overscan?: number`
    (default 8). Bật virtual mới windowing; không tự bật. Chiều cao cố
@@ -135,47 +138,61 @@ Anti-goals (thất bại dù test xanh):
 ## 5. API
 
 ```ts
-export interface SortEntry { key: string; dir: 'asc' | 'desc' }
+export interface SortEntry {
+  key: string;
+  dir: 'asc' | 'desc';
+}
 
-export interface FilterOption { value: string; label: string }
+export interface FilterOption {
+  value: string;
+  label: string;
+}
 
-export interface Column<T> {           // mở rộng từ P1
-  key: string; title: string;
+export interface Column<T> {
+  // mở rộng từ P1
+  key: string;
+  title: string;
   align?: 'left' | 'right' | 'center';
   sortable?: boolean;
   render?: (row: T) => ReactNode;
   pinned?: 'left' | 'right';
-  width?: number;                       // px, bắt buộc khi pinned
+  width?: number; // px, bắt buộc khi pinned
   filterable?: boolean;
   filterType?: 'text' | 'select' | 'number' | 'date';
   filterOptions?: FilterOption[];
-  aggregate?: 'sum' | 'avg' | 'count';  // gợi ý summary/footer theo cột
+  aggregate?: 'sum' | 'avg' | 'count'; // gợi ý summary/footer theo cột
 }
 
-export interface TablePagination { page: number; pageSize: number; total: number; onPage: (page: number) => void }
+export interface TablePagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPage: (page: number) => void;
+}
 
-export interface TableProps<T> {        // chỉ liệt kê phần mới/đổi
-  sorts?: SortEntry[];                  // default []
+export interface TableProps<T> {
+  // chỉ liệt kê phần mới/đổi
+  sorts?: SortEntry[]; // default []
   onSort?: (next: SortEntry[]) => void; // thay (key: string) => void
-  virtual?: boolean;                    // default false
-  rowHeight?: number;                   // default 32
-  overscan?: number;                    // default 8
+  virtual?: boolean; // default false
+  rowHeight?: number; // default 32
+  overscan?: number; // default 8
   renderExpanded?: (row: T) => ReactNode;
   expandedKeys?: string[];
   onToggleExpand?: (key: string) => void;
-  expandedHeight?: number;              // default round(rowHeight*2.5)
+  expandedHeight?: number; // default round(rowHeight*2.5)
   renderCard?: (row: T) => ReactNode;
-  cardHeight?: number;                  // default round(rowHeight*2.5)
-  showFilterRow?: boolean;              // default false
+  cardHeight?: number; // default round(rowHeight*2.5)
+  showFilterRow?: boolean; // default false
   columnFilters?: Record<string, string>;
   onColumnFilter?: (key: string, value: string) => void;
-  groupBy?: string[];                   // key cột, tối đa 2 ở đợt này
+  groupBy?: string[]; // key cột, tối đa 2 ở đợt này
   collapsedGroups?: string[];
   onToggleGroup?: (groupKey: string) => void;
   renderGroupSummary?: (groupKey: string, rows: T[]) => ReactNode;
   pagination?: TablePagination;
-  exportable?: boolean;                 // default false
-  exportFileName?: string;              // default 'datagrid.csv'
+  exportable?: boolean; // default false
+  exportFileName?: string; // default 'datagrid.csv'
   onExport?: (rows: T[], columns: Column<T>[]) => void;
 }
 
@@ -186,18 +203,24 @@ export interface TableProps<T> {        // chỉ liệt kê phần mới/đổi
 ```ts
 // internal/gridLogic.ts (pure, có test riêng)
 export function applyColumnFilters<T extends object>(
-  rows: T[], filters: Record<string, string>, columns: Column<T>[],
+  rows: T[],
+  filters: Record<string, string>,
+  columns: Column<T>[],
 ): T[];
 export function applySorts<T>(rows: T[], sorts: SortEntry[]): T[];
-export interface Group<T> { key: string; label: string; rows: T[] }
+export interface Group<T> {
+  key: string;
+  label: string;
+  rows: T[];
+}
 export function buildGroups<T extends object>(
-  rows: T[], groupBy: string[], rowKey: (r: T, i: number) => string,
+  rows: T[],
+  groupBy: string[],
+  rowKey: (r: T, i: number) => string,
 ): Group<T>[];
 
 // internal/exportCsv.ts (pure)
-export function toCSV<T extends object>(
-  rows: T[], columns: Column<T>[],
-): string;  // BOM + RFC4180 escape
+export function toCSV<T extends object>(rows: T[], columns: Column<T>[]): string; // BOM + RFC4180 escape
 ```
 
 Hành vi sort chi tiết: click header sortable khi chưa có entry → push
