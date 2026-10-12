@@ -41,6 +41,43 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Filter row: one control per filterable column, laid out on the same shared
+   grid template as header and body so the tracks never drift. It sits
+   directly under the header and slides beneath it when scrolling (the sticky
+   header's opaque background covers it). */
+.filterRow {
+  display: grid;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Controls are --input-h tall; the cells' normal --cell-py would push this
+   row past --row-height, so vertical padding drops to zero — compact fits
+   the control exactly, comfortable centers it with room on each side. */
+.filterRow .c {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* The Input/Select wrapper span is inline-grid (shrink-to-fit): pin it to
+   the cell width so the control fills every track, and keep the control's
+   padding/border inside that width (border-box) so it never overflows. */
+.filterRow .c > span {
+  width: 100%;
+}
+
+.filterRow .filterCtl {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Same in-cell focus-ring trick as .sortBtn/.check: a ring drawn outside a
+   control sitting flush against the row edges would be clipped by the cell's
+   overflow, so it draws inward instead. */
+.filterRow .filterCtl:focus-visible {
+  outline-offset: -2px;
+}
+
 /* Row/cell height must come out at `--row-height`, padding included: without
    border-box the min-height plus padding renders 40px compact (68px
    comfortable) instead of the 32/44px the spec asks for. */
@@ -189,14 +226,16 @@ button.h:hover {
    right edge while the table scrolls horizontally. The offsets are what make
    the pinning happen — `position: sticky` alone never shifts anything. */
 .row > .c:first-child,
-.head > .h:first-child {
+.head > .h:first-child,
+.filterRow > .c:first-child {
   position: sticky;
   left: 0;
   z-index: 2;
 }
 
 .row > .c:last-child,
-.head > .h:last-child {
+.head > .h:last-child,
+.filterRow > .c:last-child {
   position: sticky;
   right: 0;
   z-index: 2;
@@ -211,7 +250,9 @@ button.h:hover {
 }
 
 .head > .h:first-child,
-.head > .h:last-child {
+.head > .h:last-child,
+.filterRow > .c:first-child,
+.filterRow > .c:last-child {
   background: var(--bg);
 }
 
@@ -234,7 +275,9 @@ button.h:hover {
 }
 
 .head > .h.pinL,
-.head > .h.pinR {
+.head > .h.pinR,
+.filterRow > .c.pinL,
+.filterRow > .c.pinR {
   background: var(--bg);
 }
 

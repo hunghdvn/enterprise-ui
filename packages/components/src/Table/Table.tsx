@@ -1,11 +1,16 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent, type UIEvent } from 'react';
 import { Button } from '../Button/Button';
+import { Input } from '../Input/Input';
+import { Select } from '../Select/Select';
 import { computeWindow, contentHeight } from '../internal/windowing';
 import styles from './Table.module.css';
 import type { Column, SortEntry, TableProps } from './types';
 
 /** Scrollport cap applied when `maxHeight` is omitted in virtual mode. */
 const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
+
+/** Blank choice at the top of a select filter cell — clears the filter. */
+const FILTER_ALL_LABEL = 'Tất cả';
 
 const cx = (...parts: string[]): string => parts.filter(Boolean).join(' ');
 
@@ -73,6 +78,9 @@ export function Table<T extends object>(props: TableProps<T>) {
     virtual = false,
     rowHeight = 32,
     overscan = 8,
+    showFilterRow = false,
+    columnFilters,
+    onColumnFilter,
   } = props;
   // Windowing state lives above the status early-returns so the hook order is
   // identical whatever `status` says. The scroll listener sits on `.scroll`
@@ -249,7 +257,7 @@ export function Table<T extends object>(props: TableProps<T>) {
         <div
           className={styles.grid}
           role="grid"
-          aria-rowcount={data.length + 1 + (summary ? 1 : 0)}
+          aria-rowcount={data.length + 1 + (showFilterRow ? 1 : 0) + (summary ? 1 : 0)}
           aria-colcount={colCount}
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
@@ -333,6 +341,62 @@ export function Table<T extends object>(props: TableProps<T>) {
               );
             })}
           </div>
+          {showFilterRow && (
+            // One row directly under the header, on the same shared grid
+            // template as every other row path — so tracks, pins, and the
+            // horizontal scroll stay aligned. It lives outside the virtual
+            // spacer (always visible while the body windows) and scrolls
+            // beneath the sticky header. Presentational: each edit just calls
+            // `onColumnFilter`; filtering `data` stays the caller's job.
+            <div className={styles.filterRow} role="row" style={{ gridTemplateColumns }}>
+              {selectable && <div className={cx(styles.c, styles.cellSelect)} role="gridcell" />}
+              {columns.map((c) => {
+                const cellClass = cx(styles.c, pinClass(c));
+                const cellStyle = pinStyle(c);
+                // A column without a filter still needs its cell, or every
+                // later control would shift a track left and drift from the
+                // header/body rows above and below.
+                if (!c.filterable) {
+                  return (
+                    <div key={c.key} className={cellClass} style={cellStyle} role="gridcell" />
+                  );
+                }
+                const value = columnFilters?.[c.key] ?? '';
+                const ariaLabel = `Lọc ${c.title}`;
+                const commit = (next: string) => onColumnFilter?.(c.key, next);
+                const filterType = c.filterType ?? 'text';
+                return (
+                  <div key={c.key} className={cellClass} style={cellStyle} role="gridcell">
+                    {filterType === 'select' ? (
+                      <Select
+                        size="sm"
+                        aria-label={ariaLabel}
+                        className={styles.filterCtl}
+                        value={value}
+                        onChange={(event) => commit(event.target.value)}
+                      >
+                        <option value="">{FILTER_ALL_LABEL}</option>
+                        {(c.filterOptions ?? []).map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input
+                        size="sm"
+                        type={filterType}
+                        aria-label={ariaLabel}
+                        className={styles.filterCtl}
+                        value={value}
+                        onChange={(event) => commit(event.target.value)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {virtual ? (
             // The spacer owns the full scroll height (contentHeight) while
             // only the window is in the DOM; rows sit absolute inside it at

@@ -11,6 +11,12 @@ export interface SortEntry {
   dir: 'asc' | 'desc';
 }
 
+/** One choice in a `filterType: 'select'` filter cell. */
+export interface FilterOption {
+  value: string;
+  label: string;
+}
+
 export interface Column<T> {
   key: string;
   title: string;
@@ -32,6 +38,16 @@ export interface Column<T> {
    * flexes, keeping the horizontal scroll the pins exist for.
    */
   width?: number;
+  /**
+   * Renders a filter control for this column in the filter row
+   * (`showFilterRow`). The table only collects the string — applying it to
+   * `data` is the caller's job (`applyColumnFilters` in `internal/gridLogic`).
+   */
+  filterable?: boolean;
+  /** Control kind in the filter row. Default `'text'`. */
+  filterType?: 'text' | 'select' | 'number' | 'date';
+  /** Choices rendered by a `filterType: 'select'` filter cell. */
+  filterOptions?: FilterOption[];
 }
 
 export interface TableProps<T> {
@@ -86,4 +102,15 @@ export interface TableProps<T> {
    * caller's own layout sizes the scrollport. Only meaningful with `virtual`.
    */
   maxHeight?: string;
+  /**
+   * Renders a filter row directly under the header: one control per
+   * `filterable` column. Purely presentational — values live in
+   * `columnFilters`, every edit comes back through `onColumnFilter`, and the
+   * table never filters `data` itself (default false).
+   */
+  showFilterRow?: boolean;
+  /** Controlled filter value per column key. A missing key means blank. */
+  columnFilters?: Record<string, string>;
+  /** Receives the column key and its next raw string value on every edit. */
+  onColumnFilter?: (key: string, value: string) => void;
 }

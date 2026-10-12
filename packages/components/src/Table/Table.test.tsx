@@ -373,6 +373,92 @@ test('pinned offsets accumulate and reach body cells in plain and virtual rows',
   check();
 });
 
+test('filter row commits per-column values', () => {
+  const onColumnFilter = vi.fn();
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', filterable: true },
+        {
+          key: 'status',
+          title: 'TT',
+          filterable: true,
+          filterType: 'select',
+          filterOptions: [{ value: 'open', label: 'Mở' }],
+        },
+      ]}
+      data={[{ code: 'SO-1', status: 'open' }]}
+      showFilterRow
+      columnFilters={{ code: '' }}
+      onColumnFilter={onColumnFilter}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText('Lọc Mã'), { target: { value: 'SO-1' } });
+  expect(onColumnFilter).toHaveBeenCalledWith('code', 'SO-1');
+});
+
+test('filter row renders every select option and commits their value', () => {
+  const onColumnFilter = vi.fn();
+  render(
+    <Table
+      columns={[
+        {
+          key: 'status',
+          title: 'TT',
+          filterable: true,
+          filterType: 'select',
+          filterOptions: [
+            { value: 'open', label: 'Mở' },
+            { value: 'done', label: 'Xong' },
+          ],
+        },
+      ]}
+      data={[{ status: 'open' }]}
+      showFilterRow
+      columnFilters={{ status: '' }}
+      onColumnFilter={onColumnFilter}
+    />,
+  );
+  const select = screen.getByLabelText('Lọc TT');
+  expect(
+    within(select)
+      .getAllByRole('option')
+      .map((o) => o.textContent),
+  ).toEqual(['Tất cả', 'Mở', 'Xong']);
+  fireEvent.change(select, { target: { value: 'done' } });
+  expect(onColumnFilter).toHaveBeenCalledWith('status', 'done');
+});
+
+test('filter row sits under the header with a cell per column in virtual mode', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}`, total: String(i) }));
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', filterable: true },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={data}
+      showFilterRow
+      columnFilters={{}}
+      onColumnFilter={() => {}}
+      virtual
+      rowHeight={32}
+      overscan={8}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  const rows = within(grid).getAllByRole('row');
+  const filterRow = screen.getByLabelText('Lọc Mã').closest<HTMLElement>('[role="row"]')!;
+  // Directly under the header row, outside the windowed body.
+  expect(rows[1]).toBe(filterRow);
+  // Every column keeps a cell — the filterable input plus a placeholder for
+  // the column without a filter — so the shared template never drifts.
+  expect(within(filterRow).getAllByRole('gridcell')).toHaveLength(2);
+  // Header + filter row + window: still far under the 60-row budget.
+  expect(rows.length).toBeLessThan(60);
+  expect(grid).toHaveAttribute('aria-rowcount', '10002');
+});
+
 test('virtual 10k renders a window under 60 rows and moves on scroll', () => {
   const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
   render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);
