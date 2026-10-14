@@ -478,7 +478,8 @@ test('groups collapse and show group summary', () => {
   );
   expect(screen.getByText(/open/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Thu gọn open/ }));
-  expect(onToggleGroup).toHaveBeenCalledWith('open');
+  // Group keys are structural (opaque to callers) — the label stays human.
+  expect(onToggleGroup).toHaveBeenCalledWith('4:open');
   expect(screen.getAllByText(/2 đơn/).length).toBeGreaterThan(0);
 });
 
@@ -494,7 +495,7 @@ test('collapsed group hides its rows but keeps the header and summary', () => {
       columns={cols}
       data={groupRows}
       groupBy={['status']}
-      collapsedGroups={['open']}
+      collapsedGroups={['4:open']}
       onToggleGroup={() => {}}
       renderGroupSummary={summaryOf}
     />,
@@ -823,18 +824,35 @@ test('card fallback shows a title, label/value pairs and a Chi tiết button', (
 test('non-virtual cards use min-height so content grows, virtual cards keep the fixed slot', () => {
   const restore = stubMatchMedia(true);
   try {
-    const data = [{ code: 'SO-1', total: '₫ 10M' }];
+    const data = [
+      { code: 'SO-1', total: '₫ 10M' },
+      { code: 'SO-2', total: '₫ 20M' },
+    ];
     const { rerender } = render(<Table columns={cols} data={data} cardHeight={80} />);
-    const card = screen.getByRole('article');
+    const card = screen.getAllByRole('article')[0];
     // Non-virtual: `cardHeight` is a floor, never a fixed box — long content
     // grows the card instead of scrolling inside a cramped 80px slot.
     expect(card.style.minHeight).toBe('80px');
     expect(card.style.height).toBe('');
-    // Virtual: the window offsets cards by fixed slots, so height stays exact.
+    // Virtual: each 80px slot holds the card plus its 8px gap, so the height
+    // is exact and consecutive tops stay 80px apart.
     rerender(<Table columns={cols} data={data} cardHeight={80} virtual />);
-    const vcard = screen.getByRole('article');
-    expect(vcard.style.height).toBe('80px');
-    expect(vcard.style.minHeight).toBe('');
+    const vcards = screen.getAllByRole('article');
+    expect(vcards.map((c) => c.style.height)).toEqual(['72px', '72px']);
+    expect(vcards.map((c) => c.style.top)).toEqual(['0px', '80px']);
+    expect(vcards[0].style.minHeight).toBe('');
+  } finally {
+    restore();
+  }
+});
+
+test('mobile cards render the summary below the list without a footer bar', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    render(<Table columns={cols} data={rows} summary={<span>Tổng: 1 đơn</span>} />);
+    // No pagination/exportable means no footer bar — the summary must still
+    // reach mobile users instead of vanishing with the grid footer.
+    expect(screen.getByText('Tổng: 1 đơn')).toBeInTheDocument();
   } finally {
     restore();
   }
@@ -986,6 +1004,204 @@ test('pagination footer forwards page changes to onPage', () => {
   expect(onPage).toHaveBeenLastCalledWith(2);
 });
 
+// --- PR #6 review findings -------------------------------------------------
+
+test('virtual measures a scrollport that mounts after a status flip', () => {
+  const observe = vi.fn();
+  const disconnect = vi.fn();
+  let roCallback: ResizeObserverCallback | undefined;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = observe;
+      disconnect = disconnect;
+      constructor(callback: ResizeObserverCallback) {
+        roCallback = callback;
+        void observe;
+        void disconnect;
+      }
+    },
+  );
+  try {
+    const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+    const props = {
+      columns: cols,
+      data,
+      virtual: true as const,
+      rowHeight: 32,
+      overscan: 8,
+    };
+    const { rerender } = render(<Table {...props} status="loading" />);
+    expect(screen.queryByRole('grid')).toBeNull();
+    // The grid (and its scrollport) mounts on the flip to idle — the effect
+    // must observe the fresh node instead of bailing on the loading frame's
+    // null ref.
+    rerender(<Table {...props} status="idle" />);
+    const grid = screen.getByRole('grid');
+    const scroller = grid.parentElement as HTMLDivElement;
+    expect(observe).toHaveBeenCalledWith(scroller);
+    Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+    fireEvent(window, new Event('resize'));
+    // A real window of rows renders — not just the overscan-only first frame.
+    expect(screen.getByText('SO-0')).toBeInTheDocument();
+    expect(within(grid).getAllByRole('row').length).toBeGreaterThan(10);
+    void roCallback;
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+test('virtual resets the window when the scrollport remounts', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  const props = { columns: cols, data, virtual: true as const, rowHeight: 32, overscan: 8 };
+  const { rerender } = render(<Table {...props} status="idle" />);
+  const scroller = screen.getByRole('grid').parentElement as HTMLDivElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  expect(screen.queryByText('SO-0')).toBeNull();
+  // The status flip unmounts the scrollport; the fresh one starts at the top
+  // instead of rendering from the stale offset into a blank viewport.
+  rerender(<Table {...props} status="empty" />);
+  rerender(<Table {...props} status="idle" />);
+  expect(screen.getByText('SO-0')).toBeInTheDocument();
+});
+
+test('empty and error states keep the footer bar so pagination stays usable', () => {
+  const onPage = vi.fn();
+  const bar = {
+    summary: <span>Tổng</span>,
+    pagination: { page: 99, pageSize: 5, total: 8, onPage },
+    exportable: true as const,
+  };
+  const { rerender } = render(<Table columns={cols} data={[]} status="empty" {...bar} />);
+  expect(screen.getByText(/Không có dữ liệu/)).toBeInTheDocument();
+  // The pager still mounts — and its clamp still reports back — instead of
+  // vanishing with the grid when the caller's page slice is empty.
+  expect(screen.getByRole('navigation', { name: /Phân trang/ })).toBeInTheDocument();
+  expect(onPage).toHaveBeenCalledWith(2);
+  expect(screen.getByRole('button', { name: /Xuất CSV/ })).toBeInTheDocument();
+  expect(screen.getByText('Tổng')).toBeInTheDocument();
+  rerender(<Table columns={cols} data={[]} status="error" onRetry={() => {}} {...bar} />);
+  expect(screen.getByRole('navigation', { name: /Phân trang/ })).toBeInTheDocument();
+});
+
+test('pinned offsets include leading select/expand control tracks', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      selectedKeys={[]}
+      onSelect={() => {}}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={[]}
+      onToggleExpand={() => {}}
+    />,
+  );
+  // 36px select + 36px expand precede the first data column.
+  expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({ left: '72px' });
+  const selectCell = screen
+    .getByRole('checkbox', { name: /chọn tất cả/i })
+    .closest('[role="columnheader"]')!;
+  expect(selectCell.className).toMatch(/pinL/);
+  expect(selectCell).toHaveStyle({ left: '0px' });
+});
+
+test('default edge stickiness yields to explicit pins', () => {
+  const { rerender } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'left', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  // The grid advertises declared pins so the stylesheet can scope the
+  // unconditional P1 first/last stickiness away from conflicting edges.
+  expect(grid).toHaveAttribute('data-left-pins', 'true');
+  expect(grid).not.toHaveAttribute('data-right-pins');
+  expect(screen.getByText('Tổng').closest('[role="columnheader"]')).toHaveStyle({
+    left: '0px',
+  });
+  rerender(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+    />,
+  );
+  expect(screen.getByRole('grid')).not.toHaveAttribute('data-left-pins');
+});
+
+test('zebra striping follows the absolute row index, not the window', () => {
+  const three = [{ code: 'SO-1' }, { code: 'SO-2' }, { code: 'SO-3' }];
+  const { unmount } = render(<Table columns={cols} data={three} />);
+  // Plain mode: first body row tinted, matching the pre-virtual look.
+  expect(
+    within(screen.getByRole('grid'))
+      .getAllByRole('row')
+      .slice(1)
+      .map((r) => r.getAttribute('data-stripe')),
+  ).toEqual(['true', 'false', 'true']);
+  unmount();
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  render(<Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />);
+  const grid = screen.getByRole('grid');
+  const scroller = grid.parentElement as HTMLDivElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  // Scroll by an odd row count — parity must stick to the absolute index so
+  // the body never shimmers.
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  const first = within(grid).getAllByRole('row')[1];
+  expect(first).toHaveTextContent('SO-148');
+  expect(first).toHaveAttribute('data-stripe', 'true');
+});
+
+test('virtual rows carry aria-rowindex from the absolute position', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  const { rerender } = render(
+    <Table columns={cols} data={data} virtual rowHeight={32} overscan={8} />,
+  );
+  const grid = screen.getByRole('grid');
+  const scroller = grid.parentElement as HTMLDivElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  // Header is row 1: first windowed body row (SO-148) is row 150.
+  expect(within(grid).getAllByRole('row')[1]).toHaveAttribute('aria-rowindex', '150');
+  rerender(
+    <Table
+      columns={cols}
+      data={data}
+      virtual
+      rowHeight={32}
+      overscan={8}
+      showFilterRow
+      columnFilters={{}}
+    />,
+  );
+  // The filter row shifts body rows one position down.
+  expect(within(screen.getByRole('grid')).getAllByRole('row')[2]).toHaveAttribute(
+    'aria-rowindex',
+    '151',
+  );
+});
+
+test('virtual clamps non-positive row heights instead of collapsing', () => {
+  const data = [{ code: 'SO-1' }, { code: 'SO-2' }, { code: 'SO-3' }];
+  render(<Table columns={cols} data={data} virtual rowHeight={0} overscan={8} />);
+  const grid = screen.getByRole('grid');
+  const body = within(grid).getAllByRole('row').slice(1);
+  // Every row reachable at a 1px floor — no zero-height stack at top:0.
+  expect(body).toHaveLength(3);
+  for (const row of body) expect(row.style.height).toBe('1px');
+});
+
 test('footer bar groups summary, pagination and export below the scrollport', () => {
   render(
     <Table
@@ -1012,14 +1228,28 @@ test('footer bar groups summary, pagination and export below the scrollport', ()
 
 test('export downloads default csv when no onExport', async () => {
   const { restore } = stubObjectURL();
+  const appendSpy = vi.spyOn(document.body, 'appendChild');
   try {
     render(<Table columns={cols} data={[{ code: 'SO-1' }]} exportable exportFileName="d.csv" />);
     fireEvent.click(screen.getByRole('button', { name: /Xuất CSV/ }));
     expect(URL.createObjectURL).toHaveBeenCalled();
+    // The robustness lines are pinned: the anchor goes into the document
+    // (detached clicks race some browsers), carries the file name, leaves
+    // afterwards, and the object URL is revoked on a delay — not synchronously.
+    const anchor = appendSpy.mock.calls
+      .map((call) => call[0] as Node)
+      .find((node) => node instanceof HTMLAnchorElement) as HTMLAnchorElement;
+    expect(anchor).toBeInstanceOf(HTMLAnchorElement);
+    expect(anchor.download).toBe('d.csv');
+    // `anchor.remove()` detaches natively (not via the spied method), so the
+    // post-click detachment itself is the assertion.
+    expect(anchor.parentNode).toBeNull();
     // The revoke is deferred 100ms after the click — let it run against the
     // stub before restoring jsdom's (absent) original, or the timer throws.
     await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(vi.mocked(URL.revokeObjectURL)).toHaveBeenCalledWith('blob:mock-1');
   } finally {
+    appendSpy.mockRestore();
     restore();
   }
 });

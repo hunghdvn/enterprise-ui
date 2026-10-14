@@ -34,3 +34,14 @@ test('toCSV renders nullish cells as empty', () => {
 test('toCSV with no rows returns just the header', () => {
   expect(toCSV([], cols)).toBe('﻿a');
 });
+
+test('toCSV neutralizes formula-injection prefixes', () => {
+  // Cells starting with = + - @ (or tab/CR) are evaluated as formulas by
+  // Excel/LibreOffice despite quoting — the text marker keeps them text.
+  expect(toCSV([{ a: '=HYPERLINK("x")' }], cols)).toBe('﻿a\n\'"=HYPERLINK(""x"")"');
+  expect(toCSV([{ a: '=1+1' }, { a: '+1' }, { a: '-5' }, { a: '@x' }], cols)).toBe(
+    "﻿a\n'=1+1\n'+1\n'-5\n'@x",
+  );
+  // Plain values (including interior markers) are untouched.
+  expect(toCSV([{ a: 'a=b' }, { a: '5-3' }], cols)).toBe('﻿a\na=b\n5-3');
+});

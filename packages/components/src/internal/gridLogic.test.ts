@@ -180,7 +180,9 @@ test('buildGroups buckets rows by a single groupBy key', () => {
     { code: 'SO-3', status: 'open' },
   ];
   const groups = buildGroups(grouped, ['status'], (r) => r.code);
-  expect(groups.map((g) => g.key)).toEqual(['open', 'done']);
+  // Keys are structural (length-prefixed framing), never the display label —
+  // values containing the ' / ' separator cannot merge groups.
+  expect(groups.map((g) => g.key)).toEqual(['4:open', '4:done']);
   expect(groups.map((g) => g.label)).toEqual(['open', 'done']);
   expect(groups[0].rows.map((r) => r.code)).toEqual(['SO-1', 'SO-3']);
   expect(groups[1].rows.map((r) => r.code)).toEqual(['SO-2']);
@@ -194,7 +196,11 @@ test('buildGroups combines two groupBy keys into one composite group', () => {
     { code: 'SO-4', status: 'open', customer: 'An' },
   ];
   const groups = buildGroups(rows2, ['status', 'customer'], (r) => r.code);
-  expect(groups.map((g) => g.key)).toEqual(['open / An', 'open / Bình', 'done / An']);
+  expect(groups.map((g) => g.key)).toEqual([
+    '4:open\x002:An',
+    '4:open\x004:Bình',
+    '4:done\x002:An',
+  ]);
   expect(groups[0].rows.map((r) => r.code)).toEqual(['SO-1', 'SO-4']);
 });
 
@@ -204,17 +210,35 @@ test('buildGroups uses only the first two groupBy keys', () => {
     { code: 'SO-2', status: 'done', customer: 'Bình' },
   ];
   const groups = buildGroups(rows2, ['status', 'customer', 'code'], (r) => r.code);
-  expect(groups.map((g) => g.key)).toEqual(['open / An', 'done / Bình']);
+  expect(groups.map((g) => g.key)).toEqual(['4:open\x002:An', '4:done\x004:Bình']);
 });
 
 test('buildGroups returns no groups without groupBy', () => {
   expect(buildGroups(rows, [], (r) => r.code)).toEqual([]);
 });
 
+test('buildGroups keys are structural: separators and nullish values cannot collide', () => {
+  const tricky: Row[] = [
+    { code: 'SO-1', status: 'a', customer: 'b / c' },
+    { code: 'SO-2', status: 'a / b', customer: 'c' },
+    { code: 'SO-3', customer: 'An' },
+    { code: 'SO-4', status: '', customer: 'An' },
+  ];
+  const groups = buildGroups(tricky, ['status', 'customer'], (r) => r.code);
+  // Four distinct groups even though the display labels of the first two
+  // coincide and the last two share one label.
+  expect(groups).toHaveLength(4);
+  expect(groups.map((g) => g.label)).toEqual(['a / b / c', 'a / b / c', '(Trống) / An', ' / An']);
+  expect(new Set(groups.map((g) => g.key)).size).toBe(4);
+  expect(groups[0].rows.map((r) => r.code)).toEqual(['SO-1']);
+  expect(groups[1].rows.map((r) => r.code)).toEqual(['SO-2']);
+});
+
 test('buildGroups labels nullish group values', () => {
   const rows2: Row[] = [{ code: 'SO-1' }, { code: 'SO-2', status: 'open' }];
   const groups = buildGroups(rows2, ['status'], (r) => r.code);
   expect(groups.map((g) => g.label)).toEqual(['(Trống)', 'open']);
-  expect(groups[0].key).toBe('');
+  // Missing vs '' are distinct structural keys (null sentinel vs 0-length).
+  expect(groups[0].key).toBe('-');
   expect(groups[0].rows.map((r) => r.code)).toEqual(['SO-1']);
 });

@@ -145,7 +145,13 @@ export function buildGroups<T extends object>(
       const raw = (row as unknown as Record<string, unknown>)[key];
       return raw === null || raw === undefined ? null : String(raw);
     });
-    const groupKey = parts.map((part) => part ?? '').join(GROUP_SEPARATOR);
+    // Structural identity, never the display label: length-prefixed framing
+    // over NUL-joined parts, with a bare '-' reserved for nullish — so a
+    // value containing ' / ' ('a' + 'b / c' vs 'a / b' + 'c') or a null vs ''
+    // can never merge two groups. Labels stay the human join for display.
+    const groupKey = parts
+      .map((part) => (part === null ? '-' : `${part.length}:${part}`))
+      .join('\x00');
     const label = parts.map((part) => part ?? EMPTY_LABEL).join(GROUP_SEPARATOR);
     let group = byKey.get(groupKey);
     if (!group) {

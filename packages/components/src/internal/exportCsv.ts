@@ -2,8 +2,11 @@ import type { Column } from '../Table/types';
 
 /** RFC4180: quote cells containing quote/CR/LF/comma; double embedded quotes. */
 function escapeCell(value: string): string {
-  if (!/["\r\n,]/.test(value)) return value;
-  return `"${value.replace(/"/g, '""')}"`;
+  const quoted = /["\r\n,]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // CSV formula injection: a leading = + - @ (or tab/CR) is evaluated as a
+  // formula by Excel/LibreOffice despite quoting — this download is
+  // Excel-targeted (UTF-8 BOM), so prefix Excel's text marker to keep it text.
+  return /^[=+\-@\t\r]/.test(value) ? `'${quoted}` : quoted;
 }
 
 /**

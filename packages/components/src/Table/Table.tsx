@@ -21,6 +21,9 @@ import type { Column, SortEntry, TableProps } from './types';
 /** Scrollport cap applied when `maxHeight` is omitted in virtual mode. */
 const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
 
+/** Gap between mobile cards — mirrored inside virtual card slots (finding #13). */
+const CARD_GAP = 8;
+
 /** Blank choice at the top of a select filter cell — clears the filter. */
 const FILTER_ALL_LABEL = 'Tất cả';
 
@@ -115,13 +118,19 @@ function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable
  * so neighbouring pins never overlap. The stylesheet cannot know these sums,
  * which is why each cell gets its offset inline.
  */
-function pinOffsetsOf<T>(columns: Column<T>[]): {
+function pinOffsetsOf<T>(
+  columns: Column<T>[],
+  leadingControlWidth = 0,
+): {
   left: Map<string, number>;
   right: Map<string, number>;
 } {
   const left = new Map<string, number>();
   const right = new Map<string, number>();
-  let acc = 0;
+  // Left accumulation starts past the fixed 36px control tracks (select,
+  // then expand) that `gridTemplateOf` prepends — a pinned data cell at
+  // inline `left:0` would otherwise paint over the checkbox cells.
+  let acc = leadingControlWidth;
   for (const column of columns) {
     if (column.pinned !== 'left') continue;
     left.set(column.key, acc);
@@ -190,12 +199,18 @@ export function Table<T extends object>(props: TableProps<T>) {
   // never stale before the next scroll event. ResizeObserver is guarded (jsdom
   // has none) and catches container resizes such as `maxHeight` edits or card
   // layout. Both listeners detach on unmount or when virtual turns off.
+  // `status` and `isMobileView` are deps without being read: every scrollport
+  // remount (loading→idle flip, breakpoint cross) must re-run measure+observe
+  // on the fresh node and drop the stale scroll offset — otherwise a table
+  // that mounts its grid after an async load renders only overscan rows in a
+  // blank viewport until the first scroll event.
   useLayoutEffect(() => {
     if (!virtual) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
     const measure = () => setViewportHeight(scroller.clientHeight);
     measure();
+    setScrollTop(0);
     window.addEventListener('resize', measure);
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
     observer?.observe(scroller);
@@ -203,66 +218,23 @@ export function Table<T extends object>(props: TableProps<T>) {
       window.removeEventListener('resize', measure);
       observer?.disconnect();
     };
-  }, [virtual]);
+  }, [virtual, status, isMobileView]);
   // Scrollport bound is a prop, not CSS: omitted → the 70vh default, any CSS
   // height wins, explicit `undefined` means "no table cap" (the embedding
   // layout sizes the scrollport). Key presence is checked because a
   // destructuring default would swallow an explicit undefined.
   const scrollMaxHeight = 'maxHeight' in props ? props.maxHeight : DEFAULT_VIRTUAL_MAX_HEIGHT;
 
-  if (status === 'empty') {
-    return (
-      <div className={styles.state} role="status">
-        Không có dữ liệu
-      </div>
-    );
-  }
-  if (status === 'error') {
-    return (
-      <div className={styles.state} role="alert">
-        <span>Lỗi tải dữ liệu</span>
-        <Button variant="secondary" size="sm" onClick={onRetry}>
-          Thử lại
-        </Button>
-      </div>
-    );
-  }
-  if (status === 'loading') {
-    return (
-      <div className={styles.state} role="status" aria-busy="true">
-        Đang tải…
-      </div>
-    );
-  }
-
-  const selectable = selectedKeys !== undefined && onSelect !== undefined;
-  const selected: string[] = selectedKeys ?? [];
-  const keyOf = (row: T, index: number): string => {
-    if (rowKey) return rowKey(row);
-    const fields = row as Record<string, unknown>;
-    const raw: unknown = fields['key'] ?? fields['code'] ?? fields['id'];
-    if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
-    return String(index);
-  };
-  const allKeys = data.map((r, i) => keyOf(r, i));
-
-  // Master-detail opt-in hinges on `renderExpanded` alone: it both adds the
-  // toggle column and renders the detail content. Heights are fixed px
-  // defaults per spec §4.6/§4.7 — never measured at runtime, because the
-  // virtual window budgets them ahead of paint.
-  const expandable = renderExpanded !== undefined;
-  const detailHeight = Math.round(expandedHeight ?? rowHeight * 2.5);
-  const cardItemHeight = Math.round(cardHeight ?? rowHeight * 2.5);
-  const expanded = new Set(expandedKeys);
-
-  // Footer bar (spec §4.10): summary + Pagination + export, built once for
-  // both render branches (cards get it too — it is table-level chrome, not a
-  // row affordance). `Pagination` owns the out-of-range clamp and calls
-  // `onPage` back with the clamped page, so no slice math lives here — the
-  // table stays presentational. When the bar exists the in-grid summary row
-  // steps aside (one summary, never two); without bar props P1's sticky
-  // grid-footer row is untouched. Status early-returns above keep it out of
-  // loading/empty/error states, same as the grid itself.
+  // Footer bar (spec §4.10): summary + Pagination + export. It is table-level
+  // chrome, not a row affordance, so it is built once — before the status
+  // early-returns — for every branch: grid, cards, and the settled empty /
+  // error states. `Pagination` owns the out-of-range clamp and calls `onPage`
+  // back with the clamped page, so no slice math lives here — the table stays
+  // presentational. When the bar exists the in-grid summary row steps aside
+  // (one summary, never two); without bar props P1's sticky grid-footer row
+  // is untouched. A caller deriving `status` from an empty page slice still
+  // gets the pager (and its clamp report-back) in the empty state to
+  // navigate away.
   const hasFooterBar = pagination !== undefined || exportable;
   const handleExport = () => {
     if (onExport) {
@@ -303,6 +275,61 @@ export function Table<T extends object>(props: TableProps<T>) {
     </div>
   ) : null;
 
+  if (status === 'empty') {
+    return (
+      <>
+        <div className={styles.state} role="status">
+          Không có dữ liệu
+        </div>
+        {footerBar}
+      </>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <>
+        <div className={styles.state} role="alert">
+          <span>Lỗi tải dữ liệu</span>
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            Thử lại
+          </Button>
+        </div>
+        {footerBar}
+      </>
+    );
+  }
+  if (status === 'loading') {
+    return (
+      <div className={styles.state} role="status" aria-busy="true">
+        Đang tải…
+      </div>
+    );
+  }
+
+  const selectable = selectedKeys !== undefined && onSelect !== undefined;
+  const selected: string[] = selectedKeys ?? [];
+  const keyOf = (row: T, index: number): string => {
+    if (rowKey) return rowKey(row);
+    const fields = row as Record<string, unknown>;
+    const raw: unknown = fields['key'] ?? fields['code'] ?? fields['id'];
+    if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
+    return String(index);
+  };
+  const allKeys = data.map((r, i) => keyOf(r, i));
+
+  // Master-detail opt-in hinges on `renderExpanded` alone: it both adds the
+  // toggle column and renders the detail content. Heights are fixed px
+  // defaults per spec §4.6/§4.7 — never measured at runtime, because the
+  // virtual window budgets them ahead of paint.
+  const expandable = renderExpanded !== undefined;
+  // Heights mirror the windowing.ts clamps (<= 0 → 1px): the pixel offsets
+  // below must agree with the rendered heights, or rows stack at top:0 with
+  // zero scroll range and the first rows become unreachable (finding #14).
+  const safeRowHeight = rowHeight <= 0 ? 1 : rowHeight;
+  const safeDetailHeight = Math.max(1, Math.round(expandedHeight ?? safeRowHeight * 2.5));
+  const safeCardHeight = Math.max(1, Math.round(cardHeight ?? safeRowHeight * 2.5));
+  const expanded = new Set(expandedKeys);
+
   if (isMobileView) {
     // Below the breakpoint the grid is replaced by a list of `<article>`
     // cards — same scroll container, same windowing (uniform `cardHeight`
@@ -318,7 +345,7 @@ export function Table<T extends object>(props: TableProps<T>) {
     // plus the Chi tiết toggle when master-detail is on.
     const cards = data.map((row, i) => ({ key: allKeys[i], row }));
     const cardWin = virtual
-      ? computeWindow(scrollTop, viewportHeight, cardItemHeight, cards.length, overscan)
+      ? computeWindow(scrollTop, viewportHeight, safeCardHeight, cards.length, overscan)
       : { start: 0, end: cards.length, offsetY: 0 };
     const fallbackCard = (row: T, key: string): ReactNode => {
       const [titleColumn, ...fieldColumns] = columns;
@@ -356,13 +383,14 @@ export function Table<T extends object>(props: TableProps<T>) {
         className={virtual ? `${styles.card} ${styles.vrow}` : styles.card}
         style={
           // Virtual cards sit in fixed slots — the window math offsets them by
-          // `cardItemHeight` px, so the height must be exact. Non-virtual cards
-          // are in normal flow: `cardHeight` is only a floor (min-height), and
-          // a fixed height there would turn every card into a cramped scrollbox
-          // (content scrolling inside an 80px slot).
+          // whole `safeCardHeight` slots, so each card is a gap shorter and
+          // the 8px `.cards` gap lives inside the slot instead of vanishing
+          // (finding #13). Non-virtual cards are in normal flow with the CSS
+          // gap: `cardHeight` is only a floor (min-height), and a fixed
+          // height there would turn every card into a cramped scrollbox.
           virtual
-            ? { height: cardItemHeight, top: cardWin.offsetY + i * cardItemHeight }
-            : { minHeight: cardItemHeight }
+            ? { height: safeCardHeight - CARD_GAP, top: cardWin.offsetY + i * safeCardHeight }
+            : { minHeight: safeCardHeight }
         }
       >
         {renderCard ? renderCard(card.row) : fallbackCard(card.row, card.key)}
@@ -388,7 +416,7 @@ export function Table<T extends object>(props: TableProps<T>) {
               <div
                 className={styles.spacer}
                 role="presentation"
-                style={{ height: contentHeight(cards.length, cardItemHeight) }}
+                style={{ height: contentHeight(cards.length, safeCardHeight) }}
               >
                 {cardNodes}
               </div>
@@ -397,6 +425,13 @@ export function Table<T extends object>(props: TableProps<T>) {
             )}
           </div>
         </div>
+        {summary && !hasFooterBar && (
+          // Card mode has no grid footer row: without a footer bar the
+          // summary would vanish on mobile entirely (finding #8).
+          <div className={styles.foot}>
+            <span className={styles.footText}>{summary}</span>
+          </div>
+        )}
         {footerBar}
       </div>
     );
@@ -453,7 +488,13 @@ export function Table<T extends object>(props: TableProps<T>) {
   const colCount = columns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0);
 
   const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable);
-  const pinOffsets = pinOffsetsOf(columns);
+  // Declared pins per side: the grid advertises them so the stylesheet can
+  // scope P1's unconditional first/last stickiness away from conflicting
+  // edges (finding #6) — and the leading control cells pin explicitly at
+  // their own offsets instead of relying on the first-child default.
+  const hasLeftPin = columns.some((c) => c.pinned === 'left');
+  const hasRightPin = columns.some((c) => c.pinned === 'right');
+  const pinOffsets = pinOffsetsOf(columns, (selectable ? 36 : 0) + (expandable ? 36 : 0));
   // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
   // `position: sticky` and the stacking, the inline style owns the offset —
   // same pair on header and body cells, so every row path (plain, virtual,
@@ -465,6 +506,13 @@ export function Table<T extends object>(props: TableProps<T>) {
     if (c.pinned === 'right') return { right: `${pinOffsets.right.get(c.key) ?? 0}px` };
     return undefined;
   };
+  // Leading control tracks (select = track 0, expand = track 0/1) pin at
+  // their own 36px offsets while left pins exist — otherwise the first
+  // explicitly-pinned data cell paints over the checkboxes (finding #5).
+  // Without declared left pins the P1 first-child default keeps them stuck.
+  const controlPinClass = hasLeftPin ? styles.pinL : '';
+  const controlPinStyle = (track: number): { left: string } | undefined =>
+    hasLeftPin ? { left: `${track * 36}px` } : undefined;
 
   // Body items: with `groupBy` each group contributes one header row plus its
   // rows (the rows drop out while the group is collapsed); without it every
@@ -509,7 +557,7 @@ export function Table<T extends object>(props: TableProps<T>) {
   let contentTotal = 0;
   for (const item of items) {
     offsets.push(contentTotal);
-    contentTotal += item.kind === 'detail' ? detailHeight : rowHeight;
+    contentTotal += item.kind === 'detail' ? safeDetailHeight : safeRowHeight;
   }
   offsets.push(contentTotal);
 
@@ -523,7 +571,15 @@ export function Table<T extends object>(props: TableProps<T>) {
     // Absolute px start of this item — with uniform rows it equals
     // `win.offsetY + i * rowHeight`, with an expanded detail in the window
     // it follows the pixel offsets instead of the row count.
-    const top = offsets[win.start + i];
+    const absoluteIndex = win.start + i;
+    const top = offsets[absoluteIndex];
+    // Zebra + screen-reader position follow the absolute index, never the
+    // window: scrolling must not flip stripes (finding #10) nor misreport
+    // the row number (finding #11). Rows are 1-based after the header (+1
+    // more while the filter row shows).
+    const stripe = absoluteIndex % 2 === 0;
+    const rowIndex =
+      virtual && showFilterRow ? absoluteIndex + 3 : virtual ? absoluteIndex + 2 : undefined;
     if (item.kind === 'group') {
       const { group } = item;
       const isCollapsed = collapsed.has(group.key);
@@ -532,8 +588,9 @@ export function Table<T extends object>(props: TableProps<T>) {
           key={item.key}
           className={virtual ? `${styles.groupRow} ${styles.vrow}` : styles.groupRow}
           role="row"
+          aria-rowindex={rowIndex}
           style={
-            virtual ? { gridTemplateColumns, top, height: rowHeight } : { gridTemplateColumns }
+            virtual ? { gridTemplateColumns, top, height: safeRowHeight } : { gridTemplateColumns }
           }
         >
           <div className={styles.groupCell} role="gridcell" aria-colspan={colCount}>
@@ -566,10 +623,11 @@ export function Table<T extends object>(props: TableProps<T>) {
           key={item.key}
           className={virtual ? `${styles.detail} ${styles.vrow}` : styles.detail}
           role="row"
+          aria-rowindex={rowIndex}
           style={
             virtual
-              ? { gridTemplateColumns, top, height: detailHeight }
-              : { gridTemplateColumns, height: detailHeight }
+              ? { gridTemplateColumns, top, height: safeDetailHeight }
+              : { gridTemplateColumns, height: safeDetailHeight }
           }
         >
           <div className={styles.detailCell} role="gridcell" aria-colspan={colCount}>
@@ -587,10 +645,19 @@ export function Table<T extends object>(props: TableProps<T>) {
         className={virtual ? `${styles.row} ${styles.vrow}` : styles.row}
         role="row"
         data-selected={isSelected}
-        style={virtual ? { gridTemplateColumns, top, height: rowHeight } : { gridTemplateColumns }}
+        data-stripe={stripe}
+        aria-rowindex={rowIndex}
+        style={
+          virtual ? { gridTemplateColumns, top, height: safeRowHeight } : { gridTemplateColumns }
+        }
       >
         {selectable && (
-          <div className={`${styles.c} ${styles.cellSelect}`} role="gridcell" data-align="center">
+          <div
+            className={cx(styles.c, styles.cellSelect, controlPinClass)}
+            style={controlPinStyle(0)}
+            role="gridcell"
+            data-align="center"
+          >
             <input
               type="checkbox"
               aria-label={`Chọn dòng ${k}`}
@@ -604,7 +671,12 @@ export function Table<T extends object>(props: TableProps<T>) {
           // The master-detail toggle column sits first after the select
           // checkbox: same 36px control track, `aria-expanded` mirrors the
           // controlled `expandedKeys`.
-          <div className={`${styles.c} ${styles.cellSelect}`} role="gridcell" data-align="center">
+          <div
+            className={cx(styles.c, styles.cellSelect, controlPinClass)}
+            style={controlPinStyle(selectable ? 1 : 0)}
+            role="gridcell"
+            data-align="center"
+          >
             <button
               type="button"
               className={styles.groupToggle}
@@ -646,6 +718,8 @@ export function Table<T extends object>(props: TableProps<T>) {
         <div
           className={styles.grid}
           role="grid"
+          data-left-pins={hasLeftPin || undefined}
+          data-right-pins={hasRightPin || undefined}
           // Rows all count: data rows, group headers (each one row) and one
           // row per expanded detail — `items.length` tracks exactly what the
           // body renders, collapsed groups' rows excluded. The summary counts
@@ -659,7 +733,8 @@ export function Table<T extends object>(props: TableProps<T>) {
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
             {selectable && (
               <div
-                className={`${styles.h} ${styles.cellSelect}`}
+                className={cx(styles.h, styles.cellSelect, controlPinClass)}
+                style={controlPinStyle(0)}
                 role="columnheader"
                 data-align="center"
               >
@@ -679,7 +754,8 @@ export function Table<T extends object>(props: TableProps<T>) {
               // Toggle column header: an empty control track, mirroring the
               // select one, so every row below keeps its toggle first.
               <div
-                className={`${styles.h} ${styles.cellSelect}`}
+                className={cx(styles.h, styles.cellSelect, controlPinClass)}
+                style={controlPinStyle(selectable ? 1 : 0)}
                 role="columnheader"
                 data-align="center"
               />
@@ -754,8 +830,20 @@ export function Table<T extends object>(props: TableProps<T>) {
             // beneath the sticky header. Presentational: each edit just calls
             // `onColumnFilter`; filtering `data` stays the caller's job.
             <div className={styles.filterRow} role="row" style={{ gridTemplateColumns }}>
-              {selectable && <div className={cx(styles.c, styles.cellSelect)} role="gridcell" />}
-              {expandable && <div className={cx(styles.c, styles.cellSelect)} role="gridcell" />}
+              {selectable && (
+                <div
+                  className={cx(styles.c, styles.cellSelect, controlPinClass)}
+                  style={controlPinStyle(0)}
+                  role="gridcell"
+                />
+              )}
+              {expandable && (
+                <div
+                  className={cx(styles.c, styles.cellSelect, controlPinClass)}
+                  style={controlPinStyle(selectable ? 1 : 0)}
+                  role="gridcell"
+                />
+              )}
               {columns.map((c) => {
                 const cellClass = cx(styles.c, pinClass(c));
                 const cellStyle = pinStyle(c);

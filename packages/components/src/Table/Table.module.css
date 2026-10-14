@@ -268,12 +268,16 @@ button.h:hover {
   background: var(--surface);
 }
 
-.row:nth-child(even) {
+/* Zebra follows `data-stripe` (the absolute row index from Table.tsx), never
+   `nth-child`: virtual rows live inside the sliding `.spacer` window, so
+   position-based striping would flip every visible row on each scroll step
+   (finding #10). */
+.row[data-stripe='true'] {
   background: var(--surface);
 }
 
 @supports (background: color-mix(in srgb, red 50%, blue)) {
-  .row:nth-child(even) {
+  .row[data-stripe='true'] {
     background: color-mix(in srgb, var(--bg) 50%, var(--surface));
   }
 }
@@ -323,6 +327,24 @@ button.h:hover {
   z-index: 2;
 }
 
+/* Explicit pins win over the unconditional first/last defaults above: when a
+   side declares any pin, the grid carries `data-*-pins` and the default edge
+   stickiness on that side stands down — otherwise the default edge cell and
+   the first explicit pin both sit at offset 0 and the later DOM node covers
+   the first column (finding #6). Cells with an explicit pin keep theirs via
+   the `:not()` guard. */
+.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR),
+.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR),
+.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR) {
+  position: static;
+}
+
+.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR),
+.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR),
+.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR) {
+  position: static;
+}
+
 /* Body rows own their background (zebra/hover/selected), so the pinned cells
    inherit it instead of letting other rows show through underneath. */
 .row > .c:first-child,
@@ -346,6 +368,16 @@ button.h:hover {
 .pinR {
   position: sticky;
   z-index: 2;
+}
+
+/* A pinned column's track is an exact `width` px, so the cells must not keep
+   the `--cell-min-width` floor (120/140px): narrower pins would overflow
+   their tracks and misalign every later pin by the shortfall (finding #7). */
+.h.pinL,
+.h.pinR,
+.c.pinL,
+.c.pinR {
+  min-width: 0;
 }
 
 /* Pinned body cells inherit the row's background (zebra/hover/selected) just
@@ -430,7 +462,10 @@ button.h:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-blue-600);
+  /* Theme-aware action text, not the raw primary: the primary on the dark
+     card surface is below contrast, while `--action-text` keeps the 4.5:1
+     contract in both themes (finding #12). */
+  color: var(--action-text);
   font: inherit;
   cursor: pointer;
 }
