@@ -1107,6 +1107,44 @@ test('pinned offsets include leading select/expand control tracks', () => {
     .closest('[role="columnheader"]')!;
   expect(selectCell.className).toMatch(/pinL/);
   expect(selectCell).toHaveStyle({ left: '0px' });
+  const headers = () => within(screen.getByRole('grid')).getAllByRole('columnheader');
+  // The expand track sits one control width in (header cells: select,
+  // expand placeholder, then data columns).
+  expect(headers()[1]).toHaveStyle({ left: '36px' });
+});
+
+test('expand control pins at track 0 without selection', () => {
+  render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', pinned: 'left', width: 120 }]}
+      data={[{ code: 'SO-1' }]}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={[]}
+      onToggleExpand={() => {}}
+    />,
+  );
+  expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({ left: '36px' });
+  // Without selection the expand track is first: offset 0.
+  const headers = within(screen.getByRole('grid')).getAllByRole('columnheader');
+  expect(headers[0]).toHaveStyle({ left: '0px' });
+});
+
+test('right pins advertise data-right-pins and stick at cumulative offsets', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  expect(grid).toHaveAttribute('data-right-pins', 'true');
+  expect(grid).not.toHaveAttribute('data-left-pins');
+  expect(screen.getByText('Tổng').closest('[role="columnheader"]')).toHaveStyle({
+    right: '0px',
+  });
 });
 
 test('default edge stickiness yields to explicit pins', () => {
@@ -1202,6 +1240,153 @@ test('virtual clamps non-positive row heights instead of collapsing', () => {
   for (const row of body) expect(row.style.height).toBe('1px');
 });
 
+test('zebra striping holds at an odd window start', () => {
+  const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+  render(<Table columns={cols} data={data} virtual rowHeight={31} overscan={8} />);
+  const grid = screen.getByRole('grid');
+  const scroller = grid.parentElement as HTMLDivElement;
+  Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+  // floor(5000 / 31) - 8 = 153: an odd start — a window-relative parity would
+  // tint SO-153, the absolute index keeps it untinted.
+  fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+  const first = within(grid).getAllByRole('row')[1];
+  expect(first).toHaveTextContent('SO-153');
+  expect(first).toHaveAttribute('data-stripe', 'false');
+});
+
+test('virtual re-measures on mount without waiting for a resize', () => {
+  // jsdom reports clientHeight 0, so stub the prototype: the scrollport reads
+  // a real viewport the moment it mounts, with no event fired afterwards.
+  const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    value: 320,
+    configurable: true,
+  });
+  try {
+    const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+    const props = { columns: cols, data, virtual: true as const, rowHeight: 32, overscan: 8 };
+    const { rerender } = render(<Table {...props} status="loading" />);
+    rerender(<Table {...props} status="idle" />);
+    // No scroll, no resize — the mount-time measure alone opens the window.
+    const grid = screen.getByRole('grid');
+    expect(within(grid).getAllByRole('row').length).toBeGreaterThan(10);
+    expect(screen.getByText('SO-0')).toBeInTheDocument();
+  } finally {
+    if (descriptor) Object.defineProperty(HTMLElement.prototype, 'clientHeight', descriptor);
+  }
+});
+
+test('breakpoint cross resets the reused scrollport offset', () => {
+  // A live matchMedia stub: flipping `matches` notifies the hook, so the
+  // desktop grid branch and the mobile card branch share one `.scroll` node
+  // exactly like a real viewport cross.
+  let matches = false;
+  const listeners = new Set<(event: { matches: boolean }) => void>();
+  const original = window.matchMedia;
+  Object.defineProperty(window, 'matchMedia', {
+    value: () => ({
+      matches,
+      media: '',
+      onchange: null,
+      addEventListener: (_t: string, fn: (event: { matches: boolean }) => void) => {
+        listeners.add(fn);
+      },
+      removeEventListener: (fn: (event: { matches: boolean }) => void) => {
+        listeners.delete(fn);
+      },
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+    configurable: true,
+    writable: true,
+  });
+  try {
+    const data = Array.from({ length: 10000 }, (_, i) => ({ code: `SO-${i}` }));
+    render(
+      <Table
+        columns={cols}
+        data={data}
+        renderCard={(r) => <span>{String(r['code'])}</span>}
+        virtual
+        rowHeight={32}
+        overscan={8}
+      />,
+    );
+    const scroller = document.querySelector('[data-virtual="true"]') as HTMLDivElement;
+    Object.defineProperty(scroller, 'clientHeight', { value: 320, configurable: true });
+    fireEvent.scroll(scroller, { target: { scrollTop: 5000 } });
+    expect(scroller.scrollTop).toBe(5000);
+    expect(screen.queryByText('SO-0')).toBeNull();
+    // Cross to mobile: the same DOM node survives, so resetting only React
+    // state would leave a 5000px DOM offset against a 0-based window.
+    matches = true;
+    act(() => {
+      listeners.forEach((fn) => fn({ matches: true }));
+    });
+    const cards = screen.getAllByRole('article');
+    expect(document.querySelector('[data-virtual="true"]')).toBe(scroller);
+    expect(scroller.scrollTop).toBe(0);
+    expect(cards[0]).toHaveTextContent('SO-0');
+  } finally {
+    Object.defineProperty(window, 'matchMedia', {
+      value: original,
+      configurable: true,
+      writable: true,
+    });
+  }
+});
+
+test('tiny virtual card heights floor instead of overlapping', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    const data = [
+      { code: 'SO-1', total: '₫ 10M' },
+      { code: 'SO-2', total: '₫ 20M' },
+    ];
+    render(<Table columns={cols} data={data} cardHeight={8} virtual />);
+    const vcards = screen.getAllByRole('article');
+    // Slot 8 minus the 8px gap floors at 1px — never zero/negative boxes
+    // overlapping inside the stride.
+    expect(vcards.map((c) => c.style.height)).toEqual(['1px', '1px']);
+    expect(vcards.map((c) => c.style.top)).toEqual(['0px', '8px']);
+  } finally {
+    restore();
+  }
+});
+
+test('expanded detail floors a non-positive expandedHeight', () => {
+  const data = [{ code: 'SO-1', total: '₫ 10M' }];
+  render(
+    <Table
+      columns={cols}
+      data={data}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={['SO-1']}
+      onToggleExpand={() => {}}
+      expandedHeight={0}
+    />,
+  );
+  const detail = screen.getByText('detail').closest('[role="row"]') as HTMLElement;
+  expect(detail.style.height).toBe('1px');
+});
+
+test('empty-state footer stays inside the wrap card', () => {
+  render(
+    <Table
+      columns={cols}
+      data={[]}
+      status="empty"
+      pagination={{ page: 1, pageSize: 5, total: 8, onPage: () => {} }}
+    />,
+  );
+  const nav = screen.getByRole('navigation', { name: /Phân trang/ });
+  // Pager and state box share the `.wrap` container — no bare square sibling.
+  const wrap = nav.closest('div[class*="wrap"]');
+  expect(wrap).not.toBeNull();
+  expect(wrap).toContainElement(screen.getByText(/Không có dữ liệu/));
+});
+
 test('footer bar groups summary, pagination and export below the scrollport', () => {
   render(
     <Table
@@ -1244,6 +1429,9 @@ test('export downloads default csv when no onExport', async () => {
     // `anchor.remove()` detaches natively (not via the spied method), so the
     // post-click detachment itself is the assertion.
     expect(anchor.parentNode).toBeNull();
+    // The revoke is deferred, not synchronous: immediately after the click it
+    // must NOT have run yet — a sync revoke would cut off large downloads.
+    expect(vi.mocked(URL.revokeObjectURL)).not.toHaveBeenCalled();
     // The revoke is deferred 100ms after the click — let it run against the
     // stub before restoring jsdom's (absent) original, or the timer throws.
     await new Promise((resolve) => setTimeout(resolve, 150));

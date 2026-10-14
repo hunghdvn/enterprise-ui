@@ -21,6 +21,9 @@ import type { Column, SortEntry, TableProps } from './types';
 /** Scrollport cap applied when `maxHeight` is omitted in virtual mode. */
 const DEFAULT_VIRTUAL_MAX_HEIGHT = '70vh';
 
+/** Fixed width of one leading control track (select checkbox / expand toggle). */
+const CONTROL_TRACK = 36;
+
 /** Gap between mobile cards — mirrored inside virtual card slots (finding #13). */
 const CARD_GAP = 8;
 
@@ -107,7 +110,10 @@ function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable
   // Fixed 36px control tracks come first: select, then the master-detail
   // toggle, then every data column — one template shared by the header,
   // filter, body, group and detail rows.
-  const controls = [...(selectable ? ['36px'] : []), ...(expandable ? ['36px'] : [])];
+  const controls = [
+    ...(selectable ? [`${CONTROL_TRACK}px`] : []),
+    ...(expandable ? [`${CONTROL_TRACK}px`] : []),
+  ];
   return [...controls, ...tracks].join(' ');
 }
 
@@ -115,8 +121,11 @@ function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable
  * Cumulative sticky offsets in px: a left-pinned column sticks at the summed
  * `width`s of the pinned columns before it, a right-pinned column at the
  * summed `width`s of the pinned columns after it (accumulated right-to-left),
- * so neighbouring pins never overlap. The stylesheet cannot know these sums,
- * which is why each cell gets its offset inline.
+ * so neighbouring pins never overlap. `leadingControlWidth` is the summed
+ * width of the fixed control tracks (`CONTROL_TRACK` each) that
+ * `gridTemplateOf` prepends — left accumulation starts past them, or the
+ * first pinned data cell paints over the checkboxes. The stylesheet cannot
+ * know these sums, which is why each cell gets its offset inline.
  */
 function pinOffsetsOf<T>(
   columns: Column<T>[],
@@ -200,16 +209,19 @@ export function Table<T extends object>(props: TableProps<T>) {
   // has none) and catches container resizes such as `maxHeight` edits or card
   // layout. Both listeners detach on unmount or when virtual turns off.
   // `status` and `isMobileView` are deps without being read: every scrollport
-  // remount (loading→idle flip, breakpoint cross) must re-run measure+observe
-  // on the fresh node and drop the stale scroll offset — otherwise a table
-  // that mounts its grid after an async load renders only overscan rows in a
-  // blank viewport until the first scroll event.
+  // remount (loading→idle flip) must re-run measure+observe on the fresh node
+  // and drop the stale scroll offset — otherwise a table that mounts its grid
+  // after an async load renders only overscan rows in a blank viewport until
+  // the first scroll event. A breakpoint cross REUSES the same `.scroll` DOM
+  // node across branches, so the reset syncs the DOM offset too, not just the
+  // React state (follow-up finding 2).
   useLayoutEffect(() => {
     if (!virtual) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
     const measure = () => setViewportHeight(scroller.clientHeight);
     measure();
+    scroller.scrollTop = 0;
     setScrollTop(0);
     window.addEventListener('resize', measure);
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
@@ -275,27 +287,43 @@ export function Table<T extends object>(props: TableProps<T>) {
     </div>
   ) : null;
 
+  // One threading point for the footer bar across the settled states
+  // (finding #10): empty/error render it the same way instead of each branch
+  // hand-threading `{footerBar}`. Loading stays chrome-free by an explicit
+  // omission in its branch below.
+  const withFooter = (content: ReactNode) => (
+    <>
+      {content}
+      {footerBar}
+    </>
+  );
+
   if (status === 'empty') {
     return (
-      <>
-        <div className={styles.state} role="status">
-          Không có dữ liệu
-        </div>
-        {footerBar}
-      </>
+      // Same `.wrap` card as the grid/cards branches (finding #4): the pager
+      // and export keep their border/radius and sticky context instead of
+      // rendering as a bare sibling below the state box.
+      <div className={styles.wrap}>
+        {withFooter(
+          <div className={styles.state} role="status">
+            Không có dữ liệu
+          </div>,
+        )}
+      </div>
     );
   }
   if (status === 'error') {
     return (
-      <>
-        <div className={styles.state} role="alert">
-          <span>Lỗi tải dữ liệu</span>
-          <Button variant="secondary" size="sm" onClick={onRetry}>
-            Thử lại
-          </Button>
-        </div>
-        {footerBar}
-      </>
+      <div className={styles.wrap}>
+        {withFooter(
+          <div className={styles.state} role="alert">
+            <span>Lỗi tải dữ liệu</span>
+            <Button variant="secondary" size="sm" onClick={onRetry}>
+              Thử lại
+            </Button>
+          </div>,
+        )}
+      </div>
     );
   }
   if (status === 'loading') {
@@ -385,11 +413,13 @@ export function Table<T extends object>(props: TableProps<T>) {
           // Virtual cards sit in fixed slots — the window math offsets them by
           // whole `safeCardHeight` slots, so each card is a gap shorter and
           // the 8px `.cards` gap lives inside the slot instead of vanishing
-          // (finding #13). Non-virtual cards are in normal flow with the CSS
-          // gap: `cardHeight` is only a floor (min-height), and a fixed
-          // height there would turn every card into a cramped scrollbox.
+          // (finding #13). Floored at 1px: tiny `cardHeight` values must not
+          // produce zero/negative boxes that overlap inside the stride.
           virtual
-            ? { height: safeCardHeight - CARD_GAP, top: cardWin.offsetY + i * safeCardHeight }
+            ? {
+                height: Math.max(1, safeCardHeight - CARD_GAP),
+                top: cardWin.offsetY + i * safeCardHeight,
+              }
             : { minHeight: safeCardHeight }
         }
       >
@@ -494,7 +524,10 @@ export function Table<T extends object>(props: TableProps<T>) {
   // their own offsets instead of relying on the first-child default.
   const hasLeftPin = columns.some((c) => c.pinned === 'left');
   const hasRightPin = columns.some((c) => c.pinned === 'right');
-  const pinOffsets = pinOffsetsOf(columns, (selectable ? 36 : 0) + (expandable ? 36 : 0));
+  const pinOffsets = pinOffsetsOf(
+    columns,
+    (selectable ? CONTROL_TRACK : 0) + (expandable ? CONTROL_TRACK : 0),
+  );
   // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
   // `position: sticky` and the stacking, the inline style owns the offset —
   // same pair on header and body cells, so every row path (plain, virtual,
@@ -506,13 +539,14 @@ export function Table<T extends object>(props: TableProps<T>) {
     if (c.pinned === 'right') return { right: `${pinOffsets.right.get(c.key) ?? 0}px` };
     return undefined;
   };
-  // Leading control tracks (select = track 0, expand = track 0/1) pin at
-  // their own 36px offsets while left pins exist — otherwise the first
-  // explicitly-pinned data cell paints over the checkboxes (finding #5).
-  // Without declared left pins the P1 first-child default keeps them stuck.
-  const controlPinClass = hasLeftPin ? styles.pinL : '';
-  const controlPinStyle = (track: number): { left: string } | undefined =>
-    hasLeftPin ? { left: `${track * 36}px` } : undefined;
+  // One wiring point for the six leading-control cells (header/body/filter
+  // × select/expand, finding #9): explicit left pin at the track offset
+  // while left pins exist, P1 first-child default otherwise. `base` is
+  // styles.h for header cells, styles.c everywhere else.
+  const controlCellProps = (base: string, track: number) => ({
+    className: cx(base, styles.cellSelect, hasLeftPin ? styles.pinL : ''),
+    style: hasLeftPin ? { left: `${track * CONTROL_TRACK}px` } : undefined,
+  });
 
   // Body items: with `groupBy` each group contributes one header row plus its
   // rows (the rows drop out while the group is collapsed); without it every
@@ -652,12 +686,7 @@ export function Table<T extends object>(props: TableProps<T>) {
         }
       >
         {selectable && (
-          <div
-            className={cx(styles.c, styles.cellSelect, controlPinClass)}
-            style={controlPinStyle(0)}
-            role="gridcell"
-            data-align="center"
-          >
+          <div {...controlCellProps(styles.c, 0)} role="gridcell" data-align="center">
             <input
               type="checkbox"
               aria-label={`Chọn dòng ${k}`}
@@ -672,8 +701,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           // checkbox: same 36px control track, `aria-expanded` mirrors the
           // controlled `expandedKeys`.
           <div
-            className={cx(styles.c, styles.cellSelect, controlPinClass)}
-            style={controlPinStyle(selectable ? 1 : 0)}
+            {...controlCellProps(styles.c, selectable ? 1 : 0)}
             role="gridcell"
             data-align="center"
           >
@@ -732,12 +760,7 @@ export function Table<T extends object>(props: TableProps<T>) {
         >
           <div className={styles.head} role="row" style={{ gridTemplateColumns }}>
             {selectable && (
-              <div
-                className={cx(styles.h, styles.cellSelect, controlPinClass)}
-                style={controlPinStyle(0)}
-                role="columnheader"
-                data-align="center"
-              >
+              <div {...controlCellProps(styles.h, 0)} role="columnheader" data-align="center">
                 <input
                   type="checkbox"
                   aria-label="Chọn tất cả"
@@ -754,8 +777,7 @@ export function Table<T extends object>(props: TableProps<T>) {
               // Toggle column header: an empty control track, mirroring the
               // select one, so every row below keeps its toggle first.
               <div
-                className={cx(styles.h, styles.cellSelect, controlPinClass)}
-                style={controlPinStyle(selectable ? 1 : 0)}
+                {...controlCellProps(styles.h, selectable ? 1 : 0)}
                 role="columnheader"
                 data-align="center"
               />
@@ -830,19 +852,9 @@ export function Table<T extends object>(props: TableProps<T>) {
             // beneath the sticky header. Presentational: each edit just calls
             // `onColumnFilter`; filtering `data` stays the caller's job.
             <div className={styles.filterRow} role="row" style={{ gridTemplateColumns }}>
-              {selectable && (
-                <div
-                  className={cx(styles.c, styles.cellSelect, controlPinClass)}
-                  style={controlPinStyle(0)}
-                  role="gridcell"
-                />
-              )}
+              {selectable && <div {...controlCellProps(styles.c, 0)} role="gridcell" />}
               {expandable && (
-                <div
-                  className={cx(styles.c, styles.cellSelect, controlPinClass)}
-                  style={controlPinStyle(selectable ? 1 : 0)}
-                  role="gridcell"
-                />
+                <div {...controlCellProps(styles.c, selectable ? 1 : 0)} role="gridcell" />
               )}
               {columns.map((c) => {
                 const cellClass = cx(styles.c, pinClass(c));

@@ -121,8 +121,12 @@ export function applySorts<T>(rows: T[], sorts: SortEntry[]): T[] {
 /**
  * Buckets rows by up to `groupBy`'s first two keys (spec §4.8 allows two this
  * round), preserving first-appearance group order and input row order inside
- * each group. Single-key groups key/label on the raw value; composite groups
- * join with ' / '. An empty `groupBy` yields no groups.
+ * each group. Group `key`s are structural and opaque — length-prefixed
+ * framing over NUL-joined parts with a null sentinel — never the display
+ * `label` (human `' / '` join): values containing the separator, or null vs
+ * `''`, can never merge groups. Pass `key` back into `collapsedGroups` /
+ * `onToggleGroup` verbatim; render `label` to users. An empty `groupBy`
+ * yields no groups.
  *
  * `rowKey` is part of the spec §5 signature for callers that pass the same key
  * function they render with; bucketing is one stable pass over `rows`, so row

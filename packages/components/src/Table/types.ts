@@ -143,9 +143,10 @@ export interface TableProps<T> {
    */
   groupBy?: string[];
   /**
-   * Group keys whose rows are hidden. The header row (label, count, summary)
-   * stays visible — only the group's body rows disappear. Controlled: remove
-   * a key and the rows come back.
+   * Group keys whose rows are hidden. Keys are structural and opaque (see
+   * `buildGroups`) — pass them back verbatim, never reconstruct them from
+   * labels. The header row (label, count, summary) stays visible — only the
+   * group's body rows disappear. Controlled: remove a key and the rows come back.
    */
   collapsedGroups?: string[];
   /** Receives the group key on every header toggle click, collapsed or not. */

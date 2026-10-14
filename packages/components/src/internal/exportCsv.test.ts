@@ -37,10 +37,15 @@ test('toCSV with no rows returns just the header', () => {
 
 test('toCSV neutralizes formula-injection prefixes', () => {
   // Cells starting with = + - @ (or tab/CR) are evaluated as formulas by
-  // Excel/LibreOffice despite quoting — the text marker keeps them text.
-  expect(toCSV([{ a: '=HYPERLINK("x")' }], cols)).toBe('﻿a\n\'"=HYPERLINK(""x"")"');
+  // Excel/LibreOffice despite quoting — the text marker keeps them text, and
+  // it sits INSIDE the RFC4180 quotes so the field still parses as one.
+  expect(toCSV([{ a: '=HYPERLINK("x")' }], cols)).toBe('﻿a\n"\'=HYPERLINK(""x"")"');
   expect(toCSV([{ a: '=1+1' }, { a: '+1' }, { a: '-5' }, { a: '@x' }], cols)).toBe(
     "﻿a\n'=1+1\n'+1\n'-5\n'@x",
+  );
+  // A flagged value needing quotes stays a single quoted field.
+  expect(toCSV([{ a: '-1,500' }, { a: '=SUM(A1,B1)' }], cols)).toBe(
+    '﻿a\n"\'-1,500"\n"\'=SUM(A1,B1)"',
   );
   // Plain values (including interior markers) are untouched.
   expect(toCSV([{ a: 'a=b' }, { a: '5-3' }], cols)).toBe('﻿a\na=b\n5-3');
