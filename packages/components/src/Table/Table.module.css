@@ -13,6 +13,15 @@
   min-width: 100%;
 }
 
+/* Virtual mode: the windowing reads `.scroll` (onScroll + clientHeight), so
+   it has to be the real scrollport — `overflow: auto` makes it scroll while
+   its height is bounded by the inline `maxHeight` prop (70vh default, see
+   Table.tsx), so the spacer's full height scrolls inside the card instead of
+   stretching the page to contentHeight. */
+.scroll[data-virtual='true'] {
+  overflow: auto;
+}
+
 .grid {
   min-width: 100%;
   /* Each row is its own grid, so a row only pins its first/last cell while it
@@ -30,6 +39,125 @@
   z-index: 3;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+}
+
+/* Filter row: one control per filterable column, laid out on the same shared
+   grid template as header and body so the tracks never drift. It sits
+   directly under the header and slides beneath it when scrolling (the sticky
+   header's opaque background covers it). */
+.filterRow {
+  display: grid;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Controls are --input-h tall; the cells' normal --cell-py would push this
+   row past --row-height, so vertical padding drops to zero — compact fits
+   the control exactly, comfortable centers it with room on each side. */
+.filterRow .c {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* The Input/Select wrapper span is inline-grid (shrink-to-fit): pin it to
+   the cell width so the control fills every track, and keep the control's
+   padding/border inside that width (border-box) so it never overflows. */
+.filterRow .c > span {
+  width: 100%;
+}
+
+.filterRow .filterCtl {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Same in-cell focus-ring trick as .sortBtn/.check: a ring drawn outside a
+   control sitting flush against the row edges would be clipped by the cell's
+   overflow, so it draws inward instead. */
+.filterRow .filterCtl:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Group header: one role=row per group on the same shared grid template as
+   every other row path, so tracks/pins/scroll never drift. Its single cell
+   spans all tracks (the full colspan) and holds the collapse toggle, the
+   group label + row count, and the per-group summary. Counts as exactly one
+   row in the virtual window math. */
+.groupRow {
+  display: grid;
+  box-sizing: border-box;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.groupCell {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--row-height);
+  padding: var(--cell-py) var(--cell-px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Same in-cell focus-ring trick as .sortBtn/.check: the ring draws inward so
+   the cell's overflow never clips it. */
+.groupToggle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.groupToggle:hover {
+  color: var(--text);
+}
+
+.groupToggle:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.groupLabel {
+  font-weight: 600;
+}
+
+.groupCount,
+.groupSummary {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.groupSummary {
+  margin-left: auto;
+}
+
+/* Master-detail: an expanded row is followed by one full-width role=row —
+   a single cell spanning every track of the same shared grid template, at a
+   fixed expandedHeight px (inline from Table.tsx) so the virtual window can
+   budget the detail's slots ahead of paint instead of measuring it. The pane
+   scrolls its own overflow rather than pushing the rows below off their
+   offsets. */
+.detail {
+  display: grid;
+  box-sizing: border-box;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-muted);
+  overflow: auto;
+}
+
+.detailCell {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--cell-py) var(--cell-px);
 }
 
 /* Row/cell height must come out at `--row-height`, padding included: without
@@ -140,12 +268,16 @@ button.h:hover {
   background: var(--surface);
 }
 
-.row:nth-child(even) {
+/* Zebra follows `data-stripe` (the absolute row index from Table.tsx), never
+   `nth-child`: virtual rows live inside the sliding `.spacer` window, so
+   position-based striping would flip every visible row on each scroll step
+   (finding #10). */
+.row[data-stripe='true'] {
   background: var(--surface);
 }
 
 @supports (background: color-mix(in srgb, red 50%, blue)) {
-  .row:nth-child(even) {
+  .row[data-stripe='true'] {
     background: color-mix(in srgb, var(--bg) 50%, var(--surface));
   }
 }
@@ -159,21 +291,58 @@ button.h:hover {
   box-shadow: inset 2px 0 0 var(--row-selected-marker);
 }
 
+/* Virtual body: the spacer carries the full contentHeight so the scrollbar
+   spans every row while only the window is in the DOM, and the windowed rows
+   are absolute inside it at their pixel offset. `border-box` keeps each row's
+   box at exactly rowHeight (height + bottom border), so consecutive tops never
+   overlap and the separator line stays visible. No overflow clipping here —
+   it would turn the row into the sticky cells' scrollport and unpin them. */
+.spacer {
+  position: relative;
+}
+
+.vrow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+}
+
 /* Pinned columns: the first column stays on the left edge and the last on the
    right edge while the table scrolls horizontally. The offsets are what make
    the pinning happen — `position: sticky` alone never shifts anything. */
 .row > .c:first-child,
-.head > .h:first-child {
+.head > .h:first-child,
+.filterRow > .c:first-child {
   position: sticky;
   left: 0;
   z-index: 2;
 }
 
 .row > .c:last-child,
-.head > .h:last-child {
+.head > .h:last-child,
+.filterRow > .c:last-child {
   position: sticky;
   right: 0;
   z-index: 2;
+}
+
+/* Explicit pins win over the unconditional first/last defaults above: when a
+   side declares any pin, the grid carries `data-*-pins` and the default edge
+   stickiness on that side stands down — otherwise the default edge cell and
+   the first explicit pin both sit at offset 0 and the later DOM node covers
+   the first column (finding #6). Cells with an explicit pin keep theirs via
+   the `:not()` guard. */
+.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR),
+.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR),
+.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR) {
+  position: static;
+}
+
+.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR),
+.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR),
+.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR) {
+  position: static;
 }
 
 /* Body rows own their background (zebra/hover/selected), so the pinned cells
@@ -185,7 +354,44 @@ button.h:hover {
 }
 
 .head > .h:first-child,
-.head > .h:last-child {
+.head > .h:last-child,
+.filterRow > .c:first-child,
+.filterRow > .c:last-child {
+  background: var(--bg);
+}
+
+/* Explicit pins (Column.pinned): the class owns sticky + stacking while the
+   inline style on each cell owns the cumulative offset — the stylesheet
+   cannot know the px widths of the neighbouring pinned columns. P1's
+   first/last defaults above stay for tables that never declare a pin. */
+.pinL,
+.pinR {
+  position: sticky;
+  z-index: 2;
+}
+
+/* A pinned column's track is an exact `width` px, so the cells must not keep
+   the `--cell-min-width` floor (120/140px): narrower pins would overflow
+   their tracks and misalign every later pin by the shortfall (finding #7). */
+.h.pinL,
+.h.pinR,
+.c.pinL,
+.c.pinR {
+  min-width: 0;
+}
+
+/* Pinned body cells inherit the row's background (zebra/hover/selected) just
+   like the first/last defaults, so scrolled content never shows through. */
+.row > .c.pinL,
+.row > .c.pinR {
+  background: inherit;
+  border-bottom: inherit;
+}
+
+.head > .h.pinL,
+.head > .h.pinR,
+.filterRow > .c.pinL,
+.filterRow > .c.pinR {
   background: var(--bg);
 }
 
@@ -203,6 +409,78 @@ button.h:hover {
   height: 16px;
   accent-color: var(--color-blue-600);
   cursor: pointer;
+}
+
+/* Mobile card list (viewport ≤ 768px): replaces the grid with <article>
+   cards — the caller's renderCard, or the fallback (first column as title,
+   remaining columns as label/value pairs, plus the Chi tiết toggle) built in
+   Table.tsx. Virtual mode shares the windowing: cards sit absolute in the
+   spacer (.vrow) at cardHeight slots. */
+.cards {
+  display: grid;
+  /* Mirrored in Table.tsx as CARD_GAP (virtual slots budget it inside each
+     card's stride) — retune both together (finding #13). */
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.card {
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--cell-py) var(--cell-px);
+  overflow: auto;
+}
+
+.cardTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cardFields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  font-size: 12px;
+}
+
+.cardFields dt {
+  color: var(--text-muted);
+}
+
+.cardFields dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.cardAction {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* Theme-aware action text, not the raw primary: the primary on the dark
+     card surface is below contrast, while `--action-text` keeps the 4.5:1
+     contract in both themes (finding #12). */
+  color: var(--action-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Same inward focus-ring trick as .groupToggle/.sortBtn: the ring draws
+   inside so the card's overflow never clips it. */
+.cardAction:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.wrap > .state {
+  margin: 12px;
 }
 
 .state {
@@ -234,4 +512,43 @@ button.h:hover {
 }
 .footText {
   min-width: 0;
+}
+
+/* Footer bar (spec §4.10): summary + Pagination + export, sitting after the
+   scrollport inside .wrap — in virtual mode the scrollport is capped at its
+   max-height, so the bar stays visible while rows scroll under it. Sticky
+   bottom so a non-virtual long body keeps the controls pinned to the card's
+   edge whenever .wrap itself scrolls. Summary first (pushes the rest right),
+   nav + export right, never shrinking when the bar wraps. */
+.gridFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: var(--cell-py) var(--cell-px);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.gridFootSummary {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.exportBtn {
+  flex-shrink: 0;
+}
+
+/* Master-detail inside a mobile card: the same renderExpanded content the
+   grid's detail row shows, under the card body — the card's own overflow
+   scrolls it when the fixed cardHeight slot cannot hold it all. */
+.cardDetail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Badge, Button, FilterBar, Pagination, Table, useToast } from '@enterprise-ui/components';
+import type { SortEntry } from '@enterprise-ui/components';
 import styles from './ListDemoPage.module.css';
 
 type Order = {
@@ -32,8 +33,7 @@ export default function ListDemoPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [sortKey, setSortKey] = useState<string | undefined>('code');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [sorts, setSorts] = useState<SortEntry[]>([{ key: 'code', dir: 'desc' }]);
 
   const filtered = ALL.filter((r) => {
     const q = search.trim().toLowerCase();
@@ -42,8 +42,9 @@ export default function ListDemoPage() {
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === 'code') {
-      return sortDir === 'asc' ? a.code.localeCompare(b.code) : b.code.localeCompare(a.code);
+    for (const { key, dir } of sorts) {
+      const cmp = String(a[key as keyof Order]).localeCompare(String(b[key as keyof Order]));
+      if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
     }
     return 0;
   });
@@ -63,13 +64,8 @@ export default function ListDemoPage() {
     },
   ];
 
-  const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+  const handleSort = (next: SortEntry[]) => {
+    setSorts(next);
   };
 
   const handleReset = () => {
@@ -102,8 +98,7 @@ export default function ListDemoPage() {
       <Table<Order>
         columns={columns}
         data={data}
-        sortKey={sortKey}
-        sortDir={sortDir}
+        sorts={sorts}
         onSort={handleSort}
         status={data.length === 0 ? 'empty' : 'idle'}
         summary={`${total} đơn · trang ${page}`}
