@@ -419,7 +419,7 @@ button.h:hover {
 .cards {
   display: grid;
   /* Mirrored in Table.tsx as CARD_GAP (virtual slots budget it inside each
-     card's stride) — retune both together (follow-up finding 8). */
+     card's stride) — retune both together (finding #13). */
   gap: 8px;
   padding: 8px;
   box-sizing: border-box;
@@ -477,6 +477,10 @@ button.h:hover {
 .cardAction:focus-visible {
   outline: 2px solid var(--color-blue-600);
   outline-offset: -2px;
+}
+
+.wrap > .state {
+  margin: 12px;
 }
 
 .state {

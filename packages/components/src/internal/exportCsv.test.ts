@@ -47,6 +47,10 @@ test('toCSV neutralizes formula-injection prefixes', () => {
   expect(toCSV([{ a: '-1,500' }, { a: '=SUM(A1,B1)' }], cols)).toBe(
     '﻿a\n"\'-1,500"\n"\'=SUM(A1,B1)"',
   );
+  // Tab/CR-leading values are neutralized the same way, quoted when needed.
+  expect(toCSV([{ a: '\tindented' }, { a: '\r\n=cmd' }], cols)).toBe(
+    '﻿a\n\'\tindented\n"\'\r\n=cmd"',
+  );
   // Plain values (including interior markers) are untouched.
   expect(toCSV([{ a: 'a=b' }, { a: '5-3' }], cols)).toBe('﻿a\na=b\n5-3');
 });

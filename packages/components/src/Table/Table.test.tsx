@@ -1147,6 +1147,60 @@ test('right pins advertise data-right-pins and stick at cumulative offsets', () 
   });
 });
 
+test('body and filter control cells share the header pin offsets', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      selectedKeys={[]}
+      onSelect={() => {}}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={[]}
+      onToggleExpand={() => {}}
+      showFilterRow
+      columnFilters={{}}
+      onColumnFilter={() => {}}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  const rows = within(grid).getAllByRole('row');
+  // Header (0), filter (1), body (2): select at 0, expand at 36 in each.
+  const bodySelect = screen
+    .getByRole('checkbox', { name: /Chọn dòng SO-1/ })
+    .closest('[role="gridcell"]')!;
+  expect(bodySelect).toHaveStyle({ left: '0px' });
+  expect(
+    screen.getByRole('button', { name: /Mở rộng SO-1/ }).closest('[role="gridcell"]'),
+  ).toHaveStyle({ left: '36px' });
+  const filterCells = within(rows[1]).getAllByRole('gridcell');
+  expect(filterCells[0]).toHaveStyle({ left: '0px' });
+  expect(filterCells[1]).toHaveStyle({ left: '36px' });
+});
+
+test('error keeps the footer inside the wrap; loading stays chrome-free', () => {
+  const bar = {
+    summary: <span>Tổng</span>,
+    pagination: { page: 1, pageSize: 5, total: 8, onPage: () => {} },
+    exportable: true as const,
+  };
+  const { rerender } = render(
+    <Table columns={cols} data={[]} status="error" onRetry={() => {}} {...bar} />,
+  );
+  const nav = screen.getByRole('navigation', { name: /Phân trang/ });
+  const wrap = nav.closest('div[class*="wrap"]');
+  expect(wrap).not.toBeNull();
+  expect(wrap).toContainElement(screen.getByText('Lỗi tải dữ liệu'));
+  // Loading is transient: no pager, no export, no summary chrome.
+  rerender(<Table columns={cols} data={[]} status="loading" {...bar} />);
+  expect(screen.getByText(/Đang tải/)).toBeInTheDocument();
+  expect(screen.queryByRole('navigation')).toBeNull();
+  expect(screen.queryByRole('button', { name: /Xuất CSV/ })).toBeNull();
+  expect(screen.queryByText('Tổng')).toBeNull();
+});
+
 test('default edge stickiness yields to explicit pins', () => {
   const { rerender } = render(
     <Table
@@ -1272,7 +1326,12 @@ test('virtual re-measures on mount without waiting for a resize', () => {
     expect(within(grid).getAllByRole('row').length).toBeGreaterThan(10);
     expect(screen.getByText('SO-0')).toBeInTheDocument();
   } finally {
+    // Restore unconditionally: jsdom defines `clientHeight` on
+    // `Element.prototype`, so there may be no own descriptor to put back —
+    // leaving the stubbed value on the prototype would leak 320px into every
+    // later test (follow-up finding 1).
     if (descriptor) Object.defineProperty(HTMLElement.prototype, 'clientHeight', descriptor);
+    else delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
   }
 });
 

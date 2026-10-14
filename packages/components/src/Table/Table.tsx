@@ -107,7 +107,7 @@ function trackOf<T>(column: Column<T>): string {
 
 function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable: boolean): string {
   const tracks = columns.map(trackOf);
-  // Fixed 36px control tracks come first: select, then the master-detail
+  // Fixed CONTROL_TRACK-wide control tracks come first: select, then the master-detail
   // toggle, then every data column — one template shared by the header,
   // filter, body, group and detail rows.
   const controls = [
@@ -136,7 +136,7 @@ function pinOffsetsOf<T>(
 } {
   const left = new Map<string, number>();
   const right = new Map<string, number>();
-  // Left accumulation starts past the fixed 36px control tracks (select,
+  // Left accumulation starts past the fixed CONTROL_TRACK control tracks (select,
   // then expand) that `gridTemplateOf` prepends — a pinned data cell at
   // inline `left:0` would otherwise paint over the checkbox cells.
   let acc = leadingControlWidth;
@@ -287,10 +287,11 @@ export function Table<T extends object>(props: TableProps<T>) {
     </div>
   ) : null;
 
-  // One threading point for the footer bar across the settled states
-  // (finding #10): empty/error render it the same way instead of each branch
-  // hand-threading `{footerBar}`. Loading stays chrome-free by an explicit
-  // omission in its branch below.
+  // Shared footer for the settled states (finding #10): empty/error render
+  // it through this helper instead of each branch hand-threading
+  // `{footerBar}`. Card/grid branches render `{footerBar}` directly
+  // (identical DOM — the fragment here adds no node). Loading stays
+  // chrome-free by an explicit omission in its branch below.
   const withFooter = (content: ReactNode) => (
     <>
       {content}
@@ -412,7 +413,7 @@ export function Table<T extends object>(props: TableProps<T>) {
         style={
           // Virtual cards sit in fixed slots — the window math offsets them by
           // whole `safeCardHeight` slots, so each card is a gap shorter and
-          // the 8px `.cards` gap lives inside the slot instead of vanishing
+          // the CARD_GAP `.cards` gap lives inside the slot instead of vanishing
           // (finding #13). Floored at 1px: tiny `cardHeight` values must not
           // produce zero/negative boxes that overlap inside the stride.
           virtual
@@ -698,7 +699,7 @@ export function Table<T extends object>(props: TableProps<T>) {
         )}
         {expandable && (
           // The master-detail toggle column sits first after the select
-          // checkbox: same 36px control track, `aria-expanded` mirrors the
+          // checkbox: same CONTROL_TRACK control track, `aria-expanded` mirrors the
           // controlled `expandedKeys`.
           <div
             {...controlCellProps(styles.c, selectable ? 1 : 0)}
