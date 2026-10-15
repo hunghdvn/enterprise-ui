@@ -12,7 +12,7 @@ import {
   useToast,
   type SortEntry,
 } from '@enterprise-ui/components';
-import { ORDERS, toneFor } from '../demo-data/orders';
+import { ORDERS, RECENT_ORDERS, toneFor } from '../demo-data/orders';
 import styles from './OrderDetailDemoPage.module.css';
 
 export default function OrderDetailDemoPage() {
@@ -21,7 +21,7 @@ export default function OrderDetailDemoPage() {
   const [sorts, setSorts] = useState<SortEntry[]>([{ key: 'code', dir: 'desc' }]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const filtered = ORDERS.slice(0, 4).filter((r) => {
+  const filtered = RECENT_ORDERS.filter((r) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return r.code.toLowerCase().includes(q) || r.customer.toLowerCase().includes(q);

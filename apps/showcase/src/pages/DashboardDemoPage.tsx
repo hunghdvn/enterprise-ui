@@ -1,8 +1,8 @@
 import { KpiCard, KpiGrid, PageHeader, Table } from '@enterprise-ui/components';
-import { ORDERS } from '../demo-data/orders';
+import { RECENT_ORDERS } from '../demo-data/orders';
 import styles from './DashboardDemoPage.module.css';
 
-const RECENT = ORDERS.slice(0, 4);
+const RECENT = RECENT_ORDERS;
 
 export default function DashboardDemoPage() {
   return (
@@ -24,7 +24,7 @@ export default function DashboardDemoPage() {
         <KpiCard label="Tồn đọng" value="38 đơn" delta="Không đổi" deltaTone="neutral" />
       </KpiGrid>
       <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Đơn hàng gần đây</h3>
+        <h2 className={styles.sectionTitle}>Đơn hàng gần đây</h2>
         <Table
           columns={[
             { key: 'code', title: 'Mã đơn' },

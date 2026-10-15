@@ -35,4 +35,16 @@ test('zero delta and icon render nothing, not a stray 0', () => {
   expect(container.querySelector('[data-tone]')).toBeNull();
   expect(container.querySelector(`[class*="icon"]`)).toBeNull();
   expect(screen.getByText('1')).toBeInTheDocument();
+  // Discriminating: old `{delta && …}` rendered a stray text "0" here.
+  expect(container.firstElementChild?.textContent).toBe('X1');
+});
+
+test('false and empty-string slots render nothing, not an empty pill', () => {
+  const show = false;
+  const { container } = render(
+    <KpiCard label="X" value="1" delta={show && '+5%'} icon={show && 'i'} />,
+  );
+  // `false && …` must not leave a dot without text or an empty icon box.
+  expect(container.querySelector('[data-tone]')).toBeNull();
+  expect(container.textContent).not.toContain('+5%');
 });

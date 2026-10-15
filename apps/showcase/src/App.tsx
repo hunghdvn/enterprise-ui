@@ -43,7 +43,7 @@ function HeaderRight() {
 function Shell() {
   const [key, setKey] = useState('orders');
   // One route map drives sidebar + breadcrumb + content together — adding a
-  // page touches this map only, not three parallel switches (finding 13).
+  // page touches this map only, not three parallel switches.
   const routes: Record<
     string,
     { label: string; breadcrumb: string; badge?: number; el: ReactNode }

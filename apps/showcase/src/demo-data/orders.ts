@@ -23,3 +23,6 @@ export function toneFor(status: OrderStatus): 'orange' | 'blue' | 'green' {
   if (status === 'Đang giao') return 'blue';
   return 'green';
 }
+
+/** Small slice for demos that only need a few rows. */
+export const RECENT_ORDERS: Order[] = ORDERS.slice(0, 4);

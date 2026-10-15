@@ -21,14 +21,14 @@ export function SplitView({
   const detailRef = useRef<HTMLDivElement | null>(null);
   const masterRef = useRef<HTMLDivElement | null>(null);
   // Previous key across runs (`undefined` = not seen yet): focus moves only
-  // on real transitions, never on mount — a preselected mobile load must not
-  // steal focus with no user selection (finding 6).
+  // on the null→key transition, never on mount — a preselected mobile load
+  // must not steal focus with no user selection.
   const prevKey = useRef<string | null | undefined>(undefined);
 
   // Screen-reader users get no announcement on an instant pane swap — move
   // focus into the detail when it appears from a selection, preferring the
   // detail heading over the bare container; moving back returns focus to the
-  // master pane so keyboard/SR users don't land on body (finding 7).
+  // master pane so keyboard/SR users don't land on body.
   useEffect(() => {
     if (!isMobile) {
       prevKey.current = selectedKey;
@@ -72,7 +72,7 @@ export function SplitView({
   return (
     <div className={styles.single}>
       <div className={styles.mobileBar}>
-        <Button variant="ghost" size="sm" onClick={onBack} aria-label={backLabel}>
+        <Button variant="ghost" size="sm" onClick={onBack} aria-label={backLabel || 'Quay lại'}>
           ‹ {backLabel}
         </Button>
       </div>
