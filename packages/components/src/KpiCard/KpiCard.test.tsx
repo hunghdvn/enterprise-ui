@@ -1,0 +1,50 @@
+import { render, screen } from '@testing-library/react';
+import { KpiCard } from './KpiCard';
+
+test('renders label, value and delta with dot and text per tone', () => {
+  const { rerender } = render(
+    <KpiCard label="Doanh thu" value="₫ 1,2T" delta="+12% so với tháng trước" deltaTone="green" />,
+  );
+  expect(screen.getByText('Doanh thu')).toBeInTheDocument();
+  expect(screen.getByText('₫ 1,2T')).toBeInTheDocument();
+  const delta = screen.getByText('+12% so với tháng trước');
+  expect(delta.closest('[data-tone="green"]')).not.toBeNull();
+  // Color is never the only channel: a dot accompanies the text.
+  expect(delta.parentElement?.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  rerender(<KpiCard label="Tồn đọng" value="38" delta="-5% so với tháng trước" deltaTone="red" />);
+  expect(screen.getByText('-5% so với tháng trước').closest('[data-tone="red"]')).not.toBeNull();
+});
+
+test('icon and chart slots render', () => {
+  render(
+    <KpiCard label="Đơn" value="1.024" icon={<span data-testid="icon">▦</span>}>
+      <svg data-testid="spark" />
+    </KpiCard>,
+  );
+  expect(screen.getByTestId('icon')).toBeInTheDocument();
+  expect(screen.getByTestId('spark')).toBeInTheDocument();
+});
+
+test('delta defaults to neutral tone', () => {
+  render(<KpiCard label="Tồn đọng" value="38" delta="Không đổi" />);
+  expect(screen.getByText('Không đổi').closest('[data-tone="neutral"]')).not.toBeNull();
+});
+
+test('zero delta and icon render nothing, not a stray 0', () => {
+  const { container } = render(<KpiCard label="X" value="1" delta={0} icon={0} />);
+  expect(container.querySelector('[data-tone]')).toBeNull();
+  expect(container.querySelector(`[class*="icon"]`)).toBeNull();
+  expect(screen.getByText('1')).toBeInTheDocument();
+  // Discriminating: old `{delta && …}` rendered a stray text "0" here.
+  expect(container.firstElementChild?.textContent).toBe('X1');
+});
+
+test('false and empty-string slots render nothing, not an empty pill', () => {
+  const show = false;
+  const { container } = render(
+    <KpiCard label="X" value="1" delta={show && '+5%'} icon={show && 'i'} />,
+  );
+  // `false && …` must not leave a dot without text or an empty icon box.
+  expect(container.querySelector('[data-tone]')).toBeNull();
+  expect(container.textContent).not.toContain('+5%');
+});
