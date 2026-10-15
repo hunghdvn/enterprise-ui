@@ -75,7 +75,13 @@ test('master width is honored on desktop', () => {
   const restore = stubMatchMedia(false);
   try {
     render(
-      <SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} masterWidth={420} />,
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={420}
+      />,
     );
     const masterPane = screen.getByTestId('master').parentElement!;
     expect(masterPane.style.width).toBe('420px');

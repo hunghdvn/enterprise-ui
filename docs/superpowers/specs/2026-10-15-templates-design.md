@@ -15,6 +15,7 @@ shells — no business logic, no fetching, chart areas are caller-owned slots.
 ## 2. Goals / Non-goals
 
 Goals:
+
 - G1: `SplitView` 2-pane (master 380px + detail), desktop side-by-side,
   mobile single-pane with back navigation.
 - G2: `PageHeader` (back button slot, title, subtitle, actions) shared by
@@ -41,12 +42,12 @@ Vitest globals on; `Table<T extends object>` interplay untouched.
 ```ts
 // SplitView
 export interface SplitViewProps {
-  master: ReactNode;                  // list pane (usually Table + FilterBar)
-  detail: ReactNode;                  // detail pane (PageHeader + Form/sections)
-  selectedKey: string | null;         // null = nothing selected (mobile shows master)
-  onBack: () => void;                 // mobile back → caller clears selectedKey
-  masterWidth?: number;               // default 380
-  backLabel?: string;                 // default 'Quay lại'
+  master: ReactNode; // list pane (usually Table + FilterBar)
+  detail: ReactNode; // detail pane (PageHeader + Form/sections)
+  selectedKey: string | null; // null = nothing selected (mobile shows master)
+  onBack: () => void; // mobile back → caller clears selectedKey
+  masterWidth?: number; // default 380
+  backLabel?: string; // default 'Quay lại'
 }
 
 // PageHeader
@@ -54,7 +55,7 @@ export interface PageHeaderProps {
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
-  onBack?: () => void;                // renders back button when set
+  onBack?: () => void; // renders back button when set
   backLabel?: string;
 }
 
@@ -62,12 +63,15 @@ export interface PageHeaderProps {
 export interface KpiCardProps {
   label: string;
   value: ReactNode;
-  delta?: ReactNode;                  // e.g. "+12% so với tháng trước"
-  deltaTone?: 'green' | 'red' | 'neutral';  // default 'neutral'
+  delta?: ReactNode; // e.g. "+12% so với tháng trước"
+  deltaTone?: 'green' | 'red' | 'neutral'; // default 'neutral'
   icon?: ReactNode;
-  children?: ReactNode;               // sparkline/chart slot
+  children?: ReactNode; // sparkline/chart slot
 }
-export interface KpiGridProps { children: ReactNode; minCardWidth?: number } // default 220
+export interface KpiGridProps {
+  children: ReactNode;
+  minCardWidth?: number;
+} // default 220
 ```
 
 Behavior: desktop (`>768px`, `useIsMobile` shared hook) shows both panes;

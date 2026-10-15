@@ -7,6 +7,8 @@ import {
   useTheme,
 } from '@enterprise-ui/components';
 import ListDemoPage from './pages/ListDemoPage';
+import OrderDetailDemoPage from './pages/OrderDetailDemoPage';
+import DashboardDemoPage from './pages/DashboardDemoPage';
 import DataGridDemoPage from './pages/DataGridDemoPage';
 import TokensPage from './pages/TokensPage';
 import styles from './App.module.css';
@@ -44,6 +46,8 @@ function Shell() {
     <AppShell
       sidebar={[
         { key: 'orders', label: 'Đơn hàng', badge: 12 },
+        { key: 'detail', label: 'Chi tiết đơn' },
+        { key: 'dashboard', label: 'Dashboard' },
         { key: 'stock', label: 'Kho vận' },
         { key: 'datagrid', label: 'DataGrid 10k' },
         { key: 'tokens', label: 'Tokens' },
@@ -51,7 +55,15 @@ function Shell() {
       activeKey={key}
       onNavigate={setKey}
       breadcrumb={
-        key === 'tokens' ? 'Tokens' : key === 'datagrid' ? 'DataGrid demo' : 'Đơn hàng bán'
+        key === 'tokens'
+          ? 'Tokens'
+          : key === 'datagrid'
+            ? 'DataGrid demo'
+            : key === 'detail'
+              ? 'Chi tiết đơn hàng'
+              : key === 'dashboard'
+                ? 'Dashboard'
+                : 'Đơn hàng bán'
       }
       headerRight={<HeaderRight />}
     >
@@ -59,6 +71,10 @@ function Shell() {
         <TokensPage />
       ) : key === 'datagrid' ? (
         <DataGridDemoPage />
+      ) : key === 'detail' ? (
+        <OrderDetailDemoPage />
+      ) : key === 'dashboard' ? (
+        <DashboardDemoPage />
       ) : (
         <ListDemoPage />
       )}

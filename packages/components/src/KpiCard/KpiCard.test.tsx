@@ -11,9 +11,7 @@ test('renders label, value and delta with dot and text per tone', () => {
   expect(delta.closest('[data-tone="green"]')).not.toBeNull();
   // Color is never the only channel: a dot accompanies the text.
   expect(delta.parentElement?.querySelector('[aria-hidden="true"]')).not.toBeNull();
-  rerender(
-    <KpiCard label="Tồn đọng" value="38" delta="-5% so với tháng trước" deltaTone="red" />,
-  );
+  rerender(<KpiCard label="Tồn đọng" value="38" delta="-5% so với tháng trước" deltaTone="red" />);
   expect(screen.getByText('-5% so với tháng trước').closest('[data-tone="red"]')).not.toBeNull();
 });
 

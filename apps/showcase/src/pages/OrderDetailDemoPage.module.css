@@ -1,0 +1,39 @@
+.page {
+  display: grid;
+  gap: 12px;
+}
+
+.masterCol {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.detailCol {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.total {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.placeholder {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
