@@ -35,6 +35,8 @@ export { Pagination } from './Pagination/Pagination';
 export type { PaginationProps } from './Pagination/Pagination';
 export { FilterBar } from './FilterBar/FilterBar';
 export type { FilterBarProps } from './FilterBar/FilterBar';
+export { PageHeader } from './PageHeader/PageHeader';
+export type { PageHeaderProps } from './PageHeader/types';
 export { Form, FormErrorsContext } from './Form/Form';
 export type { FormProps } from './Form/Form';
 export { Field } from './Form/Field';
