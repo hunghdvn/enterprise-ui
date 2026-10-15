@@ -78,6 +78,34 @@ test('mobile shows detail with back button and moves focus to it', () => {
   }
 });
 
+test('mobile mount with a key does not steal focus', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    render(<SplitView master={master} detail={detail} selectedKey="SO-1" onBack={() => {}} />);
+    expect(screen.getByText('Nội dung')).toBeInTheDocument();
+    // Preselected on first paint — no user selection happened, so no focus jump.
+    expect(document.activeElement?.tagName).toBe('BODY');
+  } finally {
+    restore();
+  }
+});
+
+test('mobile back returns focus to the master pane', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    const { rerender } = render(
+      <SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />,
+    );
+    rerender(<SplitView master={master} detail={detail} selectedKey="SO-1" onBack={() => {}} />);
+    expect(document.activeElement?.tagName).toBe('H2');
+    rerender(<SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />);
+    expect(screen.getByTestId('master')).toBeInTheDocument();
+    expect(document.activeElement).toHaveTextContent('Danh sách');
+  } finally {
+    restore();
+  }
+});
+
 test('master width is honored on desktop', () => {
   const restore = stubMatchMedia(false);
   try {

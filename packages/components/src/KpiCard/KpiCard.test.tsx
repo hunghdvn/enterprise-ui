@@ -29,3 +29,10 @@ test('delta defaults to neutral tone', () => {
   render(<KpiCard label="Tồn đọng" value="38" delta="Không đổi" />);
   expect(screen.getByText('Không đổi').closest('[data-tone="neutral"]')).not.toBeNull();
 });
+
+test('zero delta and icon render nothing, not a stray 0', () => {
+  const { container } = render(<KpiCard label="X" value="1" delta={0} icon={0} />);
+  expect(container.querySelector('[data-tone]')).toBeNull();
+  expect(container.querySelector(`[class*="icon"]`)).toBeNull();
+  expect(screen.getByText('1')).toBeInTheDocument();
+});

@@ -20,3 +20,12 @@ test('grid defaults to a 220px minimum card width', () => {
   );
   expect(screen.getByText('A').parentElement!.style.gridTemplateColumns).toContain('220px');
 });
+
+test('non-positive min card width floors instead of collapsing', () => {
+  render(
+    <KpiGrid minCardWidth={0}>
+      <div>A</div>
+    </KpiGrid>,
+  );
+  expect(screen.getByText('A').parentElement!.style.gridTemplateColumns).toContain('120px');
+});

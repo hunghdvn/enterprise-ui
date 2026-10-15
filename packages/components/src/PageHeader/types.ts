@@ -8,4 +8,6 @@ export interface PageHeaderProps {
   onBack?: () => void;
   backLabel?: string;
   className?: string;
+  /** Heading level for the title (page titles should be h1). */
+  level?: 1 | 2;
 }

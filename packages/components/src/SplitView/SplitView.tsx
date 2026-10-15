@@ -19,13 +19,22 @@ export function SplitView({
 }: SplitViewProps) {
   const isMobile = useIsMobile();
   const detailRef = useRef<HTMLDivElement | null>(null);
-  const showDetail = !isMobile || selectedKey !== null;
+  const masterRef = useRef<HTMLDivElement | null>(null);
+  // Previous key across runs (`undefined` = not seen yet): focus moves only
+  // on real transitions, never on mount — a preselected mobile load must not
+  // steal focus with no user selection (finding 6).
+  const prevKey = useRef<string | null | undefined>(undefined);
 
   // Screen-reader users get no announcement on an instant pane swap — move
-  // focus into the detail when the mobile detail appears, preferring the
-  // detail heading over the bare container for a robust announcement.
+  // focus into the detail when it appears from a selection, preferring the
+  // detail heading over the bare container; moving back returns focus to the
+  // master pane so keyboard/SR users don't land on body (finding 7).
   useEffect(() => {
-    if (isMobile && selectedKey !== null) {
+    if (!isMobile) {
+      prevKey.current = selectedKey;
+      return;
+    }
+    if (prevKey.current === null && selectedKey !== null) {
       const root = detailRef.current;
       const heading = root?.querySelector<HTMLElement>('h1, h2, [data-autofocus]');
       if (heading) {
@@ -34,7 +43,10 @@ export function SplitView({
         if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
         heading.focus();
       } else root?.focus();
+    } else if (prevKey.current != null && selectedKey === null) {
+      masterRef.current?.focus();
     }
+    prevKey.current = selectedKey;
   }, [isMobile, selectedKey]);
 
   if (!isMobile) {
@@ -48,8 +60,13 @@ export function SplitView({
     );
   }
 
+  const showDetail = selectedKey !== null;
   if (!showDetail) {
-    return <div className={styles.single}>{master}</div>;
+    return (
+      <div ref={masterRef} tabIndex={-1} className={styles.single}>
+        {master}
+      </div>
+    );
   }
 
   return (

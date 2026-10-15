@@ -32,6 +32,9 @@
   font-size: 20px;
   font-weight: 700;
   margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .delta {

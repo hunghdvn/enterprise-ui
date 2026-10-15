@@ -29,3 +29,14 @@ test('long titles ellipsize instead of breaking the layout', () => {
   // The actions slot survives next to an overflowing title (flex + ellipsis).
   expect(screen.getByText('A')).toBeInTheDocument();
 });
+
+test('level 1 renders an h1 for page titles', () => {
+  render(<PageHeader title="Tổng quan" level={1} />);
+  const heading = screen.getByRole('heading', { level: 1 });
+  expect(heading).toHaveTextContent('Tổng quan');
+});
+
+test('empty backLabel still exposes an accessible name', () => {
+  render(<PageHeader title="x" onBack={() => {}} backLabel="" />);
+  expect(screen.getByRole('button', { name: 'Quay lại' })).toBeInTheDocument();
+});

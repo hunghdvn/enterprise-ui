@@ -31,6 +31,10 @@
   min-width: 0;
 }
 
+.single:focus {
+  outline: none;
+}
+
 .mobileBar {
   margin-bottom: 8px;
 }

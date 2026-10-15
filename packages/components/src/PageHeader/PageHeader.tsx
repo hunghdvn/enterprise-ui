@@ -9,16 +9,18 @@ export function PageHeader({
   onBack,
   backLabel = 'Quay lại',
   className = '',
+  level = 2,
 }: PageHeaderProps) {
+  const Title: 'h1' | 'h2' = level === 1 ? 'h1' : 'h2';
   return (
     <div className={`${styles.header} ${className}`}>
       {onBack && (
-        <Button variant="ghost" size="sm" onClick={onBack} aria-label={backLabel}>
+        <Button variant="ghost" size="sm" onClick={onBack} aria-label={backLabel || 'Quay lại'}>
           ‹ {backLabel}
         </Button>
       )}
       <div className={styles.titles}>
-        <h2 className={styles.title}>{title}</h2>
+        <Title className={styles.title}>{title}</Title>
         {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
       </div>
       {actions && <div className={styles.actions}>{actions}</div>}

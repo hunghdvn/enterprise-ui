@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  applySorts,
   Badge,
   Button,
   Field,
@@ -11,39 +12,21 @@ import {
   useToast,
   type SortEntry,
 } from '@enterprise-ui/components';
+import { ORDERS, toneFor } from '../demo-data/orders';
 import styles from './OrderDetailDemoPage.module.css';
-
-type Order = {
-  code: string;
-  customer: string;
-  total: string;
-  status: 'Chờ duyệt' | 'Đang giao' | 'Hoàn thành';
-};
-
-const ORDERS: Order[] = [
-  { code: 'SO-10482', customer: 'Cty An Phát', total: '₫ 245M', status: 'Chờ duyệt' },
-  { code: 'SO-10481', customer: 'Cty Minh Đức', total: '₫ 89M', status: 'Đang giao' },
-  { code: 'SO-10480', customer: 'Cty Hòa Bình', total: '₫ 132M', status: 'Hoàn thành' },
-  { code: 'SO-10479', customer: 'Cty Sao Mai', total: '₫ 57M', status: 'Chờ duyệt' },
-];
-
-function toneFor(status: Order['status']): 'orange' | 'blue' | 'green' {
-  if (status === 'Chờ duyệt') return 'orange';
-  if (status === 'Đang giao') return 'blue';
-  return 'green';
-}
 
 export default function OrderDetailDemoPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [sorts, setSorts] = useState<SortEntry[]>([{ key: 'code', dir: 'desc' }]);
-  const [selectedKey, setSelectedKey] = useState<string | null>('SO-10482');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const filtered = ORDERS.filter((r) => {
+  const filtered = ORDERS.slice(0, 4).filter((r) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return r.code.toLowerCase().includes(q) || r.customer.toLowerCase().includes(q);
   });
+  const sorted = applySorts(filtered, sorts);
 
   const selected = ORDERS.find((r) => r.code === selectedKey) ?? null;
 
@@ -55,19 +38,32 @@ export default function OrderDetailDemoPage() {
         master={
           <div className={styles.masterCol}>
             <FilterBar searchValue={search} onSearch={setSearch} onReset={() => setSearch('')} />
-            <Table<Order>
+            <Table
               columns={[
                 { key: 'code', title: 'Mã đơn', sortable: true },
                 { key: 'customer', title: 'Khách hàng' },
                 { key: 'total', title: 'Giá trị', align: 'right' as const },
               ]}
-              data={filtered}
+              data={sorted}
               sorts={sorts}
               onSort={setSorts}
               rowKey={(r) => r.code}
               selectedKeys={selectedKey ? [selectedKey] : []}
               onSelect={(keys) => setSelectedKey(keys[keys.length - 1] ?? null)}
-              status={filtered.length === 0 ? 'empty' : 'idle'}
+              renderCard={(row) => (
+                <div className={styles.miniCard}>
+                  <strong>{String(row['code'])}</strong>
+                  <span>{String(row['customer'])}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedKey(String(row['code']))}
+                  >
+                    Xem
+                  </Button>
+                </div>
+              )}
+              status={sorted.length === 0 ? 'empty' : 'idle'}
             />
           </div>
         }
