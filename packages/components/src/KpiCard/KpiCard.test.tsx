@@ -24,3 +24,8 @@ test('icon and chart slots render', () => {
   expect(screen.getByTestId('icon')).toBeInTheDocument();
   expect(screen.getByTestId('spark')).toBeInTheDocument();
 });
+
+test('delta defaults to neutral tone', () => {
+  render(<KpiCard label="Tồn đọng" value="38" delta="Không đổi" />);
+  expect(screen.getByText('Không đổi').closest('[data-tone="neutral"]')).not.toBeNull();
+});

@@ -4,6 +4,11 @@ import { useIsMobile } from '../internal/useIsMobile';
 import styles from './SplitView.module.css';
 import type { SplitViewProps } from './types';
 
+/**
+ * Master-detail 2-pane: side-by-side on desktop, single-pane with back
+ * navigation on mobile. Mobile panes render unboxed full-bleed by design
+ * (no card surface) — the desktop card treatment would waste 360px widths.
+ */
 export function SplitView({
   master,
   detail,
@@ -17,9 +22,19 @@ export function SplitView({
   const showDetail = !isMobile || selectedKey !== null;
 
   // Screen-reader users get no announcement on an instant pane swap — move
-  // focus to the detail container when the mobile detail appears.
+  // focus into the detail when the mobile detail appears, preferring the
+  // detail heading over the bare container for a robust announcement.
   useEffect(() => {
-    if (isMobile && selectedKey !== null) detailRef.current?.focus();
+    if (isMobile && selectedKey !== null) {
+      const root = detailRef.current;
+      const heading = root?.querySelector<HTMLElement>('h1, h2, [data-autofocus]');
+      if (heading) {
+        // Headings are not focusable by default — make this one
+        // programmatically focusable without changing its tab order.
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus();
+      } else root?.focus();
+    }
   }, [isMobile, selectedKey]);
 
   if (!isMobile) {

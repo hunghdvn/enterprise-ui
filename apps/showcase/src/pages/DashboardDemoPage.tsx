@@ -18,7 +18,7 @@ export default function DashboardDemoPage() {
             <polyline
               points="0,20 20,16 40,17 60,10 80,12 100,4"
               fill="none"
-              stroke="var(--color-blue-600)"
+              style={{ stroke: 'var(--color-blue-600)' }}
               strokeWidth="2"
             />
           </svg>

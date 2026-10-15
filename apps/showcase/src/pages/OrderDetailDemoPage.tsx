@@ -77,7 +77,6 @@ export default function OrderDetailDemoPage() {
               <PageHeader
                 title={selected.code}
                 subtitle={selected.customer}
-                onBack={() => setSelectedKey(null)}
                 actions={
                   <Button
                     variant="primary"
@@ -94,16 +93,16 @@ export default function OrderDetailDemoPage() {
               </div>
               <div className={styles.formGrid}>
                 <Field label="Mã đơn">
-                  <Input value={selected.code} onChange={() => {}} aria-label="Mã đơn" />
+                  <Input value={selected.code} onChange={() => {}} readOnly />
                 </Field>
                 <Field label="Khách hàng">
-                  <Input value={selected.customer} onChange={() => {}} aria-label="Khách hàng" />
+                  <Input value={selected.customer} onChange={() => {}} readOnly />
                 </Field>
                 <Field label="Giá trị">
-                  <Input value={selected.total} onChange={() => {}} aria-label="Giá trị" />
+                  <Input value={selected.total} onChange={() => {}} readOnly />
                 </Field>
                 <Field label="Trạng thái">
-                  <Input value={selected.status} onChange={() => {}} aria-label="Trạng thái" />
+                  <Input value={selected.status} onChange={() => {}} readOnly />
                 </Field>
               </div>
             </div>

@@ -60,9 +60,16 @@ test('mobile shows detail with back button and moves focus to it', () => {
   const onBack = vi.fn();
   const restore = stubMatchMedia(true);
   try {
-    render(<SplitView master={master} detail={detail} selectedKey="SO-1" onBack={onBack} />);
+    const { rerender } = render(
+      <SplitView master={master} detail={detail} selectedKey={null} onBack={onBack} />,
+    );
+    expect(screen.queryByText('Nội dung')).toBeNull();
+    // Null → key transition (the real selection flow): focus lands on the
+    // detail heading, not the bare container.
+    rerender(<SplitView master={master} detail={detail} selectedKey="SO-1" onBack={onBack} />);
     expect(screen.queryByTestId('master')).toBeNull();
     expect(screen.getByText('Nội dung')).toBeInTheDocument();
+    expect(document.activeElement?.tagName).toBe('H2');
     expect(document.activeElement).toHaveTextContent('Chi tiết SO-1');
     fireEvent.click(screen.getByRole('button', { name: /Quay lại/ }));
     expect(onBack).toHaveBeenCalledTimes(1);
@@ -85,6 +92,28 @@ test('master width is honored on desktop', () => {
     );
     const masterPane = screen.getByTestId('master').parentElement!;
     expect(masterPane.style.width).toBe('420px');
+  } finally {
+    restore();
+  }
+});
+
+test('unmatched selectedKey still renders caller-owned detail', () => {
+  const restore = stubMatchMedia(true);
+  try {
+    // The key matches nothing in the master list — SplitView never validates
+    // it, the detail is the caller's data to own.
+    render(<SplitView master={master} detail={detail} selectedKey="SO-404" onBack={() => {}} />);
+    expect(screen.getByText('Nội dung')).toBeInTheDocument();
+  } finally {
+    restore();
+  }
+});
+
+test('default master width is 380px', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(<SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />);
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
   } finally {
     restore();
   }

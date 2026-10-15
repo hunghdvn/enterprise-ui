@@ -9,7 +9,7 @@ export function PageHeader({
   onBack,
   backLabel = 'Quay lại',
   className = '',
-}: PageHeaderProps & { className?: string }) {
+}: PageHeaderProps) {
   return (
     <div className={`${styles.header} ${className}`}>
       {onBack && (

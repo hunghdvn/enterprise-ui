@@ -7,4 +7,5 @@ export interface PageHeaderProps {
   /** Renders a back button when set. */
   onBack?: () => void;
   backLabel?: string;
+  className?: string;
 }
