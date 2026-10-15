@@ -1,0 +1,40 @@
+.split {
+  display: flex;
+  gap: 12px;
+  min-height: 0;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.master {
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.single {
+  min-width: 0;
+}
+
+.mobileBar {
+  margin-bottom: 8px;
+}
+
+.detailFocus {
+  outline: none;
+}
