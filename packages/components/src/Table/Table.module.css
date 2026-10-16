@@ -274,6 +274,9 @@ button.h:hover {
   width: 9px;
   height: 100%;
   cursor: col-resize;
+  /* Touch drags must resize, not scroll — phones render cards anyway, so this
+     targets touch tablets/laptops. */
+  touch-action: none;
   z-index: 4;
 }
 

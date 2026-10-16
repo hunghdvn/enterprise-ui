@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -100,12 +101,12 @@ function variableWindow(
 
 /**
  * One track per column for the single grid template every row shares — header,
- * body, virtual, and the filter/group/detail rows later tasks add. A pinned
- * column is a fixed `width` px track so its sticky offset (the px sum of the
- * pinned columns before/after it) lines up with the track exactly; a regular
- * column stays flexible with a floor of its `width`, or the default cell
- * minimum when unset, so the grid can overflow and scroll horizontally — which
- * is what the pins exist for.
+ * body, virtual, and the filter/group/detail rows. Widths come from
+ * `effectiveWidthOf` (live `columnWidths` override wins over `Column.width`):
+ * a pinned column is a fixed px track so its sticky offset lines up exactly;
+ * a regular column stays flexible with a floor of its width, or the default
+ * cell minimum when unset, so the grid can overflow and scroll horizontally —
+ * which is what the pins exist for.
  */
 /**
  * Live width for a column: the caller's `columnWidths` override wins over the
@@ -117,7 +118,12 @@ function effectiveWidthOf<T>(
   column: Column<T>,
   columnWidths: Record<string, number> | undefined,
 ): number | undefined {
-  return columnWidths?.[column.key] ?? column.width;
+  const declared = columnWidths?.[column.key] ?? column.width;
+  // Direct prop values bypass `reportWidth`'s clamp — floor here too so a
+  // `columnWidths={{ k: 0 }}` can never collapse a track despite the
+  // "never 0" contract; non-finite values count as unset.
+  if (declared == null || !Number.isFinite(declared)) return undefined;
+  return Math.max(1, declared);
 }
 
 function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | undefined): string {
@@ -332,11 +338,22 @@ export function Table<T extends object>(props: TableProps<T>) {
     </>
   );
 
-  // Column resize state lives in a ref (not state): drags report straight to
-  // the caller without re-rendering the grid per pixel. `minWidth` floors
+  // Live drag state lives in a ref (not state): drags report straight to the
+  // caller without re-rendering the grid per pixel. `minWidth` floors
   // itself at 1px so a caller-passed 0 cannot produce zero-width columns.
   const minWidth = Math.max(1, minColumnWidth);
   const resizeDrag = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+  const resizeCleanup = useRef<(() => void) | null>(null);
+  // Window listeners belong to the drag, not the component lifetime: a
+  // second unmount-guard drops a mid-drag listener pair if the table
+  // unmounts before release (no leak, no report to a dead caller).
+  useEffect(() => {
+    return () => {
+      resizeCleanup.current?.();
+      resizeCleanup.current = null;
+      resizeDrag.current = null;
+    };
+  }, []);
   // Drag-start width prefers the measured header cell (flexible columns have
   // no declared width to start from); jsdom measures 0, so fall back to the
   // effective width, then a constant.
@@ -353,35 +370,42 @@ export function Table<T extends object>(props: TableProps<T>) {
     event.preventDefault();
     const startWidth = resolveStartWidth(column, event.currentTarget);
     resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
-    // Listeners ride on window so releasing outside the grid (or the
-    // browser chrome swallowing pointerup) still ends the drag — both are
-    // removed on release, no leak.
+    // Listeners ride on window so releasing outside the grid still ends the
+    // drag — `pointercancel` (touch takeover, browser gesture) ends it the
+    // same way, or the next window move would report a stale drag. All three
+    // detach on release; the unmount guard above covers table teardown.
     const move = (e: PointerEvent): void => {
       const drag = resizeDrag.current;
       if (!drag) return;
       reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
     };
-    const up = (): void => {
+    const end = (): void => {
       resizeDrag.current = null;
+      resizeCleanup.current = null;
       window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
     };
+    resizeCleanup.current = end;
     window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
   };
   const stepResize = (column: Column<T>, direction: 1 | -1, large: boolean): void => {
     if (!onColumnWidth) return;
-    const active = document.activeElement;
-    const current =
-      active instanceof HTMLElement
-        ? resolveStartWidth(column, active)
-        : (effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH);
+    // Keyboard steps from the effective width, not the measured cell: the
+    // measured width bakes in flex growth, so the first Arrow press would
+    // otherwise jump unpredictably (drags keep measuring — the pointer shows
+    // where the edge goes).
+    const current = effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH;
     reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
   };
   // One wiring point for the data-column resize handles (never on the select
-  // / expand control tracks): drag + keyboard + double-click reset.
+  // / expand control tracks): drag + keyboard + double-click reset. A handle
+  // that cannot report (no `onColumnWidth`) does not render at all — a
+  // dead affordance is worse than none.
   const renderResizeHandle = (column: Column<T>): ReactNode => {
-    if (!resizable) return null;
+    if (!resizable || !onColumnWidth) return null;
     return (
       <span
         role="separator"
@@ -394,6 +418,10 @@ export function Table<T extends object>(props: TableProps<T>) {
           if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
             event.preventDefault();
             stepResize(column, event.key === 'ArrowRight' ? 1 : -1, event.shiftKey);
+          } else if (event.key === 'Delete' || event.key === 'Backspace') {
+            // Keyboard-only users get the reset too (double-click equivalent).
+            event.preventDefault();
+            onColumnWidthReset?.(column.key);
           }
         }}
         onDoubleClick={() => onColumnWidthReset?.(column.key)}

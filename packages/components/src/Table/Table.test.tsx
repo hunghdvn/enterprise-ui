@@ -1634,17 +1634,36 @@ test('no resize handles by default or on control tracks', () => {
   );
   expect(screen.queryByRole('separator')).toBeNull();
   rerender(
-    <Table columns={resizeCols} data={rows} resizable selectedKeys={[]} onSelect={() => {}} />,
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+      selectedKeys={[]}
+      onSelect={() => {}}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={[]}
+      onToggleExpand={() => {}}
+    />,
   );
   const header = screen.getByText('Mã đơn').closest('[role="columnheader"]')!;
   expect(
     within(header as HTMLElement).getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
   ).toBeInTheDocument();
-  // Control tracks (select checkbox) never get a handle.
+  // Control tracks (select checkbox, expand toggle) never get a handle.
   const selectHeader = screen
     .getByRole('checkbox', { name: /chọn tất cả/i })
     .closest('[role="columnheader"]')!;
   expect(within(selectHeader as HTMLElement).queryByRole('separator')).toBeNull();
+  const headers = within(screen.getByRole('grid')).getAllByRole('columnheader');
+  // select, expand placeholder, then data columns — the placeholder is empty.
+  expect(within(headers[1] as HTMLElement).queryByRole('separator')).toBeNull();
+});
+
+test('resizable without a reporter renders no handles', () => {
+  // A separator that reports nowhere is worse than none (review finding).
+  render(<Table columns={resizeCols} data={rows} resizable />);
+  expect(screen.queryByRole('separator')).toBeNull();
 });
 
 test('dragging a handle reports startWidth plus dx', () => {
@@ -1715,6 +1734,88 @@ test('double-click resets the column override', () => {
   );
   fireEvent.doubleClick(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }));
   expect(onColumnWidthReset).toHaveBeenCalledWith('code');
+});
+
+test('Delete key resets the column override for keyboard users', () => {
+  const onColumnWidthReset = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+      onColumnWidthReset={onColumnWidthReset}
+    />,
+  );
+  fireEvent.keyDown(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }), {
+    key: 'Delete',
+  });
+  expect(onColumnWidthReset).toHaveBeenCalledWith('code');
+});
+
+test('pin offsets track overrides across multiple left pins', () => {
+  // A single index-0 pin sits at left:0 with or without its override — only
+  // the SECOND pin's offset proves accumulation follows the live width.
+  const pinCols = [
+    { key: 'code', title: 'Mã', pinned: 'left' as const, width: 120 },
+    { key: 'customer', title: 'KH', pinned: 'left' as const, width: 80 },
+    { key: 'total', title: 'Tổng' },
+  ];
+  const props = {
+    columns: pinCols,
+    data: [{ code: 'SO-1', customer: 'A', total: '1' }],
+    resizable: true as const,
+    onColumnWidth: () => {},
+  };
+  const { rerender } = render(<Table {...props} columnWidths={{}} />);
+  expect(screen.getByText('KH').closest('[role="columnheader"]')).toHaveStyle({
+    left: '120px',
+  });
+  rerender(<Table {...props} columnWidths={{ code: 200 }} />);
+  expect(screen.getByText('KH').closest('[role="columnheader"]')).toHaveStyle({
+    left: '200px',
+  });
+});
+
+test('dropping an override restores the flexible track, never 0px', () => {
+  const flexCols = [
+    { key: 'code', title: 'Mã đơn', sortable: true },
+    { key: 'total', title: 'Giá trị', align: 'right' as const },
+  ];
+  const { rerender } = render(
+    <Table
+      columns={flexCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  let header = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('200px');
+  // Caller deletes the key (the reset contract): the track goes flexible,
+  // floored by the cell minimum — never a collapsed 0px track.
+  rerender(
+    <Table columns={flexCols} data={rows} resizable columnWidths={{}} onColumnWidth={() => {}} />,
+  );
+  header = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(var(--cell-min-width)');
+});
+
+test('pointercancel ends the drag like pointerup', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointercancel', { bubbles: true }));
+    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 999 }));
+  });
+  // Cancelled before any move: nothing reported, no stale drag lingers.
+  expect(onColumnWidth).not.toHaveBeenCalled();
 });
 
 test('width overrides flow into the template and pin offsets', () => {
