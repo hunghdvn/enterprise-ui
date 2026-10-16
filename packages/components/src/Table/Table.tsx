@@ -102,46 +102,50 @@ function variableWindow(
 /**
  * One track per column for the single grid template every row shares — header,
  * body, virtual, and the filter/group/detail rows. Widths come from
- * `effectiveWidthOf` (live `columnWidths` override wins over `Column.width`):
- * a pinned column is a fixed px track so its sticky offset lines up exactly;
- * a regular column stays flexible with a floor of its width, or the default
- * cell minimum when unset, so the grid can overflow and scroll horizontally —
- * which is what the pins exist for.
+ * `widthOf` (live `columnWidths` override wins over `Column.width`), the one
+ * source shared with the pin offsets so a resize can never drift one without
+ * the other: a live override is an exact px track even on regular columns
+ * (otherwise dragging a flexible column would visually do nothing), while the
+ * declared `Column.width` alone stays a `minmax` floor preserving the
+ * pre-resize model.
  */
 /**
- * Live width for a column: the caller's `columnWidths` override wins over the
- * declared `Column.width`. Unknown keys never reach here — lookups are always
- * by a rendered column's own key. One source shared by the grid template and
- * the pin offsets, so a resize can never drift one without the other.
+ * Live width for a column plus whether it comes from a live caller override.
+ * Unknown keys (including prototype shadows like `toString`) and non-finite
+ * values count as unset and fall back to the declared `Column.width`; the
+ * final value floors at 1px so neither path can collapse a track (N3).
+ * `trackOf` keys exactness off `isOverride` — the same predicate — so an
+ * unset-looking value can never take the exact branch (N4).
  */
+function widthOf<T>(
+  column: Column<T>,
+  columnWidths: Record<string, number> | undefined,
+): { value: number; isOverride: boolean } | undefined {
+  const owned =
+    columnWidths != null && Object.prototype.hasOwnProperty.call(columnWidths, column.key)
+      ? columnWidths[column.key]
+      : undefined;
+  const isOverride = typeof owned === 'number' && Number.isFinite(owned);
+  const raw = isOverride ? (owned as number) : column.width;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  return { value: Math.max(1, raw), isOverride };
+}
+
 function effectiveWidthOf<T>(
   column: Column<T>,
   columnWidths: Record<string, number> | undefined,
 ): number | undefined {
-  // Prototype-shadow keys (`toString`) must not read inherited members, and a
-  // non-finite override counts as unset — both fall back to the declared
-  // width instead of poisoning the template (review finding 5).
-  const raw =
-    columnWidths && Object.prototype.hasOwnProperty.call(columnWidths, column.key)
-      ? columnWidths[column.key]
-      : undefined;
-  const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : column.width;
-  if (value == null) return undefined;
-  return Math.max(1, value);
+  return widthOf(column, columnWidths)?.value;
 }
 
 function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | undefined): string {
-  const effective = effectiveWidthOf(column, columnWidths);
+  const resolved = widthOf(column, columnWidths);
+  const effective = resolved?.value;
   // A live override is an exact px track — even on regular columns. A mere
   // `minmax` floor would let `1fr` absorb the drag, so resizing a flexible
   // column would visually do nothing (blocking finding 1). The declared
   // `Column.width` alone stays a floor, preserving the pre-resize model.
-  if (
-    effective != null &&
-    columnWidths != null &&
-    Object.prototype.hasOwnProperty.call(columnWidths, column.key)
-  )
-    return `${effective}px`;
+  if (resolved?.isOverride) return `${effective as number}px`;
   if (column.pinned && effective != null) return `${effective}px`;
   const min = effective != null ? `${effective}px` : 'var(--cell-min-width)';
   return `minmax(${min}, 1fr)`;
@@ -356,7 +360,12 @@ export function Table<T extends object>(props: TableProps<T>) {
   // caller without re-rendering the grid per pixel. `minWidth` floors
   // itself at 1px so a caller-passed 0 cannot produce zero-width columns.
   const minWidth = Math.max(1, minColumnWidth);
-  const resizeDrag = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+  const resizeDrag = useRef<{
+    key: string;
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
   const resizeCleanup = useRef<(() => void) | null>(null);
   // Window listeners belong to the drag, not the component lifetime: a
   // second unmount-guard drops a mid-drag listener pair if the table
@@ -398,23 +407,31 @@ export function Table<T extends object>(props: TableProps<T>) {
       /* ignore - window listeners below are the fallback */
     }
     const startWidth = resolveStartWidth(column, event.currentTarget);
-    resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
+    resizeDrag.current = {
+      key: column.key,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth,
+    };
     // Listeners ride on window so releasing outside the grid still ends the
     // drag — `pointercancel` (touch takeover, browser gesture) ends it the
     // same way, or the next window move would report a stale drag. All three
     // detach on release; the unmount guard above covers table teardown.
     const move = (e: PointerEvent): void => {
+      // Only the dragging pointer drives the drag: a second finger's moves
+      // must neither report the first column nor end its drag (N6). A primary
+      // move with no button held still ends it (lost pointerup, finding 2).
       const drag = resizeDrag.current;
-      if (!drag) return;
-      // A move with no button held ends the drag: a lost pointerup must
-      // never leave it armed (finding 2).
+      if (!drag || e.pointerId !== drag.pointerId) return;
       if (e.buttons === 0) {
         end();
         return;
       }
       reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
     };
-    const end = (): void => {
+    const end = (e?: PointerEvent): void => {
+      // A second pointer's release must not end the first pointer's drag.
+      if (e && resizeDrag.current && e.pointerId !== resizeDrag.current.pointerId) return;
       resizeDrag.current = null;
       resizeCleanup.current = null;
       window.removeEventListener('pointermove', move);
@@ -724,6 +741,16 @@ export function Table<T extends object>(props: TableProps<T>) {
     style: hasLeftPin ? { left: `${track * CONTROL_TRACK}px` } : undefined,
   });
 
+  // One props point for the two data-header branches (N11): template class,
+  // pin pair, clean accessible name (the handle label must not merge into
+  // it), and the handle-host marker that keeps the cell positioned under the
+  // pin stand-down.
+  const headerCellProps = (c: Column<T>, handle: ReactNode) => ({
+    className: cx(styles.h, pinClass(c), handle ? styles.handleHost : ''),
+    style: pinStyle(c),
+    ...(typeof c.title === 'string' ? { 'aria-label': c.title } : {}),
+  });
+
   // Body items: with `groupBy` each group contributes one header row plus its
   // rows (the rows drop out while the group is collapsed); without it every
   // item is a data row — so plain, grouped, virtual and non-virtual bodies
@@ -960,18 +987,13 @@ export function Table<T extends object>(props: TableProps<T>) {
             )}
             {columns.map((c) => {
               // The handle's label would otherwise merge into the header's
-              // accessible name — pin an explicit name, and mark handle hosts
-              // so the pin stand-down keeps their positioning (finding 9).
-              const headerName = typeof c.title === 'string' ? c.title : undefined;
               const resizeHandle = renderResizeHandle(c);
               if (!c.sortable) {
                 return (
                   <div
                     key={c.key}
-                    className={cx(styles.h, pinClass(c), resizeHandle ? styles.handleHost : '')}
-                    style={pinStyle(c)}
+                    {...headerCellProps(c, resizeHandle)}
                     role="columnheader"
-                    aria-label={headerName}
                     data-align={c.align ?? 'left'}
                   >
                     <span>{c.title}</span>
@@ -1013,9 +1035,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                   key={c.key}
                   role="columnheader"
                   aria-sort={ariaSort}
-                  aria-label={headerName}
-                  className={cx(styles.h, pinClass(c), resizeHandle ? styles.handleHost : '')}
-                  style={pinStyle(c)}
+                  {...headerCellProps(c, resizeHandle)}
                   data-align={c.align ?? 'left'}
                 >
                   <button type="button" onClick={handleClick} className={styles.sortBtn}>

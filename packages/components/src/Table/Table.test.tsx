@@ -2023,9 +2023,109 @@ test('width overrides flow into the template and pin offsets', () => {
   const header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
   // Unknown keys change nothing: the template holds only real columns.
   expect(header.parentElement!.getAttribute('style')).not.toContain('5px');
-  // Template uses the 200px override, and the pin offset follows it.
+  // Template uses the 200px override as an exact track (not a minmax floor),
+  // and the pin offset follows it.
   expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({
     left: '0px',
   });
-  expect(header.parentElement!.getAttribute('style')).toContain('200px');
+  const template = header.parentElement!.getAttribute('style') ?? '';
+  expect(template).toContain('200px');
+  expect(template).not.toContain('minmax(200px');
+});
+
+test('a button-less move ends the drag instead of reporting', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  fireEvent(handle, new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  // Pointerdown focuses the handle for keyboard follow-up.
+  expect(document.activeElement).toBe(handle);
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+  // Lost pointerup: a move with no button held ends the drag — the next
+  // held move reports nothing new.
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 0, clientX: 200 }),
+    );
+  });
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 250 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+});
+
+test('keyboard steps from the measured cell, not a stale declaration', () => {
+  const measured = vi
+    .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width: 300 } as DOMRect);
+  try {
+    const onColumnWidth = vi.fn();
+    render(
+      <Table
+        columns={[{ key: 'note', title: 'Ghi chú', width: 120 }]}
+        data={rows}
+        resizable
+        onColumnWidth={onColumnWidth}
+      />,
+    );
+    // Declared 120, rendered 300: the first Arrow continues the edge.
+    fireEvent.keyDown(screen.getByRole('separator', { name: /Đổi rộng cột Ghi chú/ }), {
+      key: 'ArrowRight',
+    });
+    expect(onColumnWidth).toHaveBeenLastCalledWith('note', 308);
+  } finally {
+    measured.mockRestore();
+  }
+});
+
+test('prototype-shadow keys never poison the template', () => {
+  const shadowCols = [{ key: 'toString', title: 'T' }];
+  const { rerender } = render(
+    <Table columns={shadowCols} data={rows} resizable columnWidths={{}} onColumnWidth={() => {}} />,
+  );
+  // No own override: flexible track, no inherited member leaking in.
+  let header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(var(--cell-min-width)');
+  // An own numeric override is exact.
+  rerender(
+    <Table
+      columns={shadowCols}
+      data={rows}
+      resizable
+      columnWidths={{ toString: 200 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toMatch(/:\s*200px;/);
+});
+
+test('two right pins accumulate under an override', () => {
+  const pinCols = [
+    { key: 'code', title: 'Mã' },
+    { key: 'mid', title: 'Giữa', pinned: 'right' as const, width: 100 },
+    { key: 'total', title: 'Tổng', pinned: 'right' as const, width: 60 },
+  ];
+  const props = {
+    columns: pinCols,
+    data: [{ code: 'SO-1', mid: 'M', total: '1' }],
+    resizable: true as const,
+    onColumnWidth: () => {},
+  };
+  const { rerender } = render(<Table {...props} columnWidths={{}} />);
+  expect(screen.getByText('Giữa').closest('[role="columnheader"]')).toHaveStyle({
+    right: '60px',
+  });
+  // Widening the last pin pushes the inner one out by the same delta.
+  rerender(<Table {...props} columnWidths={{ total: 160 }} />);
+  expect(screen.getByText('Giữa').closest('[role="columnheader"]')).toHaveStyle({
+    right: '160px',
+  });
 });

@@ -278,6 +278,14 @@ button.h:hover {
   /* Touch drags must resize, not scroll — phones render cards anyway, so this
      targets touch tablets/laptops. */
   touch-action: none;
+  z-index: 4;
+}
+
+/* Only where pins exist does the strip yield: below the pinned header cells
+   (z-index 2) so a covering pin wins paint and hit-testing (N8). Pin-free
+   tables keep the strip above the default sticky edge cells. */
+.grid[data-left-pins] .resizeHandle,
+.grid[data-right-pins] .resizeHandle {
   z-index: 1;
 }
 
@@ -304,9 +312,11 @@ button.h:hover {
   background: var(--color-blue-600);
 }
 
-/* A cell hosting a handle is its offset parent even when the pin stand-down
-   would otherwise make it static (finding 9). */
-.h.handleHost {
+/* A non-pinned cell hosting a handle is its offset parent even when the
+   pin stand-down would otherwise make it static (finding 9) — but never at
+   the pins' expense: a pinned header keeps sticky from `.pinL`/`.pinR` (N1).
+   */
+.h.handleHost:not(.pinL):not(.pinR) {
   position: relative;
 }
 
@@ -317,7 +327,8 @@ button.h:hover {
 }
 
 .head > .h:last-child > .resizeHandle::after {
-  left: 0;
+  left: auto;
+  right: 0;
 }
 
 .row {
@@ -391,14 +402,14 @@ button.h:hover {
    the first explicit pin both sit at offset 0 and the later DOM node covers
    the first column (finding #6). Cells with an explicit pin keep theirs via
    the `:not()` guard. */
-.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR),
-.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR),
+.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR):not(.handleHost),
 .grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }
 
-.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR),
-.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR),
+.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR):not(.handleHost),
 .grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }

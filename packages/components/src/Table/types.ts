@@ -50,7 +50,8 @@ export interface Column<T> {
    * line up. On a regular column it becomes the grid track's minimum
    * (`minmax(width, 1fr)`): the column never shrinks below it but still
    * flexes, keeping the horizontal scroll the pins exist for. A live
-   * `columnWidths[key]` (resize) wins over this declared value.
+   * `columnWidths[key]` (resize) wins over this declared value AND makes the
+   * track exact px instead of flexible.
    */
   width?: number;
   /**
@@ -230,8 +231,10 @@ export interface TableProps<T> {
    * Live column-width overrides in px, keyed by column key. Fully controlled:
    * the table never stores widths itself, it only reports interactions
    * through `onColumnWidth`/`onColumnWidthReset`. An entry wins over the
-   * column's declared `width` in the grid template and the pin offsets.
-   * Unknown keys are ignored. Default `{}`.
+   * column's declared `width` AND changes the track kind: overridden columns
+   * render exact px tracks (even unpinned ones, so drags govern), while the
+   * declared `width` alone stays a flexible `minmax` floor. Unknown keys are
+   * ignored. Default `{}`.
    */
   columnWidths?: Record<string, number>;
   /** Receives the dragged/keyboard-stepped width for a column on every move. */
