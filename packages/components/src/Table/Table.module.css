@@ -263,11 +263,11 @@ button.h:hover {
   font-size: 10px;
 }
 
-/* Column-resize handle: an invisible 9px grab strip straddling the header
+/* Column-resize handle: an invisible 9px grab strip inside the header
    cell's right edge (a 1px line appears on hover/focus only, so idle headers
-   look untouched). Absolute against the relatively-positioned `.h`, below
-   the pinned header cells so a covering pin wins paint and hit-testing
-   (finding 8). */
+   look untouched). Absolute against the relatively-positioned `.h`, stacked
+   below every stuck cell so a covering pin or edge cell wins paint and
+   hit-testing. */
 .resizeHandle {
   position: absolute;
   top: 0;
@@ -278,14 +278,10 @@ button.h:hover {
   /* Touch drags must resize, not scroll — phones render cards anyway, so this
      targets touch tablets/laptops. */
   touch-action: none;
-  z-index: 4;
-}
-
-/* Only where pins exist does the strip yield: below the pinned header cells
-   (z-index 2) so a covering pin wins paint and hit-testing (N8). Pin-free
-   tables keep the strip above the default sticky edge cells. */
-.grid[data-left-pins] .resizeHandle,
-.grid[data-right-pins] .resizeHandle {
+  /* Below every stuck cell (pins and default edges are z-index 2): a strip
+     scrolled under a stuck neighbor is correctly dead there, and hittable in
+     its own cell area everywhere else (P3). The focus ring draws inset, so
+     this stacking never clips it. */
   z-index: 1;
 }
 
@@ -431,6 +427,12 @@ button.h:hover {
 .h.exact,
 .c.exact {
   min-width: 0;
+}
+
+/* Narrow exact tracks (e.g. dragged to 40px) must not paint their title over
+   the neighbor the way unclipped `.h` text does (Q3). */
+.h.exact {
+  overflow: hidden;
 }
 
 /* Pinned body cells inherit the row's background (zebra/hover/selected) just

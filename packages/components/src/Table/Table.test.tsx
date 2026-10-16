@@ -2170,12 +2170,39 @@ test('override cells stand their min-width floor down', () => {
       onColumnWidth={() => {}}
     />,
   );
-  // Exact-track columns (header + body) carry the floor-free class so a 40px
-  // track is not overlapped by 120px boxes; untouched columns keep theirs.
+  // Exact-track columns (header + body + filter cells) carry the floor-free
+  // class so a 40px track is not overlapped by 120px boxes; untouched columns
+  // keep theirs.
   const codeHeader = screen.getByText('Mã').closest('[role="columnheader"]')!;
   expect(codeHeader.className).toMatch(/exact/);
   const totalHeader = screen.getByText('Tổng').closest('[role="columnheader"]')!;
   expect(totalHeader.className).not.toMatch(/exact/);
+  const bodyCode = screen.getByText('SO-1').closest('[role="gridcell"]')!;
+  expect(bodyCode.className).toMatch(/exact/);
+  const bodyTotal = screen.getByText('1').closest('[role="gridcell"]')!;
+  expect(bodyTotal.className).not.toMatch(/exact/);
+});
+
+test('override cells in the filter row stand their floor down too', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', width: 120, filterable: true },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      showFilterRow
+      columnFilters={{}}
+      columnWidths={{ code: 40 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  const filterRow = within(grid).getAllByRole('row')[1];
+  const cells = within(filterRow).getAllByRole('gridcell');
+  expect(cells[0].className).toMatch(/exact/);
+  expect(cells[1].className).not.toMatch(/exact/);
 });
 
 test('non-finite overrides fall back to the declared width flexibly', () => {
@@ -2191,6 +2218,7 @@ test('non-finite overrides fall back to the declared width flexibly', () => {
   // NaN counts as unset: declared 120 stays a flexible floor, never exact.
   let header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
   expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
+  expect(header.className).not.toMatch(/exact/);
   rerender(
     <Table
       columns={[{ key: 'toString', title: 'T', width: 120 }]}
@@ -2202,4 +2230,47 @@ test('non-finite overrides fall back to the declared width flexibly', () => {
   );
   header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
   expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
+});
+
+test('a distinct second pointer takes over the drag', () => {
+  const withId = (type: string, pointerId: number, clientX: number) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons: 1, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handles = screen.getAllByRole('separator');
+  fireEvent(handles[0], withId('pointerdown', 1, 100));
+  // Same-id synthetics in the older takeover test cannot prove the gate —
+  // this second pointer carries a genuinely different id.
+  fireEvent(handles[1], withId('pointerdown', 2, 0));
+  act(() => {
+    window.dispatchEvent(withId('pointermove', 2, 50));
+  });
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+  expect(onColumnWidth).toHaveBeenLastCalledWith('total', 170);
+});
+
+test("another pointer's hover never ends the armed drag", () => {
+  const withId = (type: string, pointerId: number, clientX: number, buttons = 1) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    withId('pointerdown', 1, 100),
+  );
+  act(() => {
+    // Hovering stylus/mouse from another pointer: button-less AND foreign —
+    // the drag must survive both.
+    window.dispatchEvent(withId('pointermove', 2, 999, 0));
+  });
+  act(() => {
+    window.dispatchEvent(withId('pointermove', 1, 150));
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
 });
