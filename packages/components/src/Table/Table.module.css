@@ -265,8 +265,9 @@ button.h:hover {
 
 /* Column-resize handle: an invisible 9px grab strip straddling the header
    cell's right edge (a 1px line appears on hover/focus only, so idle headers
-   look untouched). Absolute against the relatively-positioned `.h`, above
-   sticky cells. */
+   look untouched). Absolute against the relatively-positioned `.h`, below
+   the pinned header cells so a covering pin wins paint and hit-testing
+   (finding 8). */
 .resizeHandle {
   position: absolute;
   top: 0;
@@ -277,7 +278,7 @@ button.h:hover {
   /* Touch drags must resize, not scroll — phones render cards anyway, so this
      targets touch tablets/laptops. */
   touch-action: none;
-  z-index: 4;
+  z-index: 1;
 }
 
 .resizeHandle::after {
@@ -301,6 +302,22 @@ button.h:hover {
 
 .resizeHandle:focus-visible::after {
   background: var(--color-blue-600);
+}
+
+/* A cell hosting a handle is its offset parent even when the pin stand-down
+   would otherwise make it static (finding 9). */
+.h.handleHost {
+  position: relative;
+}
+
+/* The last column's strip must not extend the scroll range: anchor it inside
+   with the line on the column edge (finding 10). */
+.head > .h:last-child > .resizeHandle {
+  right: 0;
+}
+
+.head > .h:last-child > .resizeHandle::after {
+  left: 0;
 }
 
 .row {
@@ -376,13 +393,13 @@ button.h:hover {
    the `:not()` guard. */
 .grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR),
 .grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR),
-.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR) {
+.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }
 
 .grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR),
 .grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR),
-.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR) {
+.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }
 

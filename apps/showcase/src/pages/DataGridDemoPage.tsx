@@ -247,7 +247,7 @@ export default function DataGridDemoPage() {
           >
             Resize: {resizable ? 'bật' : 'tắt'}
           </Button>
-          {resizable && Object.keys(columnWidths).length > 0 && (
+          {Object.keys(columnWidths).length > 0 && (
             <Button variant="ghost" size="sm" onClick={() => setColumnWidths({})}>
               Xả widths
             </Button>

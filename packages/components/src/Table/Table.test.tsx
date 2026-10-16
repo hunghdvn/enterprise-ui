@@ -1674,13 +1674,17 @@ test('dragging a handle reports startWidth plus dx', () => {
   // the pointer* type names, exactly what the window listeners observe.
   fireEvent(handle, new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
   act(() => {
-    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 150 }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+    );
   });
   // jsdom measures 0px, so the run starts from the declared 120px width.
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
   act(() => {
     window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
-    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 999 }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
   });
   // Released: further moves report nothing new.
   expect(onColumnWidth).toHaveBeenCalledTimes(1);
@@ -1694,7 +1698,9 @@ test('drag clamps at the minimum column width', () => {
     new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
   );
   act(() => {
-    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: -1000 }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: -1000 }),
+    );
   });
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 40);
   act(() => {
@@ -1812,10 +1818,193 @@ test('pointercancel ends the drag like pointerup', () => {
   );
   act(() => {
     window.dispatchEvent(new window.MouseEvent('pointercancel', { bubbles: true }));
-    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 999 }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
   });
   // Cancelled before any move: nothing reported, no stale drag lingers.
   expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('non-primary button never starts a drag', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, button: 2, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('a second pointerdown mid-drag is ignored, not merged', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handles = screen.getAllByRole('separator');
+  expect(handles).toHaveLength(2);
+  fireEvent(handles[0], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  fireEvent(handles[1], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 0 }));
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+    );
+  });
+  // Every report belongs to the first drag ('code'), never the second.
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+});
+
+test('unmounting mid-drag drops the listeners', () => {
+  const onColumnWidth = vi.fn();
+  const { unmount } = render(
+    <Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />,
+  );
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  unmount();
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('minColumnWidth other than the default clamps drags', () => {
+  const onColumnWidth = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      minColumnWidth={10}
+      onColumnWidth={onColumnWidth}
+    />,
+  );
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: -1000 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 10);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+  });
+});
+
+test('drag starts from the measured cell when the DOM reports one', () => {
+  const onColumnWidth = vi.fn();
+  const measured = vi
+    .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width: 300 } as DOMRect);
+  try {
+    render(
+      <Table
+        columns={[{ key: 'note', title: 'Ghi chú' }]}
+        data={rows}
+        resizable
+        onColumnWidth={onColumnWidth}
+      />,
+    );
+    fireEvent(
+      screen.getByRole('separator', { name: /Đổi rộng cột Ghi chú/ }),
+      new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+    );
+    act(() => {
+      window.dispatchEvent(
+        new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 120 }),
+      );
+    });
+    // Declared width absent: 300 measured + 20 dx.
+    expect(onColumnWidth).toHaveBeenLastCalledWith('note', 320);
+  } finally {
+    measured.mockRestore();
+  }
+});
+
+test('non-finite and zero overrides fall back instead of collapsing', () => {
+  const { rerender } = render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', pinned: 'left', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: Number.NaN }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // NaN counts as unset: the declared 120px track and offset survive.
+  let header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('120px');
+  expect(header).toHaveStyle({ left: '0px' });
+  // A literal 0 floors at 1px — never a collapsed track.
+  rerender(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', pinned: 'left', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: 0 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('1px');
+});
+
+test('non-sortable headers get a handle and a clean accessible name', () => {
+  render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã đơn' }]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const cell = screen.getByRole('columnheader', { name: 'Mã đơn' });
+  expect(
+    within(cell as HTMLElement).getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+  ).toBeInTheDocument();
+});
+
+test('right-pin offsets follow overrides too', () => {
+  const { rerender } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{}}
+      onColumnWidth={() => {}}
+    />,
+  );
+  expect(screen.getByText('Tổng').closest('[role="columnheader"]')).toHaveStyle({
+    right: '0px',
+  });
+  rerender(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ total: 160 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const header = screen.getByText('Tổng').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('160px');
 });
 
 test('width overrides flow into the template and pin offsets', () => {
@@ -1831,12 +2020,12 @@ test('width overrides flow into the template and pin offsets', () => {
       onColumnWidth={() => {}}
     />,
   );
-  const grid = screen.getByRole('grid');
-  expect(grid.textContent).not.toContain('nope');
+  const header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  // Unknown keys change nothing: the template holds only real columns.
+  expect(header.parentElement!.getAttribute('style')).not.toContain('5px');
   // Template uses the 200px override, and the pin offset follows it.
   expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({
     left: '0px',
   });
-  const header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
   expect(header.parentElement!.getAttribute('style')).toContain('200px');
 });

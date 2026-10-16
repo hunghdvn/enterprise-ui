@@ -239,14 +239,17 @@ export interface TableProps<T> {
   /**
    * Double-click on a resize handle calls this with the column key so the
    * caller can delete its `columnWidths` entry and fall back to the declared
-   * `width` (or the flexible track). A separate callback because a width
-   * value alone cannot express "reset".
+   * `width` (or the flexible track). Delete/Backspace on a focused handle
+   * fires it too, so keyboard-only users can reset. A separate callback
+   * because a width value alone cannot express "reset".
    */
   onColumnWidthReset?: (key: string) => void;
   /**
    * Shows a resize handle on every data column header (never on the select /
-   * expand control tracks). Opt-in like `virtual` — resizing changes layout,
-   * so callers flip it explicitly (default false).
+   * expand control tracks). Handles render only together with `onColumnWidth`
+   * — a separator that reports nowhere is worse than none. Opt-in like
+   * `virtual` — resizing changes layout, so callers flip it explicitly
+   * (default false).
    */
   resizable?: boolean;
   /** Floor in px for dragged/stepped widths (itself floored at 1). Default 40. */

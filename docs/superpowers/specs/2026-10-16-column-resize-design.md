@@ -18,8 +18,9 @@ Goals:
 - G1: Tay cầm resize ở mép phải mỗi header cell (trừ cột control select/expand
   và cột pin-right? — vẫn resize được, offset tính lại).
 - G2: Kéo thả chuột đổi width cột đó (controlled qua `columnWidths +
-onColumnWidth`), Table không giữ state.
-- G3: Keyboard: focus tay cầm, ←/→ đổi 8px (Shift: 32px).
+onColumnWidth`), Table không giữ state. Một override đang hoạt động là track
+  exact px (kể cả cột thường) — chỉ nâng floor thì kéo không đổi gì render.
+- G3: Keyboard: focus tay cầm, ←/→ đổi 8px (Shift: 32px), Delete/Backspace reset.
 - G4: Min width 40px, không max (grid scroll ngang lo phần còn lại).
 - G5: Chiều rộng mới tương tác đúng với pin offsets + virtual template
   (dùng chung `gridTemplateOf`).

@@ -118,16 +118,30 @@ function effectiveWidthOf<T>(
   column: Column<T>,
   columnWidths: Record<string, number> | undefined,
 ): number | undefined {
-  const declared = columnWidths?.[column.key] ?? column.width;
-  // Direct prop values bypass `reportWidth`'s clamp — floor here too so a
-  // `columnWidths={{ k: 0 }}` can never collapse a track despite the
-  // "never 0" contract; non-finite values count as unset.
-  if (declared == null || !Number.isFinite(declared)) return undefined;
-  return Math.max(1, declared);
+  // Prototype-shadow keys (`toString`) must not read inherited members, and a
+  // non-finite override counts as unset — both fall back to the declared
+  // width instead of poisoning the template (review finding 5).
+  const raw =
+    columnWidths && Object.prototype.hasOwnProperty.call(columnWidths, column.key)
+      ? columnWidths[column.key]
+      : undefined;
+  const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : column.width;
+  if (value == null) return undefined;
+  return Math.max(1, value);
 }
 
 function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | undefined): string {
   const effective = effectiveWidthOf(column, columnWidths);
+  // A live override is an exact px track — even on regular columns. A mere
+  // `minmax` floor would let `1fr` absorb the drag, so resizing a flexible
+  // column would visually do nothing (blocking finding 1). The declared
+  // `Column.width` alone stays a floor, preserving the pre-resize model.
+  if (
+    effective != null &&
+    columnWidths != null &&
+    Object.prototype.hasOwnProperty.call(columnWidths, column.key)
+  )
+    return `${effective}px`;
   if (column.pinned && effective != null) return `${effective}px`;
   const min = effective != null ? `${effective}px` : 'var(--cell-min-width)';
   return `minmax(${min}, 1fr)`;
@@ -367,7 +381,22 @@ export function Table<T extends object>(props: TableProps<T>) {
   };
   const beginResize = (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
     if (!onColumnWidth) return;
+    // Only the primary button starts a drag (right/middle would resize behind
+    // the context menu), and one drag at a time - a second pointerdown
+    // mid-drag (two-finger touch) is ignored, not merged.
+    if (event.button !== 0 || resizeDrag.current) return;
     event.preventDefault();
+    // Focus the handle: preventDefault above suppresses click-focus, which
+    // would otherwise leave keyboard controls dead after any mouse use.
+    event.currentTarget.focus();
+    // Pointer capture keeps the move stream coming to the handle even when the
+    // cursor leaves the window; guarded for engines without it (the window
+    // listeners below are the fallback).
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      /* ignore - window listeners below are the fallback */
+    }
     const startWidth = resolveStartWidth(column, event.currentTarget);
     resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
     // Listeners ride on window so releasing outside the grid still ends the
@@ -377,6 +406,12 @@ export function Table<T extends object>(props: TableProps<T>) {
     const move = (e: PointerEvent): void => {
       const drag = resizeDrag.current;
       if (!drag) return;
+      // A move with no button held ends the drag: a lost pointerup must
+      // never leave it armed (finding 2).
+      if (e.buttons === 0) {
+        end();
+        return;
+      }
       reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
     };
     const end = (): void => {
@@ -391,13 +426,17 @@ export function Table<T extends object>(props: TableProps<T>) {
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
   };
-  const stepResize = (column: Column<T>, direction: 1 | -1, large: boolean): void => {
+  const stepResize = (
+    column: Column<T>,
+    direction: 1 | -1,
+    large: boolean,
+    handle: HTMLElement | null,
+  ): void => {
     if (!onColumnWidth) return;
-    // Keyboard steps from the effective width, not the measured cell: the
-    // measured width bakes in flex growth, so the first Arrow press would
-    // otherwise jump unpredictably (drags keep measuring — the pointer shows
-    // where the edge goes).
-    const current = effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH;
+    // Keyboard steps from the same measured-or-effective start as drags (the
+    // keydown target IS the handle), so the first Arrow press continues the
+    // rendered edge instead of jumping from a stale declaration.
+    const current = resolveStartWidth(column, handle);
     reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
   };
   // One wiring point for the data-column resize handles (never on the select
@@ -417,7 +456,12 @@ export function Table<T extends object>(props: TableProps<T>) {
         onKeyDown={(event: ReactKeyboardEvent<HTMLSpanElement>) => {
           if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
             event.preventDefault();
-            stepResize(column, event.key === 'ArrowRight' ? 1 : -1, event.shiftKey);
+            stepResize(
+              column,
+              event.key === 'ArrowRight' ? 1 : -1,
+              event.shiftKey,
+              event.currentTarget,
+            );
           } else if (event.key === 'Delete' || event.key === 'Backspace') {
             // Keyboard-only users get the reset too (double-click equivalent).
             event.preventDefault();
@@ -915,17 +959,23 @@ export function Table<T extends object>(props: TableProps<T>) {
               />
             )}
             {columns.map((c) => {
+              // The handle's label would otherwise merge into the header's
+              // accessible name — pin an explicit name, and mark handle hosts
+              // so the pin stand-down keeps their positioning (finding 9).
+              const headerName = typeof c.title === 'string' ? c.title : undefined;
+              const resizeHandle = renderResizeHandle(c);
               if (!c.sortable) {
                 return (
                   <div
                     key={c.key}
-                    className={cx(styles.h, pinClass(c))}
+                    className={cx(styles.h, pinClass(c), resizeHandle ? styles.handleHost : '')}
                     style={pinStyle(c)}
                     role="columnheader"
+                    aria-label={headerName}
                     data-align={c.align ?? 'left'}
                   >
                     <span>{c.title}</span>
-                    {renderResizeHandle(c)}
+                    {resizeHandle}
                   </div>
                 );
               }
@@ -963,7 +1013,8 @@ export function Table<T extends object>(props: TableProps<T>) {
                   key={c.key}
                   role="columnheader"
                   aria-sort={ariaSort}
-                  className={cx(styles.h, pinClass(c))}
+                  aria-label={headerName}
+                  className={cx(styles.h, pinClass(c), resizeHandle ? styles.handleHost : '')}
                   style={pinStyle(c)}
                   data-align={c.align ?? 'left'}
                 >
@@ -973,7 +1024,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                       {!entry ? '↕' : entry.dir === 'asc' ? '↑' : '↓'}
                     </span>
                   </button>
-                  {renderResizeHandle(c)}
+                  {resizeHandle}
                 </div>
               );
             })}
