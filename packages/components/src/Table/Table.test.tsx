@@ -1620,3 +1620,129 @@ test('cards are read-only-flat: no select, filter row, group headers or grid sum
     restore();
   }
 });
+
+// --- Column resize -----------------------------------------------------------
+
+const resizeCols = [
+  { key: 'code', title: 'Mã đơn', sortable: true, width: 120 },
+  { key: 'total', title: 'Giá trị', align: 'right' as const },
+];
+
+test('no resize handles by default or on control tracks', () => {
+  const { rerender } = render(
+    <Table columns={resizeCols} data={rows} selectedKeys={[]} onSelect={() => {}} />,
+  );
+  expect(screen.queryByRole('separator')).toBeNull();
+  rerender(
+    <Table columns={resizeCols} data={rows} resizable selectedKeys={[]} onSelect={() => {}} />,
+  );
+  const header = screen.getByText('Mã đơn').closest('[role="columnheader"]')!;
+  expect(
+    within(header as HTMLElement).getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+  ).toBeInTheDocument();
+  // Control tracks (select checkbox) never get a handle.
+  const selectHeader = screen
+    .getByRole('checkbox', { name: /chọn tất cả/i })
+    .closest('[role="columnheader"]')!;
+  expect(
+    within(selectHeader as HTMLElement).queryByRole('separator'),
+  ).toBeNull();
+});
+
+test('dragging a handle reports startWidth plus dx', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  // jsdom has no PointerEvent constructor — dispatch real MouseEvents under
+  // the pointer* type names, exactly what the window listeners observe.
+  fireEvent(
+    handle,
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 150 }));
+  });
+  // jsdom measures 0px, so the run starts from the declared 120px width.
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 999 }));
+  });
+  // Released: further moves report nothing new.
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+});
+
+test('drag clamps at the minimum column width', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, clientX: -1000 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 40);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+  });
+});
+
+test('keyboard arrows resize in 8px steps, 32px with shift', () => {
+  const onColumnWidth = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 120 }}
+      onColumnWidth={onColumnWidth}
+    />,
+  );
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  fireEvent.keyDown(handle, { key: 'ArrowRight' });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 128);
+  fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 88);
+});
+
+test('double-click resets the column override', () => {
+  const onColumnWidthReset = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+      onColumnWidthReset={onColumnWidthReset}
+    />,
+  );
+  fireEvent.doubleClick(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }));
+  expect(onColumnWidthReset).toHaveBeenCalledWith('code');
+});
+
+test('width overrides flow into the template and pin offsets', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ code: 200, nope: 5 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  expect(grid.textContent).not.toContain('nope');
+  // Template uses the 200px override, and the pin offset follows it.
+  expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({
+    left: '0px',
+  });
+  const header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('200px');
+});

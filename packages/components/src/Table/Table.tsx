@@ -3,7 +3,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type UIEvent,
 } from 'react';
@@ -26,6 +28,12 @@ const CONTROL_TRACK = 36;
 
 /** Gap between mobile cards — mirrored inside virtual card slots (finding #13). */
 const CARD_GAP = 8;
+
+/** Fallback drag-start width when the header cell cannot be measured (jsdom reports 0). */
+const UNMEASURED_FALLBACK_WIDTH = 120;
+
+/** Keyboard step for resize handles (×4 with Shift). */
+const KEYBOARD_STEP = 8;
 
 /** Blank choice at the top of a select filter cell — clears the filter. */
 const FILTER_ALL_LABEL = 'Tất cả';
@@ -99,14 +107,33 @@ function variableWindow(
  * minimum when unset, so the grid can overflow and scroll horizontally — which
  * is what the pins exist for.
  */
-function trackOf<T>(column: Column<T>): string {
-  if (column.pinned && column.width != null) return `${column.width}px`;
-  const min = column.width != null ? `${column.width}px` : 'var(--cell-min-width)';
+/**
+ * Live width for a column: the caller's `columnWidths` override wins over the
+ * declared `Column.width`. Unknown keys never reach here — lookups are always
+ * by a rendered column's own key. One source shared by the grid template and
+ * the pin offsets, so a resize can never drift one without the other.
+ */
+function effectiveWidthOf<T>(
+  column: Column<T>,
+  columnWidths: Record<string, number> | undefined,
+): number | undefined {
+  return columnWidths?.[column.key] ?? column.width;
+}
+
+function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | undefined): string {
+  const effective = effectiveWidthOf(column, columnWidths);
+  if (column.pinned && effective != null) return `${effective}px`;
+  const min = effective != null ? `${effective}px` : 'var(--cell-min-width)';
   return `minmax(${min}, 1fr)`;
 }
 
-function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable: boolean): string {
-  const tracks = columns.map(trackOf);
+function gridTemplateOf<T>(
+  columns: Column<T>[],
+  selectable: boolean,
+  expandable: boolean,
+  columnWidths: Record<string, number> | undefined,
+): string {
+  const tracks = columns.map((c) => trackOf(c, columnWidths));
   // Fixed CONTROL_TRACK-wide control tracks come first: select, then the master-detail
   // toggle, then every data column — one template shared by the header,
   // filter, body, group and detail rows.
@@ -130,6 +157,7 @@ function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable
 function pinOffsetsOf<T>(
   columns: Column<T>[],
   leadingControlWidth = 0,
+  columnWidths: Record<string, number> | undefined = undefined,
 ): {
   left: Map<string, number>;
   right: Map<string, number>;
@@ -143,14 +171,14 @@ function pinOffsetsOf<T>(
   for (const column of columns) {
     if (column.pinned !== 'left') continue;
     left.set(column.key, acc);
-    acc += column.width ?? 0;
+    acc += effectiveWidthOf(column, columnWidths) ?? 0;
   }
   acc = 0;
   for (let i = columns.length - 1; i >= 0; i -= 1) {
     const column = columns[i];
     if (column.pinned !== 'right') continue;
     right.set(column.key, acc);
-    acc += column.width ?? 0;
+    acc += effectiveWidthOf(column, columnWidths) ?? 0;
   }
   return { left, right };
 }
@@ -187,6 +215,11 @@ export function Table<T extends object>(props: TableProps<T>) {
     exportable = false,
     exportFileName,
     onExport,
+    columnWidths,
+    onColumnWidth,
+    onColumnWidthReset,
+    resizable = false,
+    minColumnWidth = 40,
   } = props;
   // Breakpoint state lives with the windowing state above the status
   // early-returns so the hook order is identical whatever `status` says.
@@ -298,6 +331,78 @@ export function Table<T extends object>(props: TableProps<T>) {
       {footerBar}
     </>
   );
+
+  // Column resize state lives in a ref (not state): drags report straight to
+  // the caller without re-rendering the grid per pixel. `minWidth` floors
+  // itself at 1px so a caller-passed 0 cannot produce zero-width columns.
+  const minWidth = Math.max(1, minColumnWidth);
+  const resizeDrag = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+  // Drag-start width prefers the measured header cell (flexible columns have
+  // no declared width to start from); jsdom measures 0, so fall back to the
+  // effective width, then a constant.
+  const resolveStartWidth = (column: Column<T>, handle: HTMLElement | null): number => {
+    const measured = handle
+      ?.closest('[role="columnheader"]')
+      ?.getBoundingClientRect().width;
+    if (measured != null && measured > 0) return Math.round(measured);
+    return effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH;
+  };
+  const reportWidth = (key: string, width: number): void => {
+    onColumnWidth?.(key, Math.max(minWidth, Math.round(width)));
+  };
+  const beginResize =
+    (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+      if (!onColumnWidth) return;
+      event.preventDefault();
+      const startWidth = resolveStartWidth(column, event.currentTarget);
+      resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
+      // Listeners ride on window so releasing outside the grid (or the
+      // browser chrome swallowing pointerup) still ends the drag — both are
+      // removed on release, no leak.
+      const move = (e: PointerEvent): void => {
+        const drag = resizeDrag.current;
+        if (!drag) return;
+        reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
+      };
+      const up = (): void => {
+        resizeDrag.current = null;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    };
+  const stepResize = (column: Column<T>, direction: 1 | -1, large: boolean): void => {
+    if (!onColumnWidth) return;
+    const active = document.activeElement;
+    const current =
+      active instanceof HTMLElement
+        ? resolveStartWidth(column, active)
+        : (effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH);
+    reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
+  };
+  // One wiring point for the data-column resize handles (never on the select
+  // / expand control tracks): drag + keyboard + double-click reset.
+  const renderResizeHandle = (column: Column<T>): ReactNode => {
+    if (!resizable) return null;
+    return (
+      <span
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Đổi rộng cột ${column.title}`}
+        tabIndex={0}
+        className={styles.resizeHandle}
+        onPointerDown={beginResize(column)}
+        onKeyDown={(event: ReactKeyboardEvent<HTMLSpanElement>) => {
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            stepResize(column, event.key === 'ArrowRight' ? 1 : -1, event.shiftKey);
+          }
+        }}
+        onDoubleClick={() => onColumnWidthReset?.(column.key)}
+      />
+    );
+  };
 
   if (status === 'empty') {
     return (
@@ -518,7 +623,7 @@ export function Table<T extends object>(props: TableProps<T>) {
 
   const colCount = columns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0);
 
-  const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable);
+  const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable, columnWidths);
   // Declared pins per side: the grid advertises them so the stylesheet can
   // scope P1's unconditional first/last stickiness away from conflicting
   // edges (finding #6) — and the leading control cells pin explicitly at
@@ -528,6 +633,7 @@ export function Table<T extends object>(props: TableProps<T>) {
   const pinOffsets = pinOffsetsOf(
     columns,
     (selectable ? CONTROL_TRACK : 0) + (expandable ? CONTROL_TRACK : 0),
+    columnWidths,
   );
   // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
   // `position: sticky` and the stacking, the inline style owns the offset —
@@ -794,6 +900,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                     data-align={c.align ?? 'left'}
                   >
                     <span>{c.title}</span>
+                    {renderResizeHandle(c)}
                   </div>
                 );
               }
@@ -841,6 +948,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                       {!entry ? '↕' : entry.dir === 'asc' ? '↑' : '↓'}
                     </span>
                   </button>
+                  {renderResizeHandle(c)}
                 </div>
               );
             })}
