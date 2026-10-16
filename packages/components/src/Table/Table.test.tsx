@@ -1841,20 +1841,47 @@ test('non-primary button never starts a drag', () => {
   expect(onColumnWidth).not.toHaveBeenCalled();
 });
 
-test('a second pointerdown mid-drag is ignored, not merged', () => {
+test('a newer pointerdown takes over a stale drag (self-healing)', () => {
   const onColumnWidth = vi.fn();
   render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
   const handles = screen.getAllByRole('separator');
   expect(handles).toHaveLength(2);
   fireEvent(handles[0], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  // A lost pointerup would leave the first drag armed forever on touch
+  // (incrementing pointerIds) — the new pointerdown heals it and owns the
+  // drag instead of merging into it.
   fireEvent(handles[1], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 0 }));
   act(() => {
     window.dispatchEvent(
-      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 50 }),
     );
   });
-  // Every report belongs to the first drag ('code'), never the second.
   expect(onColumnWidth).toHaveBeenCalledTimes(1);
+  expect(onColumnWidth).toHaveBeenLastCalledWith('total', 170);
+});
+
+test('moves from another pointer never drive the drag', () => {
+  const withId = (type: string, pointerId: number, clientX: number) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons: 1, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    withId('pointerdown', 1, 100),
+  );
+  act(() => {
+    // Second finger moves: ignored, drag stays armed.
+    window.dispatchEvent(withId('pointermove', 2, 999));
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+  act(() => {
+    // Second finger release: must not end the first drag either.
+    window.dispatchEvent(withId('pointerup', 2, 0));
+    window.dispatchEvent(withId('pointermove', 1, 150));
+  });
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
 });
 
@@ -2128,4 +2155,51 @@ test('two right pins accumulate under an override', () => {
   expect(screen.getByText('Giữa').closest('[role="columnheader"]')).toHaveStyle({
     right: '160px',
   });
+});
+
+test('override cells stand their min-width floor down', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ code: 40 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // Exact-track columns (header + body) carry the floor-free class so a 40px
+  // track is not overlapped by 120px boxes; untouched columns keep theirs.
+  const codeHeader = screen.getByText('Mã').closest('[role="columnheader"]')!;
+  expect(codeHeader.className).toMatch(/exact/);
+  const totalHeader = screen.getByText('Tổng').closest('[role="columnheader"]')!;
+  expect(totalHeader.className).not.toMatch(/exact/);
+});
+
+test('non-finite overrides fall back to the declared width flexibly', () => {
+  const { rerender } = render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: Number.NaN }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // NaN counts as unset: declared 120 stays a flexible floor, never exact.
+  let header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
+  rerender(
+    <Table
+      columns={[{ key: 'toString', title: 'T', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{}}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
 });

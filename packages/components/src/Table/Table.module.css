@@ -271,7 +271,7 @@ button.h:hover {
 .resizeHandle {
   position: absolute;
   top: 0;
-  right: -5px;
+  right: 0;
   width: 9px;
   height: 100%;
   cursor: col-resize;
@@ -294,7 +294,8 @@ button.h:hover {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  left: 4px;
+  left: auto;
+  right: 0;
   width: 1px;
   background: transparent;
 }
@@ -310,25 +311,6 @@ button.h:hover {
 
 .resizeHandle:focus-visible::after {
   background: var(--color-blue-600);
-}
-
-/* A non-pinned cell hosting a handle is its offset parent even when the
-   pin stand-down would otherwise make it static (finding 9) — but never at
-   the pins' expense: a pinned header keeps sticky from `.pinL`/`.pinR` (N1).
-   */
-.h.handleHost:not(.pinL):not(.pinR) {
-  position: relative;
-}
-
-/* The last column's strip must not extend the scroll range: anchor it inside
-   with the line on the column edge (finding 10). */
-.head > .h:last-child > .resizeHandle {
-  right: 0;
-}
-
-.head > .h:last-child > .resizeHandle::after {
-  left: auto;
-  right: 0;
 }
 
 .row {
@@ -445,7 +427,9 @@ button.h:hover {
 .h.pinL,
 .h.pinR,
 .c.pinL,
-.c.pinR {
+.c.pinR,
+.h.exact,
+.c.exact {
   min-width: 0;
 }
 

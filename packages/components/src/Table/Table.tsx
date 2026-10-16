@@ -391,9 +391,12 @@ export function Table<T extends object>(props: TableProps<T>) {
   const beginResize = (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
     if (!onColumnWidth) return;
     // Only the primary button starts a drag (right/middle would resize behind
-    // the context menu), and one drag at a time - a second pointerdown
-    // mid-drag (two-finger touch) is ignored, not merged.
-    if (event.button !== 0 || resizeDrag.current) return;
+    // the context menu). A pointerdown always closes a stale drag first
+    // (self-healing, P2): ignoring it instead would deadlock touch, whose
+    // pointerIds increment - a lost pointerup would leave the table
+    // unresizable until unmount.
+    if (event.button !== 0) return;
+    resizeCleanup.current?.();
     event.preventDefault();
     // Focus the handle: preventDefault above suppresses click-focus, which
     // would otherwise leave keyboard controls dead after any mouse use.
@@ -732,6 +735,14 @@ export function Table<T extends object>(props: TableProps<T>) {
     if (c.pinned === 'right') return { right: `${pinOffsets.right.get(c.key) ?? 0}px` };
     return undefined;
   };
+  // Cells of a live-override column render exact px tracks, so their
+  // `--cell-min-width` floor must stand down exactly like pinned cells -
+  // otherwise a 40px track keeps 120px boxes that overlap the next column
+  // (leftover N5). Same `isOverride` predicate as `trackOf`, never a second
+  // opinion about which columns are exact.
+  const exactClassOf = (c: Column<T>): string =>
+    widthOf(c, columnWidths)?.isOverride ? styles.exact : '';
+
   // One wiring point for the six leading-control cells (header/body/filter
   // × select/expand, finding #9): explicit left pin at the track offset
   // while left pins exist, P1 first-child default otherwise. `base` is
@@ -746,7 +757,7 @@ export function Table<T extends object>(props: TableProps<T>) {
   // it), and the handle-host marker that keeps the cell positioned under the
   // pin stand-down.
   const headerCellProps = (c: Column<T>, handle: ReactNode) => ({
-    className: cx(styles.h, pinClass(c), handle ? styles.handleHost : ''),
+    className: cx(styles.h, pinClass(c), exactClassOf(c), handle ? styles.handleHost : ''),
     style: pinStyle(c),
     ...(typeof c.title === 'string' ? { 'aria-label': c.title } : {}),
   });
@@ -924,7 +935,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           return (
             <div
               key={c.key}
-              className={cx(styles.c, pinClass(c))}
+              className={cx(styles.c, pinClass(c), exactClassOf(c))}
               style={pinStyle(c)}
               role="gridcell"
               data-align={c.align ?? 'left'}
@@ -1062,7 +1073,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                 <div {...controlCellProps(styles.c, selectable ? 1 : 0)} role="gridcell" />
               )}
               {columns.map((c) => {
-                const cellClass = cx(styles.c, pinClass(c));
+                const cellClass = cx(styles.c, pinClass(c), exactClassOf(c));
                 const cellStyle = pinStyle(c);
                 // A column without a filter still needs its cell, or every
                 // later control would shift a track left and drift from the
