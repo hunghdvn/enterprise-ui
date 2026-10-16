@@ -341,37 +341,34 @@ export function Table<T extends object>(props: TableProps<T>) {
   // no declared width to start from); jsdom measures 0, so fall back to the
   // effective width, then a constant.
   const resolveStartWidth = (column: Column<T>, handle: HTMLElement | null): number => {
-    const measured = handle
-      ?.closest('[role="columnheader"]')
-      ?.getBoundingClientRect().width;
+    const measured = handle?.closest('[role="columnheader"]')?.getBoundingClientRect().width;
     if (measured != null && measured > 0) return Math.round(measured);
     return effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH;
   };
   const reportWidth = (key: string, width: number): void => {
     onColumnWidth?.(key, Math.max(minWidth, Math.round(width)));
   };
-  const beginResize =
-    (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
-      if (!onColumnWidth) return;
-      event.preventDefault();
-      const startWidth = resolveStartWidth(column, event.currentTarget);
-      resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
-      // Listeners ride on window so releasing outside the grid (or the
-      // browser chrome swallowing pointerup) still ends the drag — both are
-      // removed on release, no leak.
-      const move = (e: PointerEvent): void => {
-        const drag = resizeDrag.current;
-        if (!drag) return;
-        reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
-      };
-      const up = (): void => {
-        resizeDrag.current = null;
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
+  const beginResize = (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!onColumnWidth) return;
+    event.preventDefault();
+    const startWidth = resolveStartWidth(column, event.currentTarget);
+    resizeDrag.current = { key: column.key, startX: event.clientX, startWidth };
+    // Listeners ride on window so releasing outside the grid (or the
+    // browser chrome swallowing pointerup) still ends the drag — both are
+    // removed on release, no leak.
+    const move = (e: PointerEvent): void => {
+      const drag = resizeDrag.current;
+      if (!drag) return;
+      reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
     };
+    const up = (): void => {
+      resizeDrag.current = null;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   const stepResize = (column: Column<T>, direction: 1 | -1, large: boolean): void => {
     if (!onColumnWidth) return;
     const active = document.activeElement;

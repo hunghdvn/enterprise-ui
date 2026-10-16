@@ -14,10 +14,11 @@ mọi tính năng (sort, pin, filter, group, virtual, expand).
 ## 2. Goals / Non-goals
 
 Goals:
+
 - G1: Tay cầm resize ở mép phải mỗi header cell (trừ cột control select/expand
   và cột pin-right? — vẫn resize được, offset tính lại).
 - G2: Kéo thả chuột đổi width cột đó (controlled qua `columnWidths +
-  onColumnWidth`), Table không giữ state.
+onColumnWidth`), Table không giữ state.
 - G3: Keyboard: focus tay cầm, ←/→ đổi 8px (Shift: 32px).
 - G4: Min width 40px, không max (grid scroll ngang lo phần còn lại).
 - G5: Chiều rộng mới tương tác đúng với pin offsets + virtual template
@@ -38,22 +39,25 @@ globals on.
 ## 4. API
 
 ```ts
-export interface Column<T> { /* giữ nguyên: width là giá trị khởi đầu */ }
+export interface Column<T> {
+  /* giữ nguyên: width là giá trị khởi đầu */
+}
 
 export interface TableProps<T> {
-  columnWidths?: Record<string, number>;   // default {}
+  columnWidths?: Record<string, number>; // default {}
   onColumnWidth?: (key: string, width: number) => void;
-  onColumnWidthReset?: (key: string) => void;  // double-click: caller xóa key
-  resizable?: boolean;                     // default false — opt-in như virtual
-  minColumnWidth?: number;                 // default 40
+  onColumnWidthReset?: (key: string) => void; // double-click: caller xóa key
+  resizable?: boolean; // default false — opt-in như virtual
+  minColumnWidth?: number; // default 40
 }
 ```
 
 Hành vi:
+
 - Header cell (data columns, không áp cho control tracks) render tay cầm
   `<button class="resizeHandle" aria-label="Đổi rộng cột {title}"
-  aria-valuemin/max/now?>` — dùng `role="separator" aria-orientation=
-  "vertical"` + keyboard arrows; đơn giản nhất: button + keydown.
+aria-valuemin/max/now?>` — dùng `role="separator" aria-orientation=
+"vertical"` + keyboard arrows; đơn giản nhất: button + keydown.
 - Drag: pointerdown trên handle → theo dõi pointermove trên window → width =
   startWidth + dx, clamp min; pointerup commit mỗi move qua `onColumnWidth`
   (live) — Table không tự lưu.
@@ -61,7 +65,7 @@ Hành vi:
   caller xóa key khỏi `columnWidths` để về mặc định. Tách callback riêng vì
   `onColumnWidth(key, width)` không phân biệt được reset vs set số.
 - Pin offsets + template dùng effective width (`columnWidths[key] ??
-  column.width`) — một chỗ tính duy nhất.
+column.width`) — một chỗ tính duy nhất.
 - Touch: pointer events cover touch (không logic riêng).
 
 ## 5. Tests (acceptance)

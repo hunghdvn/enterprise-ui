@@ -1644,9 +1644,7 @@ test('no resize handles by default or on control tracks', () => {
   const selectHeader = screen
     .getByRole('checkbox', { name: /chọn tất cả/i })
     .closest('[role="columnheader"]')!;
-  expect(
-    within(selectHeader as HTMLElement).queryByRole('separator'),
-  ).toBeNull();
+  expect(within(selectHeader as HTMLElement).queryByRole('separator')).toBeNull();
 });
 
 test('dragging a handle reports startWidth plus dx', () => {
@@ -1655,10 +1653,7 @@ test('dragging a handle reports startWidth plus dx', () => {
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
   // jsdom has no PointerEvent constructor — dispatch real MouseEvents under
   // the pointer* type names, exactly what the window listeners observe.
-  fireEvent(
-    handle,
-    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
-  );
+  fireEvent(handle, new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
   act(() => {
     window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 150 }));
   });
@@ -1680,9 +1675,7 @@ test('drag clamps at the minimum column width', () => {
     new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
   );
   act(() => {
-    window.dispatchEvent(
-      new window.MouseEvent('pointermove', { bubbles: true, clientX: -1000 }),
-    );
+    window.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: -1000 }));
   });
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 40);
   act(() => {

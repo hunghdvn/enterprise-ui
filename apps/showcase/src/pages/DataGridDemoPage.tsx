@@ -126,6 +126,8 @@ export default function DataGridDemoPage() {
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [virtual, setVirtual] = useState(true);
+  const [resizable, setResizable] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   // Pipeline: column filters → global search → multi-sort. All pure helpers
   // from the package root — the same ones the component's tests pin.
@@ -173,6 +175,16 @@ export default function DataGridDemoPage() {
     setExpandedKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
+  };
+  const handleColumnWidth = (key: string, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [key]: width }));
+  };
+  const handleColumnWidthReset = (key: string) => {
+    setColumnWidths((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   // Export via the `onExport` override: the whole filtered+sorted set, not
@@ -227,6 +239,19 @@ export default function DataGridDemoPage() {
           >
             Virtual: {virtual ? 'bật' : 'tắt'}
           </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-pressed={resizable}
+            onClick={() => setResizable((v) => !v)}
+          >
+            Resize: {resizable ? 'bật' : 'tắt'}
+          </Button>
+          {resizable && Object.keys(columnWidths).length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setColumnWidths({})}>
+              Xả widths
+            </Button>
+          )}
         </div>
       </div>
 
@@ -273,6 +298,10 @@ export default function DataGridDemoPage() {
         onToggleExpand={toggleExpand}
         virtual={virtual}
         rowHeight={rowHeight}
+        resizable={resizable}
+        columnWidths={columnWidths}
+        onColumnWidth={handleColumnWidth}
+        onColumnWidthReset={handleColumnWidthReset}
         status={pageRows.length === 0 ? 'empty' : 'idle'}
         summary={`Đã lọc ${total.toLocaleString('vi-VN')} / ${ROW_COUNT.toLocaleString('vi-VN')} đơn · đã chọn ${selectedKeys.length.toLocaleString('vi-VN')}`}
         pagination={paged ? { page, pageSize: PAGE_SIZE, total, onPage: setPage } : undefined}
