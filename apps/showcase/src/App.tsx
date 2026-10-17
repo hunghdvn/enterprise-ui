@@ -11,6 +11,10 @@ import OrderDetailDemoPage from './pages/OrderDetailDemoPage';
 import DashboardDemoPage from './pages/DashboardDemoPage';
 import DataGridDemoPage from './pages/DataGridDemoPage';
 import TokensPage from './pages/TokensPage';
+import TabsDemoPage from './pages/TabsDemoPage';
+import TooltipDemoPage from './pages/TooltipDemoPage';
+import EmptyDemoPage from './pages/EmptyDemoPage';
+import SpinDemoPage from './pages/SpinDemoPage';
 import styles from './App.module.css';
 
 function HeaderRight() {
@@ -54,6 +58,10 @@ function Shell() {
     stock: { label: 'Kho vận', breadcrumb: 'Đơn hàng bán', el: <ListDemoPage /> },
     datagrid: { label: 'DataGrid 10k', breadcrumb: 'DataGrid demo', el: <DataGridDemoPage /> },
     tokens: { label: 'Tokens', breadcrumb: 'Tokens', el: <TokensPage /> },
+    tabs: { label: 'Tabs', breadcrumb: 'Primitives', el: <TabsDemoPage /> },
+    tooltip: { label: 'Tooltip', breadcrumb: 'Primitives', el: <TooltipDemoPage /> },
+    empty: { label: 'Empty', breadcrumb: 'Primitives', el: <EmptyDemoPage /> },
+    spin: { label: 'Spin', breadcrumb: 'Primitives', el: <SpinDemoPage /> },
   };
   const current = routes[key] ?? routes.orders;
   return (
