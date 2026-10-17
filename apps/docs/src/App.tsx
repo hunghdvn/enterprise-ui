@@ -1,0 +1,92 @@
+import { useState, useMemo, type ReactNode } from 'react';
+import {
+  AppShell,
+  Button,
+  ThemeProvider,
+  ToastProvider,
+  useTheme,
+  Input,
+} from '@enterprise-ui/components';
+import type { NavItem } from '@enterprise-ui/components';
+import styles from './App.module.css';
+
+function HeaderRight({
+  query,
+  onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (v: string) => void;
+}) {
+  const { theme, density, setTheme, setDensity } = useTheme();
+  return (
+    <div className={styles.headerRight}>
+      <Input
+        size="sm"
+        placeholder="Tìm kiếm..."
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        aria-label="Tìm kiếm"
+      />
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        aria-label={`Chuyển theme (hiện tại: ${theme})`}
+      >
+        {theme === 'light' ? 'Dark' : 'Light'}
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')}
+        aria-label={`Chuyển mật độ (hiện tại: ${density})`}
+      >
+        Mật độ: {density === 'compact' ? 'Gọn' : 'Thoáng'}
+      </Button>
+    </div>
+  );
+}
+
+const ROUTES: Record<string, { label: string; el: ReactNode }> = {
+  overview: { label: 'Tổng quan', el: <div>Overview</div> },
+  primitives: { label: 'Primitives', el: <div>Primitives</div> },
+  layout: { label: 'Layout', el: <div>Layout</div> },
+  data: { label: 'Data', el: <div>Data</div> },
+  feedback: { label: 'Feedback', el: <div>Feedback</div> },
+  form: { label: 'Form', el: <div>Form</div> },
+  tokens: { label: 'Tokens', el: <div>Tokens</div> },
+};
+
+function Shell() {
+  const [key, setKey] = useState('overview');
+  const [query, setQuery] = useState('');
+  const current = ROUTES[key] ?? ROUTES.overview;
+  const sidebar: NavItem[] = useMemo(
+    () =>
+      Object.entries(ROUTES)
+        .filter(([, r]) => r.label.toLowerCase().includes(query.trim().toLowerCase()))
+        .map(([routeKey, r]) => ({ key: routeKey, label: r.label })),
+    [query],
+  );
+  return (
+    <AppShell
+      sidebar={sidebar}
+      activeKey={key}
+      onNavigate={setKey}
+      breadcrumb={current.label}
+      headerRight={<HeaderRight query={query} onQueryChange={setQuery} />}
+    >
+      {current.el}
+    </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <Shell />
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}
