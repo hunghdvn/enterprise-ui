@@ -25,6 +25,11 @@ import TablePage from './pages/data/TablePage';
 import FilterBarPage from './pages/data/FilterBarPage';
 import KpiCardPage from './pages/data/KpiCardPage';
 import KpiGridPage from './pages/data/KpiGridPage';
+import ModalPage from './pages/feedback/ModalPage';
+import DrawerPage from './pages/feedback/DrawerPage';
+import ToastPage from './pages/feedback/ToastPage';
+import FormPage from './pages/form/FormPage';
+import TokensPage from './pages/tokens/TokensPage';
 import styles from './App.module.css';
 
 function HeaderRight({
@@ -87,8 +92,11 @@ const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   kpicard: { label: 'KpiCard', el: <KpiCardPage /> },
   kpigrid: { label: 'KpiGrid', el: <KpiGridPage /> },
   feedback: { label: 'Feedback', el: <div>Feedback</div> },
-  form: { label: 'Form', el: <div>Form</div> },
-  tokens: { label: 'Tokens', el: <div>Tokens</div> },
+  modal: { label: 'Modal', el: <ModalPage /> },
+  drawer: { label: 'Drawer', el: <DrawerPage /> },
+  toast: { label: 'Toast', el: <ToastPage /> },
+  form: { label: 'Form', el: <FormPage /> },
+  tokens: { label: 'Tokens', el: <TokensPage /> },
 };
 
 function Shell() {
