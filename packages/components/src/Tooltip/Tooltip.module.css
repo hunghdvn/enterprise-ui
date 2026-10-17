@@ -9,13 +9,13 @@
   max-width: 240px;
   padding: 6px 10px;
   border-radius: var(--radius);
-  /* --text is #0f172a (light) / #f8fafc (dark): the dark-slate tooltip
-     from the spec, inverted to stay legible in the dark theme. */
+  /* Tooltip uses the inverted text/bg tokens so it stays legible in both themes. */
   background: var(--text);
   color: var(--bg);
   font-family: var(--font);
   font-size: 12px;
   line-height: 1.4;
+  overflow-wrap: break-word;
   box-shadow: var(--shadow-md);
   pointer-events: none;
 }

@@ -4,4 +4,5 @@ export interface TooltipProps {
   children: ReactElement;
   placement?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
+  className?: string;
 }
