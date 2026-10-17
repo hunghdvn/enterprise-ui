@@ -2526,7 +2526,8 @@ test('a tiled pin cluster clears as one band, not just the hit pin', () => {
       columns={[
         { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
         { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
-        { key: 'total', title: 'Giá trị', align: 'right', width: 526 },
+        { key: 'total', title: 'Giá trị', align: 'right', width: 300 },
+        { key: 'note', title: 'Ghi chú', width: 600 },
         { key: 'status', title: 'Trạng thái', pinned: 'right', width: 145 },
       ]}
       data={rows}
@@ -2539,11 +2540,14 @@ test('a tiled pin cluster clears as one band, not just the hit pin', () => {
   const outer = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
   const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
   const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // Declared sum 120 + 120 + 300 + 600 + 145 = 1285 = port 800 + 485; at
+  // sl 431 the measured layout is exact: total [−191, 109] (the strip), the
+  // index pins stuck [0, 120] / [120, 240], the right pin stuck [655, 800].
   const restore = setupReveal({
     scroller,
     port: [0, 800],
-    scrollLeft: 300,
-    maxScroll: 400,
+    scrollLeft: 431,
+    maxScroll: 485,
     sticky: [outer, inner, rightPin],
     boxes: [
       [outer, 0, 120],
@@ -2554,10 +2558,10 @@ test('a tiled pin cluster clears as one band, not just the hit pin', () => {
   });
   try {
     fireEvent.focus(handle);
-    // The band is [0, 240]: a single-pin clear (120 + 4 − 100 → 276) would
-    // land inside the inner pin, and the far right pin must not merge in
-    // (that would scroll to 0). Band clear: 300 − (240 + 4 − 100).
-    expect(scroller.scrollLeft).toBe(156);
+    // The band is [0, 240]: a single-pin clear (124 − 100 = 24) would land
+    // the strip inside the inner pin, and merging the far right pin in
+    // leaves no feasible move at all. Band clear: 431 − (240 + 4 − 100).
+    expect(scroller.scrollLeft).toBe(287);
   } finally {
     restore();
   }
@@ -3038,7 +3042,7 @@ test('a 2px gap between two sticky cells leaves the band apart', () => {
         { key: 'code', title: 'Mã đơn' },
         { key: 'lead', title: 'Đầu', pinned: 'right', width: 140 },
         { key: 'tail', title: 'Đuôi', pinned: 'right', width: 58 },
-        { key: 'note', title: 'Ghi chú', width: 496 },
+        { key: 'note', title: 'Ghi chú', width: 497 },
       ]}
       data={rows}
       resizable
@@ -3063,8 +3067,9 @@ test('a 2px gap between two sticky cells leaves the band apart', () => {
   });
   try {
     fireEvent.focus(handle);
-    // A 2px gap is real: the rightward clear (+48) would park the strip in
-    // it, and the leftward clear is out of range — no move.
+    // A 2px gap is real: the rightward clear (+48) would park the strip at
+    // [244, 253] — inside the tail pin — and `clears` rejects it there; the
+    // leftward clear is out of range. No move.
     expect(scroller.scrollLeft).toBe(200);
   } finally {
     restore();
@@ -3077,7 +3082,8 @@ test('unknown viewport metrics never veto a band clear', () => {
       columns={[
         { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
         { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
-        { key: 'total', title: 'Giá trị', align: 'right', width: 526 },
+        { key: 'total', title: 'Giá trị', align: 'right', width: 300 },
+        { key: 'note', title: 'Ghi chú', width: 600 },
         { key: 'status', title: 'Trạng thái', pinned: 'right', width: 145 },
       ]}
       data={rows}
@@ -3091,12 +3097,13 @@ test('unknown viewport metrics never veto a band clear', () => {
   const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
   const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
   // jsdom reports a zero port: the port checks are unknowable and must not
-  // gate the band + range arithmetic away.
+  // gate the band + range arithmetic away (same honest metrics as the
+  // tiled scene: sum 1285 = 800 + 485, sl 431).
   const restore = setupReveal({
     scroller,
     port: [0, 0],
-    scrollLeft: 300,
-    maxScroll: 400,
+    scrollLeft: 431,
+    maxScroll: 485,
     sticky: [outer, inner, rightPin],
     boxes: [
       [outer, 0, 120],
@@ -3107,7 +3114,7 @@ test('unknown viewport metrics never veto a band clear', () => {
   });
   try {
     fireEvent.focus(handle);
-    expect(scroller.scrollLeft).toBe(156);
+    expect(scroller.scrollLeft).toBe(287);
   } finally {
     restore();
   }
@@ -3350,6 +3357,184 @@ test('an exact tie prefers the rightward clear', () => {
   try {
     fireEvent.focus(handle);
     expect(scroller.scrollLeft).toBe(19.5);
+  } finally {
+    restore();
+  }
+});
+
+test('a leftward clear into the opposite pin is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 110 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  // The left-side mirror of the F1 scene: strip buried under the right pin
+  // [715, 845], the other pin floating at [600, 710] (5px gap). Strip content
+  // right 782 − 324 + 272 = 730; trailing = 110 + 130 = 240 → content 970 =
+  // port 521 + 449.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 449,
+    sticky: [cover, other],
+    boxes: [
+      [cover, 715, 845],
+      [other, 600, 710],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward is port-blocked; the leftward destination [702, 711] would
+    // land inside the other pin, so clears() rejects it — no move, and
+    // refocusing must not bounce it either.
+    expect(scroller.scrollLeft).toBe(272);
+    fireEvent.blur(handle);
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(272);
+  } finally {
+    restore();
+  }
+});
+
+test('a flush leftward landing beside the other pin is kept', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 110 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 449,
+    sticky: [cover, other],
+    boxes: [
+      [cover, 715, 845],
+      [other, 592, 702],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The same scene with the other pin ending exactly at the destination's
+    // left edge (702 == 702): touching is not overlapping — the leftward
+    // clear lands with the full margin.
+    expect(scroller.scrollLeft).toBe(343);
+  } finally {
+    restore();
+  }
+});
+
+test('a leftward clear past the port edge is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 458 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+        { key: 'note', title: 'Ghi chú', width: 597 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // The live-F1 shape: a wide index pin [252, 710], the right pin [715, 845]
+  // 5px later. Strip content right 707 − 252 + 203 = 658; trailing = 130 +
+  // 597 = 727 → content 1385 = port 593 + 792.
+  const restore = setupReveal({
+    scroller,
+    port: [252, 845],
+    scrollLeft: 203,
+    maxScroll: 792,
+    sticky: [cover, rightPin],
+    boxes: [
+      [cover, 252, 710],
+      [rightPin, 715, 845],
+      [handle, 698, 707],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward lands [714, 723] inside the right pin (clears); leftward
+    // clears the band but its destination [239, 248] sneaks past the port's
+    // left edge — no position can show the strip, so it stays put.
+    expect(scroller.scrollLeft).toBe(203);
+    fireEvent.blur(handle);
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(203);
+  } finally {
+    restore();
+  }
+});
+
+test('a rightward landing flush with the next pin is kept', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 240 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'note', title: 'Ghi chú', width: 171 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 110 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const leftPin = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // The right-side equality boundary: strip under the left pin, the other
+  // pin starting exactly at the destination's right edge (253). Strip
+  // content right 240 + 100 = 340; trailing = 171 + 110 = 281 → content
+  // 621 = port 521 + 100.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 521],
+    scrollLeft: 100,
+    maxScroll: 100,
+    sticky: [leftPin, other],
+    boxes: [
+      [leftPin, 0, 240],
+      [other, 253, 363],
+      [handle, 231, 240],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The rightward destination [244, 253] touches the other pin's left edge
+    // without overlapping — accepted.
+    expect(scroller.scrollLeft).toBe(87);
   } finally {
     restore();
   }
