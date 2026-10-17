@@ -13,5 +13,7 @@ export interface AppShellProps {
   onNavigate: (key: string) => void;
   headerRight?: ReactNode;
   breadcrumb?: string;
+  /** Rendered inside the sidebar when `sidebar` is empty (e.g. search with no matches). */
+  sidebarEmptyState?: ReactNode;
   children: ReactNode;
 }

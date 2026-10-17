@@ -103,12 +103,13 @@ function Shell() {
   const [key, setKey] = useState('overview');
   const [query, setQuery] = useState('');
   const current = ROUTES[key] ?? ROUTES.overview;
+  const q = query.trim().toLowerCase();
   const sidebar: NavItem[] = useMemo(
     () =>
       Object.entries(ROUTES)
-        .filter(([, r]) => r.label.toLowerCase().includes(query.trim().toLowerCase()))
+        .filter(([, r]) => r.label.toLowerCase().includes(q))
         .map(([routeKey, r]) => ({ key: routeKey, label: r.label })),
-    [query],
+    [q],
   );
   return (
     <AppShell
@@ -117,6 +118,7 @@ function Shell() {
       onNavigate={setKey}
       breadcrumb={current.label}
       headerRight={<HeaderRight query={query} onQueryChange={setQuery} />}
+      sidebarEmptyState={q ? 'Không tìm thấy' : undefined}
     >
       {current.el}
     </AppShell>
