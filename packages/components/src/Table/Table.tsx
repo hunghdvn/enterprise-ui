@@ -217,7 +217,6 @@ function revealHandle(handle: HTMLElement): void {
     handle.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     return;
   }
-  if (hit === handle || handle.contains(hit)) return;
   const cover =
     hit.closest<HTMLElement>('[role="gridcell"], [role="columnheader"], [role="rowheader"]') ?? hit;
   if (cover.contains(handle)) return;
@@ -227,6 +226,7 @@ function revealHandle(handle: HTMLElement): void {
   // next pin — grow the band over every sticky sibling that touches it (T1).
   let bandLeft = cover.getBoundingClientRect().left;
   let bandRight = cover.getBoundingClientRect().right;
+  const others: Array<{ left: number; right: number }> = [];
   const row = cover.parentElement;
   if (row) {
     const sticky = Array.from(row.children).filter((el) => {
@@ -245,14 +245,23 @@ function revealHandle(handle: HTMLElement): void {
         }
       }
     }
+    // Sticky siblings left outside the band (F1): a destination that would
+    // land inside one of them shows the strip nowhere.
+    for (const el of sticky) {
+      const sibling = el.getBoundingClientRect();
+      if (sibling.right < bandLeft - 1 || sibling.left > bandRight + 1) {
+        others.push({ left: sibling.left, right: sibling.right });
+      }
+    }
   }
 
-  // Side by room (T1, T4): score each side by where its CLAMPED destination
-  // would actually leave the strip. Hitting the scroll range is not a veto —
-  // parking flush against the band's edge is fine — but a clamped move that
-  // no longer clears the band, or a destination outside the port (scrollbar
-  // gutter included), is. The same check rejects a clear that would land the
-  // strip under an opposite edge cover.
+  // Side by room (T1, T4, F1): score each side by where its CLAMPED
+  // destination would actually leave the strip. Hitting the scroll range is
+  // not a veto — parking flush against the band's edge is fine — but a
+  // clamped move that no longer clears the band, a destination inside the
+  // port's scrollbar gutter, or one landing under another sticky cell left
+  // out of the band (two opposite pins closer than the strip: neither side
+  // can show it, so don't move) is.
   const sl = scroll.scrollLeft;
   const port = scroll.getBoundingClientRect();
   const portKnown = port.width > 0;
@@ -261,13 +270,20 @@ function revealHandle(handle: HTMLElement): void {
     scroll.scrollWidth > scroll.clientWidth ? scroll.scrollWidth - scroll.clientWidth : Infinity;
   const rightward = bandRight + REVEAL_MARGIN - rect.left;
   const leftward = rect.right + REVEAL_MARGIN - bandLeft;
-  const rightMove = Math.max(0, Math.min(rightward, sl));
-  const leftMove = Math.max(0, Math.min(leftward, limit - sl));
+  // Bands always overlap the strip's center, so both moves are positive and
+  // the only clamp that can bite is the scroll range itself.
+  const rightMove = Math.min(rightward, sl);
+  const leftMove = Math.min(leftward, limit - sl);
+  const clears = (left: number, right: number): boolean =>
+    others.every((other) => right <= other.left || left >= other.right);
   const canRight =
     rect.left + rightMove >= bandRight &&
+    clears(rect.left + rightMove, rect.right + rightMove) &&
     (!portKnown || rect.right + rightMove <= port.right - gutter);
   const canLeft =
-    rect.right - leftMove <= bandLeft && (!portKnown || rect.left - leftMove >= port.left);
+    rect.right - leftMove <= bandLeft &&
+    clears(rect.left - leftMove, rect.right - leftMove) &&
+    (!portKnown || rect.left - leftMove >= port.left);
   if (canRight && (!canLeft || rightMove <= leftMove)) scroll.scrollLeft = sl - rightMove;
   else if (canLeft) scroll.scrollLeft = sl + leftMove;
 }
@@ -510,7 +526,7 @@ export function Table<T extends object>(props: TableProps<T>) {
     widths: Record<string, number> | undefined;
   } | null>(null);
   const armReveal = (handle: HTMLElement): void => {
-    revealAfterRender.current = { handle, widths: columnWidths };
+    revealAfterRender.current = { handle, widths: columnWidths && { ...columnWidths } };
   };
   useLayoutEffect(() => {
     const armed = revealAfterRender.current;

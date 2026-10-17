@@ -235,9 +235,10 @@ export interface TableProps<T> {
    * render exact px tracks (even unpinned ones, so drags govern), while the
    * declared `width` alone stays a flexible `minmax` floor. Unknown keys are
    * ignored. Default `{}`. The post-step auto-reveal of a focused resize
-   * handle fires on the commit that changes these widths — values compared,
-   * so a fresh object carrying identical values does not count. A caller
-   * that reports without adopting gets no reveal.
+   * handle lands on the next commit: it fires when that commit's widths
+   * differ by value from the step-time snapshot (a fresh object carrying
+   * identical values does not count), and an unrelated commit in between
+   * consumes the armed reveal instead.
    */
   columnWidths?: Record<string, number>;
   /** Receives the dragged/keyboard-stepped width for a column on every move. */
