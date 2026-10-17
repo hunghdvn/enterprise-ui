@@ -148,6 +148,8 @@ const columns: Column<Order>[] = [
 
 export function OrdersTable() {
   const [sorts, setSorts] = useState<SortEntry[]>([{ key: 'code', dir: 'asc' }]);
+  // ORDERS là dữ liệu mẫu (như demo trực tiếp) — thay bằng dữ liệu của bạn.
+  const [orders] = useState(ORDERS);
 
   return (
     <Table

@@ -60,11 +60,16 @@ component finished should have docs finished — "xong đến đâu có tài li�
 **Purpose:** Switch between panels of content (used in docs for Demo | Props | Code).
 
 **API:**
+
 ```ts
-interface TabItem { key: string; label: string; content: ReactNode }
+interface TabItem {
+  key: string;
+  label: string;
+  content: ReactNode;
+}
 interface TabsProps {
   items: TabItem[];
-  activeKey?: string;        // controlled
+  activeKey?: string; // controlled
   defaultActiveKey?: string; // uncontrolled
   onChange?: (key: string) => void;
   size?: 'sm' | 'md';
@@ -72,6 +77,7 @@ interface TabsProps {
 ```
 
 **Behavior:**
+
 - Horizontal tabs with underline indicator (blue-600)
 - Keyboard: ArrowLeft/ArrowRight to move, Enter/Space to select
 - `role=tablist`, `role=tab`, `role=tabpanel`, `aria-selected`
@@ -82,16 +88,18 @@ interface TabsProps {
 **Purpose:** Show extra info on hover/focus (used for icon buttons, truncated text).
 
 **API:**
+
 ```ts
 interface TooltipProps {
   content: ReactNode;
-  children: ReactElement;  // single element
+  children: ReactElement; // single element
   placement?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number; // ms, default 200
 }
 ```
 
 **Behavior:**
+
 - Show on hover + focus, hide on blur + mouse leave
 - Position: absolute, arrow pointing to child
 - `role=tooltip`, `aria-describedby` on child
@@ -102,15 +110,17 @@ interface TooltipProps {
 **Purpose:** Empty state placeholder (used in Table, List, DataGrid demos).
 
 **API:**
+
 ```ts
 interface EmptyProps {
-  description?: string;  // default "Không có dữ liệu"
-  action?: ReactNode;    // optional CTA button
-  icon?: ReactNode;      // optional custom icon
+  description?: string; // default "Không có dữ liệu"
+  action?: ReactNode; // optional CTA button
+  icon?: ReactNode; // optional custom icon
 }
 ```
 
 **Behavior:**
+
 - Centered layout: icon (default: simple SVG box) + description + optional action
 - Used inside Table/Grid when data is empty
 - Can be used standalone
@@ -120,15 +130,17 @@ interface EmptyProps {
 **Purpose:** Loading indicator (used in Table, Form, Button demos).
 
 **API:**
+
 ```ts
 interface SpinProps {
   size?: 'sm' | 'md' | 'lg';
-  tip?: string;  // optional text below spinner
+  tip?: string; // optional text below spinner
   fullscreen?: boolean; // overlay entire page
 }
 ```
 
 **Behavior:**
+
 - CSS animation spinner (border-based, blue-600)
 - `role=status`, `aria-live=polite`
 - Optional tip text below
@@ -214,6 +226,7 @@ Each component page follows this layout:
 ### 7.3 Sidebar Navigation
 
 Groups (collapsible):
+
 - **Primitives**: Button, Input, Select, Checkbox, Badge, Tabs, Tooltip, Empty, Spin
 - **Layout**: AppShell, PageHeader, SplitView, Pagination
 - **Data**: Table, FilterBar, KpiCard, KpiGrid
@@ -230,6 +243,7 @@ Groups (collapsible):
 ### 7.5 Routing
 
 Simple state-based routing (no react-router):
+
 - `App.tsx` holds `routeKey` state
 - Sidebar `onNavigate` sets routeKey
 - Content area renders matching page
@@ -238,6 +252,7 @@ Simple state-based routing (no react-router):
 ### 7.6 CodeBlock
 
 Simple syntax highlighting without external lib:
+
 - Pre-tokenize with regex for: keywords, strings, comments, numbers, JSX tags
 - Render as `<span>` with CSS classes
 - Copy button (Clipboard API)
@@ -246,6 +261,7 @@ Simple syntax highlighting without external lib:
 ### 7.7 PropsTable
 
 Config-driven:
+
 ```ts
 interface PropDoc {
   name: string;
@@ -259,6 +275,7 @@ interface PropDoc {
 ### 7.8 DemoPlayground
 
 Wraps each demo with:
+
 - Optional controls (size, variant, etc.) — passed as props to demo
 - Theme/density inherited from top-level ThemeProvider
 - Consistent padding + border
