@@ -234,7 +234,9 @@ export interface TableProps<T> {
    * column's declared `width` AND changes the track kind: overridden columns
    * render exact px tracks (even unpinned ones, so drags govern), while the
    * declared `width` alone stays a flexible `minmax` floor. Unknown keys are
-   * ignored. Default `{}`.
+   * ignored. Default `{}`. The post-step auto-reveal of a focused resize
+   * handle fires when a new `columnWidths` object is adopted (the controlled
+   * contract) — a caller that reports without committing gets no reveal.
    */
   columnWidths?: Record<string, number>;
   /** Receives the dragged/keyboard-stepped width for a column on every move. */

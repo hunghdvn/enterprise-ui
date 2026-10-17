@@ -155,7 +155,24 @@ function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | un
 }
 
 /**
- * Bring a resize handle out from under a stuck cover (review S1/S2).
+ * The port a reveal must scroll (T2). In virtual mode that is `.scroll`, but
+ * in default mode the card's `.wrap` owns the overflow while `.scroll` stays
+ * visible — so walk up for the nearest ancestor a browser would scroll
+ * horizontally, falling back to the `.scroll` ancestor when computed styles
+ * report nothing usable (jsdom, detached subtrees).
+ */
+function scrollportOf(handle: HTMLElement): HTMLElement | null {
+  const fallback = handle.closest<HTMLElement>(`.${styles.scroll}`);
+  for (let el: HTMLElement | null = handle; el != null; el = el.parentElement) {
+    const overflowX = el.ownerDocument.defaultView?.getComputedStyle(el).overflowX;
+    if (overflowX === 'auto' || overflowX === 'scroll') return el;
+    if (!overflowX && el === fallback) return el;
+  }
+  return fallback;
+}
+
+/**
+ * Bring a resize handle out from under a stuck cover (review S1/S2, T1).
  *
  * `scrollIntoView({inline:'nearest'})` cannot do this job: a handle that
  * slides beneath a sticky or pinned neighbor is still geometrically inside
@@ -163,10 +180,13 @@ function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | un
  * `nearest` finds nothing to scroll, and on the boundary it aligns the strip
  * flush with the scrollport edge, exactly the band an edge cover hugs.
  * Hit-test the handle's center instead: when a cell of this grid paints over
- * it, scroll the port just enough to clear that cover's edge.
+ * it, scroll the port just enough to clear that cover — choosing the side
+ * that leaves the whole strip inside the port, because a buried strip sits
+ * left of a right-edge cover and the old "left edge wins" pick dragged the
+ * content the wrong way (T1).
  */
 function revealHandle(handle: HTMLElement): void {
-  const scroll = handle.closest<HTMLElement>(`.${styles.scroll}`);
+  const scroll = scrollportOf(handle);
   if (!scroll) return;
   const rect = handle.getBoundingClientRect();
   const hit =
@@ -184,16 +204,49 @@ function revealHandle(handle: HTMLElement): void {
   const cover =
     hit.closest<HTMLElement>('[role="gridcell"], [role="columnheader"], [role="rowheader"]') ?? hit;
   if (cover.contains(handle)) return;
-  const coverRect = cover.getBoundingClientRect();
-  if (coverRect.left <= rect.left) {
-    // A cover hugging the left side: scroll left until the strip rides clear
-    // of its right edge.
-    scroll.scrollLeft -= coverRect.right + REVEAL_MARGIN - rect.left;
-  } else {
-    // Mirror case — a right-side cover: scroll right until the strip clears
-    // its left edge.
-    scroll.scrollLeft += rect.right + REVEAL_MARGIN - coverRect.left;
+
+  // The cover band: tiled sticky cells on one edge form a single
+  // obstruction, so clearing only the hit cell can land the strip inside the
+  // next pin — grow the band over every sticky sibling that touches it (T1).
+  let bandLeft = cover.getBoundingClientRect().left;
+  let bandRight = cover.getBoundingClientRect().right;
+  const row = cover.parentElement;
+  if (row) {
+    const sticky = Array.from(row.children).filter((el) => {
+      const position = el.ownerDocument.defaultView?.getComputedStyle(el).position;
+      return position === 'sticky';
+    });
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const el of sticky) {
+        const sibling = el.getBoundingClientRect();
+        if (sibling.right < bandLeft - 1 || sibling.left > bandRight + 1) continue;
+        if (sibling.left < bandLeft || sibling.right > bandRight) {
+          bandLeft = Math.min(bandLeft, sibling.left);
+          bandRight = Math.max(bandRight, sibling.right);
+          grew = true;
+        }
+      }
+    }
   }
+
+  // Side by room (T1): both candidate scrolls clear the band, but only one
+  // may keep the strip fully inside the port with real slack in the scroll
+  // range and the scrollbar gutter to spare.
+  const port = scroll.getBoundingClientRect();
+  const portKnown = port.width > 0;
+  const gutter = Math.max(0, scroll.offsetWidth - scroll.clientWidth);
+  const maxScroll = scroll.scrollWidth - scroll.clientWidth;
+  const rightward = bandRight + REVEAL_MARGIN - rect.left;
+  const leftward = rect.right + REVEAL_MARGIN - bandLeft;
+  const canRight =
+    scroll.scrollLeft - rightward >= 0 &&
+    (!portKnown || bandRight + REVEAL_MARGIN + rect.width <= port.right - gutter);
+  const canLeft =
+    (maxScroll <= 0 || scroll.scrollLeft + leftward <= maxScroll) &&
+    (!portKnown || bandLeft - REVEAL_MARGIN - rect.width >= port.left);
+  if (canRight && (!canLeft || rightward <= leftward)) scroll.scrollLeft -= rightward;
+  else if (canLeft) scroll.scrollLeft += leftward;
 }
 
 function gridTemplateOf<T>(
@@ -422,16 +475,24 @@ export function Table<T extends object>(props: TableProps<T>) {
       resizeDrag.current = null;
     };
   }, []);
-  // Post-commit reveal (S2): a keyboard step reports a width, and only the
-  // caller's re-render gives the strip its new geometry — measuring inline in
-  // the handler would read the old template. Focus never re-fires for the
-  // surviving span, so a step hands its handle to the next commit.
-  const revealAfterRender = useRef<HTMLElement | null>(null);
+  // Post-commit reveal (S2, T3): keyboard steps and resets hand their handle
+  // here — only the caller's re-render gives the strip its new geometry, and
+  // measuring inline in the handler would read the old template. Focus never
+  // re-fires for the surviving span. The next commit consumes the arm; only a
+  // commit that actually adopted new widths (identity change) moved the strip,
+  // so an unrelated re-render must not fire a stale reveal (M1).
+  const revealAfterRender = useRef<{
+    handle: HTMLElement;
+    widths: Record<string, number> | undefined;
+  } | null>(null);
+  const armReveal = (handle: HTMLElement): void => {
+    revealAfterRender.current = { handle, widths: columnWidths };
+  };
   useLayoutEffect(() => {
-    const handle = revealAfterRender.current;
-    if (!handle) return;
+    const armed = revealAfterRender.current;
+    if (!armed) return;
     revealAfterRender.current = null;
-    revealHandle(handle);
+    if (armed.widths !== columnWidths) revealHandle(armed.handle);
   });
   // Drag-start width prefers the measured header cell (flexible columns have
   // no declared width to start from); jsdom measures 0, so fall back to the
@@ -513,10 +574,10 @@ export function Table<T extends object>(props: TableProps<T>) {
     // keydown target IS the handle), so the first Arrow press continues the
     // rendered edge instead of jumping from a stale declaration.
     const current = resolveStartWidth(column, handle);
+    // Arm before reporting: a consumer that flushes synchronously inside the
+    // callback commits before this handler returns (M1).
+    if (handle) armReveal(handle);
     reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
-    // The strip can end up under a stuck cover once the new track renders;
-    // hand it to the post-commit reveal (S2).
-    if (handle) revealAfterRender.current = handle;
   };
   // One wiring point for the data-column resize handles (never on the select
   // / expand control tracks): drag + keyboard + double-click reset. A handle
@@ -548,12 +609,20 @@ export function Table<T extends object>(props: TableProps<T>) {
               event.currentTarget,
             );
           } else if (event.key === 'Delete' || event.key === 'Backspace') {
-            // Keyboard-only users get the reset too (double-click equivalent).
+            // Keyboard-only users get the reset too (double-click equivalent);
+            // a reset moves the track, so arm the reveal like a step (T3).
             event.preventDefault();
-            onColumnWidthReset?.(column.key);
+            if (onColumnWidthReset) {
+              armReveal(event.currentTarget);
+              onColumnWidthReset(column.key);
+            }
           }
         }}
-        onDoubleClick={() => onColumnWidthReset?.(column.key)}
+        onDoubleClick={(event) => {
+          if (!onColumnWidthReset) return;
+          armReveal(event.currentTarget);
+          onColumnWidthReset(column.key);
+        }}
       />
     );
   };

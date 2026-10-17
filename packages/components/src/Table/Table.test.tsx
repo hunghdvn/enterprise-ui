@@ -2300,7 +2300,7 @@ test('focus falls back to the platform scroll when nothing can be hit-tested', (
   }
 });
 
-/** jsdom has no layout: pin the numbers the reveal math reads. */
+/** jsdom has no layout: pin the numbers this fixture's assertions read. */
 const mockRect = (el: Element, left: number, right: number): void => {
   el.getBoundingClientRect = () =>
     ({
@@ -2315,6 +2315,47 @@ const mockRect = (el: Element, left: number, right: number): void => {
     }) as DOMRect;
 };
 
+/**
+ * Reveal fixture: mocked viewport metrics plus coordinate-honest hit-testing,
+ * so a wrong probe point or a wrong scroll target actually fails. `boxes` are
+ * in paint order — first containing box wins, like a real elementFromPoint.
+ */
+const setupReveal = (options: {
+  scroller: HTMLElement;
+  port: [number, number];
+  scrollLeft: number;
+  maxScroll: number;
+  sticky?: Element[];
+  boxes: Array<[HTMLElement, number, number]>;
+}): (() => void) => {
+  const computed = vi.spyOn(window, 'getComputedStyle').mockImplementation(
+    (el) =>
+      ({
+        overflowX: el === options.scroller ? 'auto' : 'visible',
+        position: options.sticky?.includes(el) ? 'sticky' : 'static',
+      }) as CSSStyleDeclaration,
+  );
+  mockRect(options.scroller, options.port[0], options.port[1]);
+  Object.defineProperty(options.scroller, 'clientWidth', {
+    configurable: true,
+    value: options.port[1] - options.port[0],
+  });
+  Object.defineProperty(options.scroller, 'scrollWidth', {
+    configurable: true,
+    value: options.port[1] - options.port[0] + options.maxScroll,
+  });
+  options.scroller.scrollLeft = options.scrollLeft;
+  for (const [el, left, right] of options.boxes) mockRect(el, left, right);
+  document.elementFromPoint = vi.fn((x: number, y: number) => {
+    if (y < 0 || y > 32) return null;
+    return options.boxes.find(([, left, right]) => x >= left && x <= right)?.[0] ?? null;
+  });
+  return () => {
+    delete (document as Partial<Document>).elementFromPoint;
+    computed.mockRestore();
+  };
+};
+
 test('a focused handle under a stuck cover is scrolled clear of it', () => {
   const { container } = render(
     <Table
@@ -2327,47 +2368,175 @@ test('a focused handle under a stuck cover is scrolled clear of it', () => {
       onColumnWidth={() => {}}
     />,
   );
-  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
+  // Default mode: `.wrap` scrolls, `.scroll` stays visible — the reveal must
+  // resolve the real port, not the `[data-virtual]` div (T2).
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
   const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
-  scroll.scrollLeft = 100;
-  mockRect(handle, 442, 451);
-  mockRect(cover, 324, 454);
-  document.elementFromPoint = vi.fn(() => cover);
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 679,
+    boxes: [
+      [cover, 324, 454],
+      [handle, 442, 451],
+    ],
+  });
   try {
     fireEvent.focus(handle);
-    // The center hit-tests to the cover, so the port scrolls left until the
-    // strip rides past its right edge plus margin: 100 − (454 + 4 − 442).
-    expect(scroll.scrollLeft).toBe(84);
+    // Left of the cover the strip cannot fit beside the band (324 is the port
+    // edge), so the pick is the right-side clear: 203 − (454 + 4 − 442).
+    expect(scroller.scrollLeft).toBe(187);
+    expect(document.elementFromPoint).toHaveBeenCalledWith(446.5, 16);
   } finally {
-    delete (document as Partial<Document>).elementFromPoint;
+    restore();
   }
 });
 
-test('a right-side cover drives the mirror scroll', () => {
+test('a fully buried strip clears a right-hugging cover the roomy way', () => {
   const { container } = render(
     <Table
       columns={[
         { key: 'code', title: 'Mã đơn' },
-        { key: 'total', title: 'Giá trị', pinned: 'right', width: 108 },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
       ]}
       data={rows}
       resizable
       onColumnWidth={() => {}}
     />,
   );
-  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
   const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
-  mockRect(handle, 795, 804);
-  mockRect(cover, 800, 908);
-  document.elementFromPoint = vi.fn(() => cover);
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
   try {
     fireEvent.focus(handle);
-    // Scroll right until the strip clears the cover's left edge: 804 + 4 − 800.
-    expect(scroll.scrollLeft).toBe(8);
+    // Clearing right of the cover would end at 858, past the port — so the
+    // strip rides left instead of taking the old wrong-way branch (T1):
+    // 272 + (782 + 4 − 715).
+    expect(scroller.scrollLeft).toBe(343);
   } finally {
-    delete (document as Partial<Document>).elementFromPoint;
+    restore();
+  }
+});
+
+test('a straddling strip still reveals when only its center is buried', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 712, 721],
+    ],
+  });
+  try {
+    // Center 716.5 is under the cover while the left edge (712) is not: a
+    // probe on any other point misses the occlusion and reveals nothing.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(282);
+  } finally {
+    restore();
+  }
+});
+
+test('a tiled pin cluster clears as one band, not just the hit pin', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
+        { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const outer = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 300,
+    maxScroll: 400,
+    sticky: [outer, inner],
+    boxes: [
+      [outer, 0, 120],
+      [inner, 120, 240],
+      [handle, 100, 109],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The band is [0, 240]: a single-pin clear (120 + 4 − 100 → 276) would
+    // land inside the inner pin; the band clear is 300 − (240 + 4 − 100).
+    expect(scroller.scrollLeft).toBe(156);
+  } finally {
+    restore();
+  }
+});
+
+test('virtual mode reveals against the virtual scroller', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+      ]}
+      data={rows}
+      resizable
+      virtual
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = container.querySelector('[data-virtual]') as HTMLElement;
+  const wrap = scroller.parentElement as HTMLElement;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 679,
+    boxes: [
+      [cover, 324, 454],
+      [handle, 442, 451],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(187);
+    expect(wrap.scrollLeft).toBe(0);
+  } finally {
+    restore();
   }
 });
 
@@ -2377,8 +2546,8 @@ test('a keyboard step reveals the strip after the width commit', () => {
     return (
       <Table
         columns={[
-          { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
-          { key: 'total', title: 'Giá trị', align: 'right' },
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
         ]}
         data={rows}
         resizable
@@ -2388,19 +2557,153 @@ test('a keyboard step reveals the strip after the width commit', () => {
     );
   }
   const { container } = render(<Controlled />);
-  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
-  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
-  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
-  scroll.scrollLeft = 100;
-  mockRect(handle, 442, 451);
-  mockRect(cover, 324, 454);
-  document.elementFromPoint = vi.fn(() => cover);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
   try {
     // The step fires no focus (the span survives the re-render), so only the
     // post-commit reveal can uncover the strip the step slid under the cover.
     fireEvent.keyDown(handle, { key: 'ArrowLeft' });
-    expect(scroll.scrollLeft).toBe(84);
+    expect(scroller.scrollLeft).toBe(343);
   } finally {
-    delete (document as Partial<Document>).elementFromPoint;
+    restore();
+  }
+});
+
+test('Delete reset arms the reveal too', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // A reset narrows the track just like a step: the focused strip can end
+    // up buried, so the same reveal must run (T3).
+    fireEvent.keyDown(handle, { key: 'Delete' });
+    expect(scroller.scrollLeft).toBe(343);
+  } finally {
+    restore();
+  }
+});
+
+test('double-click reset arms the reveal too', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.doubleClick(handle);
+    expect(scroller.scrollLeft).toBe(343);
+  } finally {
+    restore();
+  }
+});
+
+test('an arm a caller never adopts does not ride a later commit', () => {
+  const onColumnWidth = vi.fn();
+  const { container, rerender } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={onColumnWidth}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 679,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // Reports but never commits: the game of widths never changes, and an
+    // unrelated later commit must consume the arm without revealing (M1).
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(onColumnWidth).toHaveBeenCalled();
+    rerender(
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={[...rows, { code: 'SO-2', total: '₫ 20M' }]}
+        resizable
+        onColumnWidth={onColumnWidth}
+      />,
+    );
+    expect(scroller.scrollLeft).toBe(272);
+  } finally {
+    restore();
   }
 });
