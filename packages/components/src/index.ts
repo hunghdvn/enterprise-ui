@@ -58,3 +58,5 @@ export type { ToastItem, ToastApi } from './Toast/ToastProvider';
 export type { ToastProps, ToastTone } from './Toast/Toast';
 export { Tooltip } from './Tooltip/Tooltip';
 export type { TooltipProps } from './Tooltip/types';
+export { Empty } from './Empty/Empty';
+export type { EmptyProps } from './Empty/types';
