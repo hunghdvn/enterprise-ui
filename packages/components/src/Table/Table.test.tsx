@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { toCSV } from '../internal/exportCsv';
 import { Table } from './Table';
@@ -2318,7 +2319,11 @@ const mockRect = (el: Element, left: number, right: number): void => {
 /**
  * Reveal fixture: mocked viewport metrics plus coordinate-honest hit-testing,
  * so a wrong probe point or a wrong scroll target actually fails. `boxes` are
- * in paint order — first containing box wins, like a real elementFromPoint.
+ * in paint order — the first containing box wins, like a real
+ * elementFromPoint. `maxScroll` must be metric-honest for the scene: derive
+ * it as `contentWidth − portWidth`, where `contentWidth` is the focused
+ * column's content right edge plus the trailing content (the pinned block
+ * when the column is adjacent to a pin). Phantom slack hides clamp bugs (T4).
  */
 const setupReveal = (options: {
   scroller: HTMLElement;
@@ -2373,6 +2378,7 @@ test('a focused handle under a stuck cover is scrolled clear of it', () => {
   const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
   const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  // Strip content right 330 + 870 trailing → content 1200 = port 521 + 679.
   const restore = setupReveal({
     scroller,
     port: [324, 845],
@@ -2394,7 +2400,7 @@ test('a focused handle under a stuck cover is scrolled clear of it', () => {
   }
 });
 
-test('a fully buried strip clears a right-hugging cover the roomy way', () => {
+test('an adjacent strip reveals into the range clamp, flush against the pin', () => {
   const { container } = render(
     <Table
       columns={[
@@ -2409,11 +2415,13 @@ test('a fully buried strip clears a right-hugging cover the roomy way', () => {
   const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
   const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // The 2-column pinned scene: strip content right 730 plus the trailing pin
+  // (130) → content 860 = port 521 + 339 (T4's trailing == pin width).
   const restore = setupReveal({
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 339,
     boxes: [
       [cover, 715, 845],
       [handle, 773, 782],
@@ -2421,10 +2429,10 @@ test('a fully buried strip clears a right-hugging cover the roomy way', () => {
   });
   try {
     fireEvent.focus(handle);
-    // Clearing right of the cover would end at 858, past the port — so the
-    // strip rides left instead of taking the old wrong-way branch (T1):
-    // 272 + (782 + 4 − 715).
-    expect(scroller.scrollLeft).toBe(343);
+    // Clearing right of the cover would end past the port; the leftward move
+    // asks for 343, clamps to maxScroll 339 and still parks flush against
+    // the band's left edge — accepted, not vetoed (T4). Strip lands [706,715].
+    expect(scroller.scrollLeft).toBe(339);
   } finally {
     restore();
   }
@@ -2445,11 +2453,12 @@ test('a straddling strip still reveals when only its center is buried', () => {
   const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
   const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // Strip content right 669 + trailing 130 → content 799 = port 521 + 278.
   const restore = setupReveal({
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 278,
     boxes: [
       [cover, 715, 845],
       [handle, 712, 721],
@@ -2458,8 +2467,46 @@ test('a straddling strip still reveals when only its center is buried', () => {
   try {
     // Center 716.5 is under the cover while the left edge (712) is not: a
     // probe on any other point misses the occlusion and reveals nothing.
+    // The leftward move (10) clamps to 6 and still parks flush.
     fireEvent.focus(handle);
-    expect(scroller.scrollLeft).toBe(282);
+    expect(scroller.scrollLeft).toBe(278);
+  } finally {
+    restore();
+  }
+});
+
+test('an unclamped leftward clear keeps the full margin', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // A wider strip (17px): strip content right 738 + trailing 183 → content
+  // 921 = port 521 + 400. Leftward asks 79 ≤ 128 available, so no clamp.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 400,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 790],
+    ],
+  });
+  try {
+    // 272 + 79 = 351; the rightward clear (76, smaller move) is port-blocked
+    // at 866 — a gate that ignores the port would drag the strip 155 left.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(351);
   } finally {
     restore();
   }
@@ -2472,6 +2519,7 @@ test('a tiled pin cluster clears as one band, not just the hit pin', () => {
         { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
         { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
         { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 145 },
       ]}
       data={rows}
       resizable
@@ -2482,22 +2530,25 @@ test('a tiled pin cluster clears as one band, not just the hit pin', () => {
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
   const outer = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
   const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
   const restore = setupReveal({
     scroller,
     port: [0, 800],
     scrollLeft: 300,
     maxScroll: 400,
-    sticky: [outer, inner],
+    sticky: [outer, inner, rightPin],
     boxes: [
       [outer, 0, 120],
       [inner, 120, 240],
       [handle, 100, 109],
+      [rightPin, 700, 845],
     ],
   });
   try {
     fireEvent.focus(handle);
     // The band is [0, 240]: a single-pin clear (120 + 4 − 100 → 276) would
-    // land inside the inner pin; the band clear is 300 − (240 + 4 − 100).
+    // land inside the inner pin, and the far right pin must not merge in
+    // (that would scroll to 0). Band clear: 300 − (240 + 4 − 100).
     expect(scroller.scrollLeft).toBe(156);
   } finally {
     restore();
@@ -2564,7 +2615,7 @@ test('a keyboard step reveals the strip after the width commit', () => {
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 339,
     boxes: [
       [cover, 715, 845],
       [handle, 773, 782],
@@ -2572,9 +2623,52 @@ test('a keyboard step reveals the strip after the width commit', () => {
   });
   try {
     // The step fires no focus (the span survives the re-render), so only the
-    // post-commit reveal can uncover the strip the step slid under the cover.
+    // post-commit reveal can uncover the strip the step slid under the cover;
+    // the range clamp parks it flush at maxScroll.
     fireEvent.keyDown(handle, { key: 'ArrowLeft' });
-    expect(scroller.scrollLeft).toBe(343);
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('a consumer that commits inside the callback still reveals', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({});
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={(key, width) =>
+          flushSync(() => setWidths((prev) => ({ ...prev, [key]: width })))
+        }
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // flushSync commits before the handler returns: the arm must be placed
+    // before reporting or the consuming effect already ran without it (M1).
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(scroller.scrollLeft).toBe(339);
   } finally {
     restore();
   }
@@ -2605,7 +2699,7 @@ test('Delete reset arms the reveal too', () => {
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 339,
     boxes: [
       [cover, 715, 845],
       [handle, 773, 782],
@@ -2615,7 +2709,7 @@ test('Delete reset arms the reveal too', () => {
     // A reset narrows the track just like a step: the focused strip can end
     // up buried, so the same reveal must run (T3).
     fireEvent.keyDown(handle, { key: 'Delete' });
-    expect(scroller.scrollLeft).toBe(343);
+    expect(scroller.scrollLeft).toBe(339);
   } finally {
     restore();
   }
@@ -2646,7 +2740,7 @@ test('double-click reset arms the reveal too', () => {
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 339,
     boxes: [
       [cover, 715, 845],
       [handle, 773, 782],
@@ -2654,25 +2748,27 @@ test('double-click reset arms the reveal too', () => {
   });
   try {
     fireEvent.doubleClick(handle);
-    expect(scroller.scrollLeft).toBe(343);
+    expect(scroller.scrollLeft).toBe(339);
   } finally {
     restore();
   }
 });
 
-test('an arm a caller never adopts does not ride a later commit', () => {
+test('an unadopted arm neither rides a later commit nor survives it', () => {
   const onColumnWidth = vi.fn();
-  const { container, rerender } = render(
+  const visible = (widths: Record<string, number> | undefined, data: typeof rows) => (
     <Table
       columns={[
         { key: 'code', title: 'Mã đơn' },
         { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
       ]}
-      data={rows}
+      data={data}
       resizable
+      columnWidths={widths}
       onColumnWidth={onColumnWidth}
-    />,
+    />
   );
+  const { container, rerender } = render(visible(undefined, rows));
   const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
   const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
   const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
@@ -2680,29 +2776,112 @@ test('an arm a caller never adopts does not ride a later commit', () => {
     scroller,
     port: [324, 845],
     scrollLeft: 272,
-    maxScroll: 679,
+    maxScroll: 339,
     boxes: [
       [cover, 715, 845],
       [handle, 773, 782],
     ],
   });
   try {
-    // Reports but never commits: the game of widths never changes, and an
-    // unrelated later commit must consume the arm without revealing (M1).
     fireEvent.keyDown(handle, { key: 'ArrowLeft' });
     expect(onColumnWidth).toHaveBeenCalled();
-    rerender(
+    // A fresh object carrying equal values is not an adoption: an inline
+    // caller's unrelated re-render must stay quiet (M1).
+    rerender(visible({}, rows));
+    expect(scroller.scrollLeft).toBe(272);
+    // And the consume-once arm is gone: even a later commit that changes the
+    // widths (with no new interaction) must not ride the stale handle.
+    rerender(visible({ code: 200 }, [...rows, { code: 'SO-2', total: '₫ 20M' }]));
+    expect(scroller.scrollLeft).toBe(272);
+  } finally {
+    restore();
+  }
+});
+
+test('a visible strip no-ops on focus and on reset', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
       <Table
         columns={[
           { key: 'code', title: 'Mã đơn' },
           { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
         ]}
-        data={[...rows, { code: 'SO-2', total: '₫ 20M' }]}
+        data={rows}
         resizable
-        onColumnWidth={onColumnWidth}
-      />,
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
     );
-    expect(scroller.scrollLeft).toBe(272);
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 679,
+    boxes: [[handle, 442, 451]],
+  });
+  // The handle's own header cell is not a cover: give it real metrics so a
+  // guard-less path would compute a scroll and fail the assertions below.
+  const ownHeader = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  mockRect(ownHeader, 324, 451);
+  try {
+    // The center hit-tests to the strip itself: nothing to clear, and the
+    // reset path must not scroll a visible strip either.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(203);
+    fireEvent.doubleClick(handle);
+    expect(scroller.scrollLeft).toBe(203);
+  } finally {
+    restore();
+  }
+});
+
+test('a mid-cluster hit unions pins on both sides of the band', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 95 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 99 },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const total = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const status = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const region = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  // The handle's center lands under the middle pin; the band must union the
+  // pins on BOTH sides of it: strip content right = 625 − 324 + 300 = 601,
+  // trailing = 95 + 99 + 130 = 324 → content 925 = port 521 + 404.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 300,
+    maxScroll: 404,
+    sticky: [total, status, region],
+    boxes: [
+      [region, 715, 845],
+      [status, 620, 715],
+      [total, 525, 620],
+      [handle, 616, 625],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward is port-blocked; leftward clears past the band's left edge
+    // (525 + 4): 300 + 104 = 404, the range limit. A one-sided union would
+    // scroll to 309 (missed left pin) or 197 (right pin drags the aim).
+    expect(scroller.scrollLeft).toBe(404);
   } finally {
     restore();
   }

@@ -155,6 +155,23 @@ function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | un
 }
 
 /**
+ * Shallow value equality for the armed reveal check (M1): inline callers
+ * rebuild `columnWidths` identity every render, so identity alone would fire
+ * stale reveals — compare keys and values instead (an absent prop counts as
+ * empty). An intentionally adopted width always differs by value.
+ */
+function sameWidths(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every((key) => left[key] === right[key]);
+}
+
+/**
  * The port a reveal must scroll (T2). In virtual mode that is `.scroll`, but
  * in default mode the card's `.wrap` owns the overflow while `.scroll` stays
  * visible — so walk up for the nearest ancestor a browser would scroll
@@ -230,23 +247,29 @@ function revealHandle(handle: HTMLElement): void {
     }
   }
 
-  // Side by room (T1): both candidate scrolls clear the band, but only one
-  // may keep the strip fully inside the port with real slack in the scroll
-  // range and the scrollbar gutter to spare.
+  // Side by room (T1, T4): score each side by where its CLAMPED destination
+  // would actually leave the strip. Hitting the scroll range is not a veto —
+  // parking flush against the band's edge is fine — but a clamped move that
+  // no longer clears the band, or a destination outside the port (scrollbar
+  // gutter included), is. The same check rejects a clear that would land the
+  // strip under an opposite edge cover.
+  const sl = scroll.scrollLeft;
   const port = scroll.getBoundingClientRect();
   const portKnown = port.width > 0;
   const gutter = Math.max(0, scroll.offsetWidth - scroll.clientWidth);
-  const maxScroll = scroll.scrollWidth - scroll.clientWidth;
+  const limit =
+    scroll.scrollWidth > scroll.clientWidth ? scroll.scrollWidth - scroll.clientWidth : Infinity;
   const rightward = bandRight + REVEAL_MARGIN - rect.left;
   const leftward = rect.right + REVEAL_MARGIN - bandLeft;
+  const rightMove = Math.max(0, Math.min(rightward, sl));
+  const leftMove = Math.max(0, Math.min(leftward, limit - sl));
   const canRight =
-    scroll.scrollLeft - rightward >= 0 &&
-    (!portKnown || bandRight + REVEAL_MARGIN + rect.width <= port.right - gutter);
+    rect.left + rightMove >= bandRight &&
+    (!portKnown || rect.right + rightMove <= port.right - gutter);
   const canLeft =
-    (maxScroll <= 0 || scroll.scrollLeft + leftward <= maxScroll) &&
-    (!portKnown || bandLeft - REVEAL_MARGIN - rect.width >= port.left);
-  if (canRight && (!canLeft || rightward <= leftward)) scroll.scrollLeft -= rightward;
-  else if (canLeft) scroll.scrollLeft += leftward;
+    rect.right - leftMove <= bandLeft && (!portKnown || rect.left - leftMove >= port.left);
+  if (canRight && (!canLeft || rightMove <= leftMove)) scroll.scrollLeft = sl - rightMove;
+  else if (canLeft) scroll.scrollLeft = sl + leftMove;
 }
 
 function gridTemplateOf<T>(
@@ -479,8 +502,9 @@ export function Table<T extends object>(props: TableProps<T>) {
   // here — only the caller's re-render gives the strip its new geometry, and
   // measuring inline in the handler would read the old template. Focus never
   // re-fires for the surviving span. The next commit consumes the arm; only a
-  // commit that actually adopted new widths (identity change) moved the strip,
-  // so an unrelated re-render must not fire a stale reveal (M1).
+  // commit whose widths actually changed (shallow value compare, so a fresh
+  // object carrying equal values stays quiet) moved the strip, so an
+  // unrelated re-render must not fire a stale reveal (M1).
   const revealAfterRender = useRef<{
     handle: HTMLElement;
     widths: Record<string, number> | undefined;
@@ -492,7 +516,7 @@ export function Table<T extends object>(props: TableProps<T>) {
     const armed = revealAfterRender.current;
     if (!armed) return;
     revealAfterRender.current = null;
-    if (armed.widths !== columnWidths) revealHandle(armed.handle);
+    if (!sameWidths(armed.widths, columnWidths)) revealHandle(armed.handle);
   });
   // Drag-start width prefers the measured header cell (flexible columns have
   // no declared width to start from); jsdom measures 0, so fall back to the
