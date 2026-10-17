@@ -49,7 +49,9 @@ export interface Column<T> {
    * track are computed from it, so a pinned column without a width cannot
    * line up. On a regular column it becomes the grid track's minimum
    * (`minmax(width, 1fr)`): the column never shrinks below it but still
-   * flexes, keeping the horizontal scroll the pins exist for.
+   * flexes, keeping the horizontal scroll the pins exist for. A live
+   * `columnWidths[key]` (resize) wins over this declared value AND makes the
+   * track exact px instead of flexible.
    */
   width?: number;
   /**
@@ -225,4 +227,38 @@ export interface TableProps<T> {
    * and downloads it through a Blob anchor.
    */
   onExport?: (rows: T[], columns: Column<T>[]) => void;
+  /**
+   * Live column-width overrides in px, keyed by column key. Fully controlled:
+   * the table never stores widths itself, it only reports interactions
+   * through `onColumnWidth`/`onColumnWidthReset`. An entry wins over the
+   * column's declared `width` AND changes the track kind: overridden columns
+   * render exact px tracks (even unpinned ones, so drags govern), while the
+   * declared `width` alone stays a flexible `minmax` floor. Unknown keys are
+   * ignored. Default `{}`. The post-step auto-reveal of a focused resize
+   * handle lands on the next commit: it fires when that commit's widths
+   * differ by value from the step-time snapshot (a fresh object carrying
+   * identical values does not count), and an unrelated commit in between
+   * consumes the armed reveal instead.
+   */
+  columnWidths?: Record<string, number>;
+  /** Receives the dragged/keyboard-stepped width for a column on every move. */
+  onColumnWidth?: (key: string, width: number) => void;
+  /**
+   * Double-click on a resize handle calls this with the column key so the
+   * caller can delete its `columnWidths` entry and fall back to the declared
+   * `width` (or the flexible track). Delete/Backspace on a focused handle
+   * fires it too, so keyboard-only users can reset. A separate callback
+   * because a width value alone cannot express "reset".
+   */
+  onColumnWidthReset?: (key: string) => void;
+  /**
+   * Shows a resize handle on every data column header (never on the select /
+   * expand control tracks). Handles render only together with `onColumnWidth`
+   * — a separator that reports nowhere is worse than none. Opt-in like
+   * `virtual` — resizing changes layout, so callers flip it explicitly
+   * (default false).
+   */
+  resizable?: boolean;
+  /** Floor in px for dragged/stepped widths (itself floored at 1). Default 40. */
+  minColumnWidth?: number;
 }

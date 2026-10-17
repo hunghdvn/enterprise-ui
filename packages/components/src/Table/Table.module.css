@@ -182,6 +182,7 @@
 }
 
 .h {
+  position: relative;
   padding: var(--cell-py) var(--cell-px);
   min-height: var(--row-height);
   display: flex;
@@ -262,6 +263,52 @@ button.h:hover {
   font-size: 10px;
 }
 
+/* Column-resize handle: an invisible 9px grab strip inside the header
+   cell's right edge (a 1px line appears on hover/focus only, so idle headers
+   look untouched). Absolute against the relatively-positioned `.h`, stacked
+   below every stuck cell so a covering pin or edge cell wins paint and
+   hit-testing. */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  /* Touch drags must resize, not scroll — phones render cards anyway, so this
+     targets touch tablets/laptops. */
+  touch-action: none;
+  /* Below every stuck cell (pins and default edges are z-index 2): a strip
+     scrolled under a stuck neighbor is correctly dead there, and hittable in
+     its own cell area everywhere else (P3). The focus ring draws inset, so
+     this stacking never clips it. */
+  z-index: 1;
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: auto;
+  right: 0;
+  width: 1px;
+  background: transparent;
+}
+
+.resizeHandle:hover::after {
+  background: var(--color-blue-600);
+}
+
+.resizeHandle:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.resizeHandle:focus-visible::after {
+  background: var(--color-blue-600);
+}
+
 .row {
   display: grid;
   border-bottom: 1px solid var(--surface-muted);
@@ -333,15 +380,15 @@ button.h:hover {
    the first explicit pin both sit at offset 0 and the later DOM node covers
    the first column (finding #6). Cells with an explicit pin keep theirs via
    the `:not()` guard. */
-.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR),
-.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR),
-.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR) {
+.grid[data-left-pins] > .head > .h:first-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-left-pins] .filterRow > .c:first-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-left-pins] .row > .c:first-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }
 
-.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR),
-.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR),
-.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR) {
+.grid[data-right-pins] > .head > .h:last-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-right-pins] .filterRow > .c:last-child:not(.pinL):not(.pinR):not(.handleHost),
+.grid[data-right-pins] .row > .c:last-child:not(.pinL):not(.pinR):not(.handleHost) {
   position: static;
 }
 
@@ -376,8 +423,16 @@ button.h:hover {
 .h.pinL,
 .h.pinR,
 .c.pinL,
-.c.pinR {
+.c.pinR,
+.h.exact,
+.c.exact {
   min-width: 0;
+}
+
+/* Narrow exact tracks (e.g. dragged to 40px) must not paint their title over
+   the neighbor the way unclipped `.h` text does (Q3). */
+.h.exact {
+  overflow: hidden;
 }
 
 /* Pinned body cells inherit the row's background (zebra/hover/selected) just

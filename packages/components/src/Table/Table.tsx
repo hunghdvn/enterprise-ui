@@ -1,9 +1,12 @@
 import {
   Fragment,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type UIEvent,
 } from 'react';
@@ -26,6 +29,15 @@ const CONTROL_TRACK = 36;
 
 /** Gap between mobile cards — mirrored inside virtual card slots (finding #13). */
 const CARD_GAP = 8;
+
+/** Fallback drag-start width when the header cell cannot be measured (jsdom reports 0). */
+const UNMEASURED_FALLBACK_WIDTH = 120;
+
+/** Keyboard step for resize handles (×4 with Shift). */
+const KEYBOARD_STEP = 8;
+
+/** Clearance kept between a revealed resize handle and the cover it clears. */
+const REVEAL_MARGIN = 4;
 
 /** Blank choice at the top of a select filter cell — clears the filter. */
 const FILTER_ALL_LABEL = 'Tất cả';
@@ -92,21 +104,197 @@ function variableWindow(
 
 /**
  * One track per column for the single grid template every row shares — header,
- * body, virtual, and the filter/group/detail rows later tasks add. A pinned
- * column is a fixed `width` px track so its sticky offset (the px sum of the
- * pinned columns before/after it) lines up with the track exactly; a regular
- * column stays flexible with a floor of its `width`, or the default cell
- * minimum when unset, so the grid can overflow and scroll horizontally — which
- * is what the pins exist for.
+ * body, virtual, and the filter/group/detail rows. Widths come from
+ * `widthOf` (live `columnWidths` override wins over `Column.width`), the one
+ * source shared with the pin offsets so a resize can never drift one without
+ * the other: a live override is an exact px track even on regular columns
+ * (otherwise dragging a flexible column would visually do nothing), while the
+ * declared `Column.width` alone stays a `minmax` floor preserving the
+ * pre-resize model.
  */
-function trackOf<T>(column: Column<T>): string {
-  if (column.pinned && column.width != null) return `${column.width}px`;
-  const min = column.width != null ? `${column.width}px` : 'var(--cell-min-width)';
+/**
+ * Live width for a column plus whether it comes from a live caller override.
+ * Unknown keys (including prototype shadows like `toString`) and non-finite
+ * values count as unset and fall back to the declared `Column.width`; the
+ * final value floors at 1px so neither path can collapse a track (N3).
+ * `trackOf` keys exactness off `isOverride` — the same predicate — so an
+ * unset-looking value can never take the exact branch (N4).
+ */
+function widthOf<T>(
+  column: Column<T>,
+  columnWidths: Record<string, number> | undefined,
+): { value: number; isOverride: boolean } | undefined {
+  const owned =
+    columnWidths != null && Object.prototype.hasOwnProperty.call(columnWidths, column.key)
+      ? columnWidths[column.key]
+      : undefined;
+  const isOverride = typeof owned === 'number' && Number.isFinite(owned);
+  const raw = isOverride ? (owned as number) : column.width;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  return { value: Math.max(1, raw), isOverride };
+}
+
+function effectiveWidthOf<T>(
+  column: Column<T>,
+  columnWidths: Record<string, number> | undefined,
+): number | undefined {
+  return widthOf(column, columnWidths)?.value;
+}
+
+function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | undefined): string {
+  const resolved = widthOf(column, columnWidths);
+  const effective = resolved?.value;
+  // A live override is an exact px track — even on regular columns. A mere
+  // `minmax` floor would let `1fr` absorb the drag, so resizing a flexible
+  // column would visually do nothing (blocking finding 1). The declared
+  // `Column.width` alone stays a floor, preserving the pre-resize model.
+  if (resolved?.isOverride) return `${effective as number}px`;
+  if (column.pinned && effective != null) return `${effective}px`;
+  const min = effective != null ? `${effective}px` : 'var(--cell-min-width)';
   return `minmax(${min}, 1fr)`;
 }
 
-function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable: boolean): string {
-  const tracks = columns.map(trackOf);
+/**
+ * Shallow value equality for the armed reveal check (M1): inline callers
+ * rebuild `columnWidths` identity every render, so identity alone would fire
+ * stale reveals — compare keys and values instead (an absent prop counts as
+ * empty). An intentionally adopted width always differs by value.
+ */
+function sameWidths(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every((key) => left[key] === right[key]);
+}
+
+/**
+ * The port a reveal must scroll (T2). In virtual mode that is `.scroll`, but
+ * in default mode the card's `.wrap` owns the overflow while `.scroll` stays
+ * visible — so walk up for the nearest ancestor a browser would scroll
+ * horizontally, falling back to the `.scroll` ancestor when computed styles
+ * report nothing usable (jsdom, detached subtrees).
+ */
+function scrollportOf(handle: HTMLElement): HTMLElement | null {
+  const fallback = handle.closest<HTMLElement>(`.${styles.scroll}`);
+  for (let el: HTMLElement | null = handle; el != null; el = el.parentElement) {
+    const overflowX = el.ownerDocument.defaultView?.getComputedStyle(el).overflowX;
+    if (overflowX === 'auto' || overflowX === 'scroll') return el;
+    if (!overflowX && el === fallback) return el;
+  }
+  return fallback;
+}
+
+/**
+ * Bring a resize handle out from under a stuck cover (review S1/S2, T1).
+ *
+ * `scrollIntoView({inline:'nearest'})` cannot do this job: a handle that
+ * slides beneath a sticky or pinned neighbor is still geometrically inside
+ * the scrollport — the cover paints over it, it never pushes it out — so
+ * `nearest` finds nothing to scroll, and on the boundary it aligns the strip
+ * flush with the scrollport edge, exactly the band an edge cover hugs.
+ * Hit-test the handle's center instead: when a cell of this grid paints over
+ * it, scroll the port just enough to clear that cover — choosing the side
+ * that leaves the whole strip inside the port, because a buried strip sits
+ * left of a right-edge cover and the old "left edge wins" pick dragged the
+ * content the wrong way (T1).
+ */
+function revealHandle(handle: HTMLElement): void {
+  const scroll = scrollportOf(handle);
+  if (!scroll) return;
+  const rect = handle.getBoundingClientRect();
+  const hit =
+    typeof document.elementFromPoint === 'function'
+      ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      : null;
+  if (hit == null || hit === scroll || !scroll.contains(hit)) {
+    // No hit-testing at all (jsdom) or the center resolves off the scroll
+    // region's subtree: the strip is out of view geometrically — leave the
+    // platform's nearest-edge scroll to it.
+    handle.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    return;
+  }
+  const cover =
+    hit.closest<HTMLElement>('[role="gridcell"], [role="columnheader"], [role="rowheader"]') ?? hit;
+  if (cover.contains(handle)) return;
+
+  // The cover band: tiled sticky cells on one edge form a single
+  // obstruction, so clearing only the hit cell can land the strip inside the
+  // next pin — grow the band over every sticky sibling that touches it (T1).
+  let bandLeft = cover.getBoundingClientRect().left;
+  let bandRight = cover.getBoundingClientRect().right;
+  const others: Array<{ left: number; right: number }> = [];
+  const row = cover.parentElement;
+  if (row) {
+    const sticky = Array.from(row.children).filter((el) => {
+      const position = el.ownerDocument.defaultView?.getComputedStyle(el).position;
+      return position === 'sticky';
+    });
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const el of sticky) {
+        const sibling = el.getBoundingClientRect();
+        if (sibling.right < bandLeft - 1 || sibling.left > bandRight + 1) continue;
+        if (sibling.left < bandLeft || sibling.right > bandRight) {
+          bandLeft = Math.min(bandLeft, sibling.left);
+          bandRight = Math.max(bandRight, sibling.right);
+          grew = true;
+        }
+      }
+    }
+    // Sticky siblings left outside the band (F1): a destination that would
+    // land inside one of them shows the strip nowhere.
+    for (const el of sticky) {
+      const sibling = el.getBoundingClientRect();
+      if (sibling.right < bandLeft - 1 || sibling.left > bandRight + 1) {
+        others.push({ left: sibling.left, right: sibling.right });
+      }
+    }
+  }
+
+  // Side by room (T1, T4, F1): score each side by where its CLAMPED
+  // destination would actually leave the strip. Hitting the scroll range is
+  // not a veto — parking flush against the band's edge is fine — but a
+  // clamped move that no longer clears the band, a destination inside the
+  // port's scrollbar gutter, or one landing under another sticky cell left
+  // out of the band (two opposite pins closer than the strip: neither side
+  // can show it, so don't move) is.
+  const sl = scroll.scrollLeft;
+  const port = scroll.getBoundingClientRect();
+  const portKnown = port.width > 0;
+  const gutter = Math.max(0, scroll.offsetWidth - scroll.clientWidth);
+  const limit =
+    scroll.scrollWidth > scroll.clientWidth ? scroll.scrollWidth - scroll.clientWidth : Infinity;
+  const rightward = bandRight + REVEAL_MARGIN - rect.left;
+  const leftward = rect.right + REVEAL_MARGIN - bandLeft;
+  // Bands always overlap the strip's center, so both moves are positive and
+  // the only clamp that can bite is the scroll range itself.
+  const rightMove = Math.min(rightward, sl);
+  const leftMove = Math.min(leftward, limit - sl);
+  const clears = (left: number, right: number): boolean =>
+    others.every((other) => right <= other.left || left >= other.right);
+  const canRight =
+    rect.left + rightMove >= bandRight &&
+    clears(rect.left + rightMove, rect.right + rightMove) &&
+    (!portKnown || rect.right + rightMove <= port.right - gutter);
+  const canLeft =
+    rect.right - leftMove <= bandLeft &&
+    clears(rect.left - leftMove, rect.right - leftMove) &&
+    (!portKnown || rect.left - leftMove >= port.left);
+  if (canRight && (!canLeft || rightMove <= leftMove)) scroll.scrollLeft = sl - rightMove;
+  else if (canLeft) scroll.scrollLeft = sl + leftMove;
+}
+
+function gridTemplateOf<T>(
+  columns: Column<T>[],
+  selectable: boolean,
+  expandable: boolean,
+  columnWidths: Record<string, number> | undefined,
+): string {
+  const tracks = columns.map((c) => trackOf(c, columnWidths));
   // Fixed CONTROL_TRACK-wide control tracks come first: select, then the master-detail
   // toggle, then every data column — one template shared by the header,
   // filter, body, group and detail rows.
@@ -130,6 +318,7 @@ function gridTemplateOf<T>(columns: Column<T>[], selectable: boolean, expandable
 function pinOffsetsOf<T>(
   columns: Column<T>[],
   leadingControlWidth = 0,
+  columnWidths: Record<string, number> | undefined = undefined,
 ): {
   left: Map<string, number>;
   right: Map<string, number>;
@@ -143,14 +332,14 @@ function pinOffsetsOf<T>(
   for (const column of columns) {
     if (column.pinned !== 'left') continue;
     left.set(column.key, acc);
-    acc += column.width ?? 0;
+    acc += effectiveWidthOf(column, columnWidths) ?? 0;
   }
   acc = 0;
   for (let i = columns.length - 1; i >= 0; i -= 1) {
     const column = columns[i];
     if (column.pinned !== 'right') continue;
     right.set(column.key, acc);
-    acc += column.width ?? 0;
+    acc += effectiveWidthOf(column, columnWidths) ?? 0;
   }
   return { left, right };
 }
@@ -187,6 +376,11 @@ export function Table<T extends object>(props: TableProps<T>) {
     exportable = false,
     exportFileName,
     onExport,
+    columnWidths,
+    onColumnWidth,
+    onColumnWidthReset,
+    resizable = false,
+    minColumnWidth = 40,
   } = props;
   // Breakpoint state lives with the windowing state above the status
   // early-returns so the hook order is identical whatever `status` says.
@@ -298,6 +492,180 @@ export function Table<T extends object>(props: TableProps<T>) {
       {footerBar}
     </>
   );
+
+  // Live drag state lives in a ref (not state): drags report straight to the
+  // caller without re-rendering the grid per pixel. `minWidth` floors
+  // itself at 1px so a caller-passed 0 cannot produce zero-width columns.
+  const minWidth = Math.max(1, minColumnWidth);
+  const resizeDrag = useRef<{
+    key: string;
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const resizeCleanup = useRef<(() => void) | null>(null);
+  // Window listeners belong to the drag, not the component lifetime: a
+  // second unmount-guard drops a mid-drag listener pair if the table
+  // unmounts before release (no leak, no report to a dead caller).
+  useEffect(() => {
+    return () => {
+      resizeCleanup.current?.();
+      resizeCleanup.current = null;
+      resizeDrag.current = null;
+    };
+  }, []);
+  // Post-commit reveal (S2, T3): keyboard steps and resets hand their handle
+  // here — only the caller's re-render gives the strip its new geometry, and
+  // measuring inline in the handler would read the old template. Focus never
+  // re-fires for the surviving span. The next commit consumes the arm; only a
+  // commit whose widths actually changed (shallow value compare, so a fresh
+  // object carrying equal values stays quiet) moved the strip, so an
+  // unrelated re-render must not fire a stale reveal (M1).
+  const revealAfterRender = useRef<{
+    handle: HTMLElement;
+    widths: Record<string, number> | undefined;
+  } | null>(null);
+  const armReveal = (handle: HTMLElement): void => {
+    revealAfterRender.current = { handle, widths: columnWidths && { ...columnWidths } };
+  };
+  useLayoutEffect(() => {
+    const armed = revealAfterRender.current;
+    if (!armed) return;
+    revealAfterRender.current = null;
+    if (!sameWidths(armed.widths, columnWidths)) revealHandle(armed.handle);
+  });
+  // Drag-start width prefers the measured header cell (flexible columns have
+  // no declared width to start from); jsdom measures 0, so fall back to the
+  // effective width, then a constant.
+  const resolveStartWidth = (column: Column<T>, handle: HTMLElement | null): number => {
+    const measured = handle?.closest('[role="columnheader"]')?.getBoundingClientRect().width;
+    if (measured != null && measured > 0) return Math.round(measured);
+    return effectiveWidthOf(column, columnWidths) ?? UNMEASURED_FALLBACK_WIDTH;
+  };
+  const reportWidth = (key: string, width: number): void => {
+    onColumnWidth?.(key, Math.max(minWidth, Math.round(width)));
+  };
+  const beginResize = (column: Column<T>) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!onColumnWidth) return;
+    // Only the primary button starts a drag (right/middle would resize behind
+    // the context menu). A pointerdown always closes a stale drag first
+    // (self-healing, P2): ignoring it instead would deadlock touch, whose
+    // pointerIds increment - a lost pointerup would leave the table
+    // unresizable until unmount.
+    if (event.button !== 0) return;
+    resizeCleanup.current?.();
+    event.preventDefault();
+    // Focus the handle: preventDefault above suppresses click-focus, which
+    // would otherwise leave keyboard controls dead after any mouse use.
+    event.currentTarget.focus();
+    // Pointer capture keeps the move stream coming to the handle even when the
+    // cursor leaves the window; guarded for engines without it (the window
+    // listeners below are the fallback).
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      /* ignore - window listeners below are the fallback */
+    }
+    const startWidth = resolveStartWidth(column, event.currentTarget);
+    resizeDrag.current = {
+      key: column.key,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth,
+    };
+    // Listeners ride on window so releasing outside the grid still ends the
+    // drag — `pointercancel` (touch takeover, browser gesture) ends it the
+    // same way, or the next window move would report a stale drag. All three
+    // detach on release; the unmount guard above covers table teardown.
+    const move = (e: PointerEvent): void => {
+      // Only the dragging pointer drives the drag: a second finger's moves
+      // must neither report the first column nor end its drag (N6). A primary
+      // move with no button held still ends it (lost pointerup, finding 2).
+      const drag = resizeDrag.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      if (e.buttons === 0) {
+        end();
+        return;
+      }
+      reportWidth(drag.key, drag.startWidth + (e.clientX - drag.startX));
+    };
+    const end = (e?: PointerEvent): void => {
+      // A second pointer's release must not end the first pointer's drag.
+      if (e && resizeDrag.current && e.pointerId !== resizeDrag.current.pointerId) return;
+      resizeDrag.current = null;
+      resizeCleanup.current = null;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    resizeCleanup.current = end;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+  const stepResize = (
+    column: Column<T>,
+    direction: 1 | -1,
+    large: boolean,
+    handle: HTMLElement | null,
+  ): void => {
+    if (!onColumnWidth) return;
+    // Keyboard steps from the same measured-or-effective start as drags (the
+    // keydown target IS the handle), so the first Arrow press continues the
+    // rendered edge instead of jumping from a stale declaration.
+    const current = resolveStartWidth(column, handle);
+    // Arm before reporting: a consumer that flushes synchronously inside the
+    // callback commits before this handler returns (M1).
+    if (handle) armReveal(handle);
+    reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
+  };
+  // One wiring point for the data-column resize handles (never on the select
+  // / expand control tracks): drag + keyboard + double-click reset. A handle
+  // that cannot report (no `onColumnWidth`) does not render at all — a
+  // dead affordance is worse than none.
+  const renderResizeHandle = (column: Column<T>): ReactNode => {
+    if (!resizable || !onColumnWidth) return null;
+    return (
+      <span
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Đổi rộng cột ${column.title}`}
+        tabIndex={0}
+        className={styles.resizeHandle}
+        onPointerDown={beginResize(column)}
+        onFocus={(event) => {
+          // A focused handle must not stay an invisible tab stop under a
+          // stuck cover (S1): reveal hit-tests the center instead of trusting
+          // geometry the cover does not move.
+          revealHandle(event.currentTarget);
+        }}
+        onKeyDown={(event: ReactKeyboardEvent<HTMLSpanElement>) => {
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            stepResize(
+              column,
+              event.key === 'ArrowRight' ? 1 : -1,
+              event.shiftKey,
+              event.currentTarget,
+            );
+          } else if (event.key === 'Delete' || event.key === 'Backspace') {
+            // Keyboard-only users get the reset too (double-click equivalent);
+            // a reset moves the track, so arm the reveal like a step (T3).
+            event.preventDefault();
+            if (onColumnWidthReset) {
+              armReveal(event.currentTarget);
+              onColumnWidthReset(column.key);
+            }
+          }
+        }}
+        onDoubleClick={(event) => {
+          if (!onColumnWidthReset) return;
+          armReveal(event.currentTarget);
+          onColumnWidthReset(column.key);
+        }}
+      />
+    );
+  };
 
   if (status === 'empty') {
     return (
@@ -518,7 +886,7 @@ export function Table<T extends object>(props: TableProps<T>) {
 
   const colCount = columns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0);
 
-  const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable);
+  const gridTemplateColumns = gridTemplateOf(columns, selectable, expandable, columnWidths);
   // Declared pins per side: the grid advertises them so the stylesheet can
   // scope P1's unconditional first/last stickiness away from conflicting
   // edges (finding #6) — and the leading control cells pin explicitly at
@@ -528,6 +896,7 @@ export function Table<T extends object>(props: TableProps<T>) {
   const pinOffsets = pinOffsetsOf(
     columns,
     (selectable ? CONTROL_TRACK : 0) + (expandable ? CONTROL_TRACK : 0),
+    columnWidths,
   );
   // Sticky class + inline cumulative offset: the class (`.pinL`/`.pinR`) owns
   // `position: sticky` and the stacking, the inline style owns the offset —
@@ -540,6 +909,14 @@ export function Table<T extends object>(props: TableProps<T>) {
     if (c.pinned === 'right') return { right: `${pinOffsets.right.get(c.key) ?? 0}px` };
     return undefined;
   };
+  // Cells of a live-override column render exact px tracks, so their
+  // `--cell-min-width` floor must stand down exactly like pinned cells -
+  // otherwise a 40px track keeps 120px boxes that overlap the next column
+  // (leftover N5). Same `isOverride` predicate as `trackOf`, never a second
+  // opinion about which columns are exact.
+  const exactClassOf = (c: Column<T>): string =>
+    widthOf(c, columnWidths)?.isOverride ? styles.exact : '';
+
   // One wiring point for the six leading-control cells (header/body/filter
   // × select/expand, finding #9): explicit left pin at the track offset
   // while left pins exist, P1 first-child default otherwise. `base` is
@@ -547,6 +924,16 @@ export function Table<T extends object>(props: TableProps<T>) {
   const controlCellProps = (base: string, track: number) => ({
     className: cx(base, styles.cellSelect, hasLeftPin ? styles.pinL : ''),
     style: hasLeftPin ? { left: `${track * CONTROL_TRACK}px` } : undefined,
+  });
+
+  // One props point for the two data-header branches (N11): template class,
+  // pin pair, clean accessible name (the handle label must not merge into
+  // it), and the handle-host marker that keeps the cell positioned under the
+  // pin stand-down.
+  const headerCellProps = (c: Column<T>, handle: ReactNode) => ({
+    className: cx(styles.h, pinClass(c), exactClassOf(c), handle ? styles.handleHost : ''),
+    style: pinStyle(c),
+    ...(typeof c.title === 'string' ? { 'aria-label': c.title } : {}),
   });
 
   // Body items: with `groupBy` each group contributes one header row plus its
@@ -722,7 +1109,7 @@ export function Table<T extends object>(props: TableProps<T>) {
           return (
             <div
               key={c.key}
-              className={cx(styles.c, pinClass(c))}
+              className={cx(styles.c, pinClass(c), exactClassOf(c))}
               style={pinStyle(c)}
               role="gridcell"
               data-align={c.align ?? 'left'}
@@ -784,16 +1171,18 @@ export function Table<T extends object>(props: TableProps<T>) {
               />
             )}
             {columns.map((c) => {
+              // The handle's label would otherwise merge into the header's
+              const resizeHandle = renderResizeHandle(c);
               if (!c.sortable) {
                 return (
                   <div
                     key={c.key}
-                    className={cx(styles.h, pinClass(c))}
-                    style={pinStyle(c)}
+                    {...headerCellProps(c, resizeHandle)}
                     role="columnheader"
                     data-align={c.align ?? 'left'}
                   >
                     <span>{c.title}</span>
+                    {resizeHandle}
                   </div>
                 );
               }
@@ -831,8 +1220,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                   key={c.key}
                   role="columnheader"
                   aria-sort={ariaSort}
-                  className={cx(styles.h, pinClass(c))}
-                  style={pinStyle(c)}
+                  {...headerCellProps(c, resizeHandle)}
                   data-align={c.align ?? 'left'}
                 >
                   <button type="button" onClick={handleClick} className={styles.sortBtn}>
@@ -841,6 +1229,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                       {!entry ? '↕' : entry.dir === 'asc' ? '↑' : '↓'}
                     </span>
                   </button>
+                  {resizeHandle}
                 </div>
               );
             })}
@@ -858,7 +1247,7 @@ export function Table<T extends object>(props: TableProps<T>) {
                 <div {...controlCellProps(styles.c, selectable ? 1 : 0)} role="gridcell" />
               )}
               {columns.map((c) => {
-                const cellClass = cx(styles.c, pinClass(c));
+                const cellClass = cx(styles.c, pinClass(c), exactClassOf(c));
                 const cellStyle = pinStyle(c);
                 // A column without a filter still needs its cell, or every
                 // later control would shift a track left and drift from the

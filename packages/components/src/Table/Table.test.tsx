@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { toCSV } from '../internal/exportCsv';
 import { Table } from './Table';
@@ -1616,6 +1618,1923 @@ test('cards are read-only-flat: no select, filter row, group headers or grid sum
     const bar = nav.parentElement!;
     expect(bar).toContainElement(screen.getByText('Tổng: 2 đơn'));
     expect(bar).toContainElement(screen.getByRole('button', { name: /Xuất CSV/ }));
+  } finally {
+    restore();
+  }
+});
+
+// --- Column resize -----------------------------------------------------------
+
+const resizeCols = [
+  { key: 'code', title: 'Mã đơn', sortable: true, width: 120 },
+  { key: 'total', title: 'Giá trị', align: 'right' as const },
+];
+
+test('no resize handles by default or on control tracks', () => {
+  const { rerender } = render(
+    <Table columns={resizeCols} data={rows} selectedKeys={[]} onSelect={() => {}} />,
+  );
+  expect(screen.queryByRole('separator')).toBeNull();
+  rerender(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+      selectedKeys={[]}
+      onSelect={() => {}}
+      renderExpanded={() => <div>detail</div>}
+      expandedKeys={[]}
+      onToggleExpand={() => {}}
+    />,
+  );
+  const header = screen.getByText('Mã đơn').closest('[role="columnheader"]')!;
+  expect(
+    within(header as HTMLElement).getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+  ).toBeInTheDocument();
+  // Control tracks (select checkbox, expand toggle) never get a handle.
+  const selectHeader = screen
+    .getByRole('checkbox', { name: /chọn tất cả/i })
+    .closest('[role="columnheader"]')!;
+  expect(within(selectHeader as HTMLElement).queryByRole('separator')).toBeNull();
+  const headers = within(screen.getByRole('grid')).getAllByRole('columnheader');
+  // select, expand placeholder, then data columns — the placeholder is empty.
+  expect(within(headers[1] as HTMLElement).queryByRole('separator')).toBeNull();
+});
+
+test('resizable without a reporter renders no handles', () => {
+  // A separator that reports nowhere is worse than none (review finding).
+  render(<Table columns={resizeCols} data={rows} resizable />);
+  expect(screen.queryByRole('separator')).toBeNull();
+});
+
+test('dragging a handle reports startWidth plus dx', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  // jsdom has no PointerEvent constructor — dispatch real MouseEvents under
+  // the pointer* type names, exactly what the window listeners observe.
+  fireEvent(handle, new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+    );
+  });
+  // jsdom measures 0px, so the run starts from the declared 120px width.
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  // Released: further moves report nothing new.
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+});
+
+test('drag clamps at the minimum column width', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: -1000 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 40);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+  });
+});
+
+test('keyboard arrows resize in 8px steps, 32px with shift', () => {
+  const onColumnWidth = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 120 }}
+      onColumnWidth={onColumnWidth}
+    />,
+  );
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  fireEvent.keyDown(handle, { key: 'ArrowRight' });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 128);
+  fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 88);
+});
+
+test('double-click resets the column override', () => {
+  const onColumnWidthReset = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+      onColumnWidthReset={onColumnWidthReset}
+    />,
+  );
+  fireEvent.doubleClick(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }));
+  expect(onColumnWidthReset).toHaveBeenCalledWith('code');
+});
+
+test('Delete key resets the column override for keyboard users', () => {
+  const onColumnWidthReset = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+      onColumnWidthReset={onColumnWidthReset}
+    />,
+  );
+  fireEvent.keyDown(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }), {
+    key: 'Delete',
+  });
+  expect(onColumnWidthReset).toHaveBeenCalledWith('code');
+});
+
+test('pin offsets track overrides across multiple left pins', () => {
+  // A single index-0 pin sits at left:0 with or without its override — only
+  // the SECOND pin's offset proves accumulation follows the live width.
+  const pinCols = [
+    { key: 'code', title: 'Mã', pinned: 'left' as const, width: 120 },
+    { key: 'customer', title: 'KH', pinned: 'left' as const, width: 80 },
+    { key: 'total', title: 'Tổng' },
+  ];
+  const props = {
+    columns: pinCols,
+    data: [{ code: 'SO-1', customer: 'A', total: '1' }],
+    resizable: true as const,
+    onColumnWidth: () => {},
+  };
+  const { rerender } = render(<Table {...props} columnWidths={{}} />);
+  expect(screen.getByText('KH').closest('[role="columnheader"]')).toHaveStyle({
+    left: '120px',
+  });
+  rerender(<Table {...props} columnWidths={{ code: 200 }} />);
+  expect(screen.getByText('KH').closest('[role="columnheader"]')).toHaveStyle({
+    left: '200px',
+  });
+});
+
+test('dropping an override restores the flexible track, never 0px', () => {
+  const flexCols = [
+    { key: 'code', title: 'Mã đơn', sortable: true },
+    { key: 'total', title: 'Giá trị', align: 'right' as const },
+  ];
+  const { rerender } = render(
+    <Table
+      columns={flexCols}
+      data={rows}
+      resizable
+      columnWidths={{ code: 200 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  let header = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('200px');
+  // Caller deletes the key (the reset contract): the track goes flexible,
+  // floored by the cell minimum — never a collapsed 0px track.
+  rerender(
+    <Table columns={flexCols} data={rows} resizable columnWidths={{}} onColumnWidth={() => {}} />,
+  );
+  header = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(var(--cell-min-width)');
+});
+
+test('pointercancel ends the drag like pointerup', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointercancel', { bubbles: true }));
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  // Cancelled before any move: nothing reported, no stale drag lingers.
+  expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('non-primary button never starts a drag', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, button: 2, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('a newer pointerdown takes over a stale drag (self-healing)', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handles = screen.getAllByRole('separator');
+  expect(handles).toHaveLength(2);
+  fireEvent(handles[0], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  // A lost pointerup would leave the first drag armed forever on touch
+  // (incrementing pointerIds) — the new pointerdown heals it and owns the
+  // drag instead of merging into it.
+  fireEvent(handles[1], new window.MouseEvent('pointerdown', { bubbles: true, clientX: 0 }));
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 50 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+  expect(onColumnWidth).toHaveBeenLastCalledWith('total', 170);
+});
+
+test('moves from another pointer never drive the drag', () => {
+  const withId = (type: string, pointerId: number, clientX: number) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons: 1, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    withId('pointerdown', 1, 100),
+  );
+  act(() => {
+    // Second finger moves: ignored, drag stays armed.
+    window.dispatchEvent(withId('pointermove', 2, 999));
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+  act(() => {
+    // Second finger release: must not end the first drag either.
+    window.dispatchEvent(withId('pointerup', 2, 0));
+    window.dispatchEvent(withId('pointermove', 1, 150));
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+});
+
+test('unmounting mid-drag drops the listeners', () => {
+  const onColumnWidth = vi.fn();
+  const { unmount } = render(
+    <Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />,
+  );
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  unmount();
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 999 }),
+    );
+  });
+  expect(onColumnWidth).not.toHaveBeenCalled();
+});
+
+test('minColumnWidth other than the default clamps drags', () => {
+  const onColumnWidth = vi.fn();
+  render(
+    <Table
+      columns={resizeCols}
+      data={rows}
+      resizable
+      minColumnWidth={10}
+      onColumnWidth={onColumnWidth}
+    />,
+  );
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+  );
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: -1000 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 10);
+  act(() => {
+    window.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true }));
+  });
+});
+
+test('drag starts from the measured cell when the DOM reports one', () => {
+  const onColumnWidth = vi.fn();
+  const measured = vi
+    .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width: 300 } as DOMRect);
+  try {
+    render(
+      <Table
+        columns={[{ key: 'note', title: 'Ghi chú' }]}
+        data={rows}
+        resizable
+        onColumnWidth={onColumnWidth}
+      />,
+    );
+    fireEvent(
+      screen.getByRole('separator', { name: /Đổi rộng cột Ghi chú/ }),
+      new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }),
+    );
+    act(() => {
+      window.dispatchEvent(
+        new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 120 }),
+      );
+    });
+    // Declared width absent: 300 measured + 20 dx.
+    expect(onColumnWidth).toHaveBeenLastCalledWith('note', 320);
+  } finally {
+    measured.mockRestore();
+  }
+});
+
+test('non-finite and zero overrides fall back instead of collapsing', () => {
+  const { rerender } = render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', pinned: 'left', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: Number.NaN }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // NaN counts as unset: the declared 120px track and offset survive.
+  let header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('120px');
+  expect(header).toHaveStyle({ left: '0px' });
+  // A literal 0 floors at 1px — never a collapsed track.
+  rerender(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', pinned: 'left', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: 0 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('1px');
+});
+
+test('non-sortable headers get a handle and a clean accessible name', () => {
+  render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã đơn' }]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const cell = screen.getByRole('columnheader', { name: 'Mã đơn' });
+  expect(
+    within(cell as HTMLElement).getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+  ).toBeInTheDocument();
+});
+
+test('right-pin offsets follow overrides too', () => {
+  const { rerender } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{}}
+      onColumnWidth={() => {}}
+    />,
+  );
+  expect(screen.getByText('Tổng').closest('[role="columnheader"]')).toHaveStyle({
+    right: '0px',
+  });
+  rerender(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã' },
+        { key: 'total', title: 'Tổng', pinned: 'right', width: 100 },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ total: 160 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const header = screen.getByText('Tổng').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('160px');
+});
+
+test('width overrides flow into the template and pin offsets', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ code: 200, nope: 5 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  // Unknown keys change nothing: the template holds only real columns.
+  expect(header.parentElement!.getAttribute('style')).not.toContain('5px');
+  // Template uses the 200px override as an exact track (not a minmax floor),
+  // and the pin offset follows it.
+  expect(screen.getByText('Mã').closest('[role="columnheader"]')).toHaveStyle({
+    left: '0px',
+  });
+  const template = header.parentElement!.getAttribute('style') ?? '';
+  expect(template).toContain('200px');
+  expect(template).not.toContain('minmax(200px');
+});
+
+test('a button-less move ends the drag instead of reporting', () => {
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  fireEvent(handle, new window.MouseEvent('pointerdown', { bubbles: true, clientX: 100 }));
+  // Pointerdown focuses the handle for keyboard follow-up.
+  expect(document.activeElement).toBe(handle);
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 150 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+  // Lost pointerup: a move with no button held ends the drag — the next
+  // held move reports nothing new.
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 0, clientX: 200 }),
+    );
+  });
+  act(() => {
+    window.dispatchEvent(
+      new window.MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 250 }),
+    );
+  });
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+});
+
+test('keyboard steps from the measured cell, not a stale declaration', () => {
+  const measured = vi
+    .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width: 300 } as DOMRect);
+  try {
+    const onColumnWidth = vi.fn();
+    render(
+      <Table
+        columns={[{ key: 'note', title: 'Ghi chú', width: 120 }]}
+        data={rows}
+        resizable
+        onColumnWidth={onColumnWidth}
+      />,
+    );
+    // Declared 120, rendered 300: the first Arrow continues the edge.
+    fireEvent.keyDown(screen.getByRole('separator', { name: /Đổi rộng cột Ghi chú/ }), {
+      key: 'ArrowRight',
+    });
+    expect(onColumnWidth).toHaveBeenLastCalledWith('note', 308);
+  } finally {
+    measured.mockRestore();
+  }
+});
+
+test('prototype-shadow keys never poison the template', () => {
+  const shadowCols = [{ key: 'toString', title: 'T' }];
+  const { rerender } = render(
+    <Table columns={shadowCols} data={rows} resizable columnWidths={{}} onColumnWidth={() => {}} />,
+  );
+  // No own override: flexible track, no inherited member leaking in.
+  let header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(var(--cell-min-width)');
+  // An own numeric override is exact.
+  rerender(
+    <Table
+      columns={shadowCols}
+      data={rows}
+      resizable
+      columnWidths={{ toString: 200 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toMatch(/:\s*200px;/);
+});
+
+test('two right pins accumulate under an override', () => {
+  const pinCols = [
+    { key: 'code', title: 'Mã' },
+    { key: 'mid', title: 'Giữa', pinned: 'right' as const, width: 100 },
+    { key: 'total', title: 'Tổng', pinned: 'right' as const, width: 60 },
+  ];
+  const props = {
+    columns: pinCols,
+    data: [{ code: 'SO-1', mid: 'M', total: '1' }],
+    resizable: true as const,
+    onColumnWidth: () => {},
+  };
+  const { rerender } = render(<Table {...props} columnWidths={{}} />);
+  expect(screen.getByText('Giữa').closest('[role="columnheader"]')).toHaveStyle({
+    right: '60px',
+  });
+  // Widening the last pin pushes the inner one out by the same delta.
+  rerender(<Table {...props} columnWidths={{ total: 160 }} />);
+  expect(screen.getByText('Giữa').closest('[role="columnheader"]')).toHaveStyle({
+    right: '160px',
+  });
+});
+
+test('override cells stand their min-width floor down', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', width: 120 },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      columnWidths={{ code: 40 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // Exact-track columns (header + body + filter cells) carry the floor-free
+  // class so a 40px track is not overlapped by 120px boxes; untouched columns
+  // keep theirs.
+  const codeHeader = screen.getByText('Mã').closest('[role="columnheader"]')!;
+  expect(codeHeader.className).toMatch(/exact/);
+  const totalHeader = screen.getByText('Tổng').closest('[role="columnheader"]')!;
+  expect(totalHeader.className).not.toMatch(/exact/);
+  const bodyCode = screen.getByText('SO-1').closest('[role="gridcell"]')!;
+  expect(bodyCode.className).toMatch(/exact/);
+  const bodyTotal = screen.getByText('1').closest('[role="gridcell"]')!;
+  expect(bodyTotal.className).not.toMatch(/exact/);
+});
+
+test('override cells in the filter row stand their floor down too', () => {
+  render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã', width: 120, filterable: true },
+        { key: 'total', title: 'Tổng' },
+      ]}
+      data={[{ code: 'SO-1', total: '1' }]}
+      resizable
+      showFilterRow
+      columnFilters={{}}
+      columnWidths={{ code: 40 }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  const filterRow = within(grid).getAllByRole('row')[1];
+  const cells = within(filterRow).getAllByRole('gridcell');
+  expect(cells[0].className).toMatch(/exact/);
+  expect(cells[1].className).not.toMatch(/exact/);
+});
+
+test('non-finite overrides fall back to the declared width flexibly', () => {
+  const { rerender } = render(
+    <Table
+      columns={[{ key: 'code', title: 'Mã', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{ code: Number.NaN }}
+      onColumnWidth={() => {}}
+    />,
+  );
+  // NaN counts as unset: declared 120 stays a flexible floor, never exact.
+  let header = screen.getByText('Mã').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
+  expect(header.className).not.toMatch(/exact/);
+  rerender(
+    <Table
+      columns={[{ key: 'toString', title: 'T', width: 120 }]}
+      data={rows}
+      resizable
+      columnWidths={{}}
+      onColumnWidth={() => {}}
+    />,
+  );
+  header = screen.getByText('T').closest('[role="columnheader"]') as HTMLElement;
+  expect(header.parentElement!.getAttribute('style')).toContain('minmax(120px');
+});
+
+test('a distinct second pointer takes over the drag', () => {
+  const withId = (type: string, pointerId: number, clientX: number) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons: 1, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  const handles = screen.getAllByRole('separator');
+  fireEvent(handles[0], withId('pointerdown', 1, 100));
+  // Same-id synthetics in the older takeover test cannot prove the gate —
+  // this second pointer carries a genuinely different id.
+  fireEvent(handles[1], withId('pointerdown', 2, 0));
+  act(() => {
+    window.dispatchEvent(withId('pointermove', 2, 50));
+  });
+  expect(onColumnWidth).toHaveBeenCalledTimes(1);
+  expect(onColumnWidth).toHaveBeenLastCalledWith('total', 170);
+});
+
+test("another pointer's hover never ends the armed drag", () => {
+  const withId = (type: string, pointerId: number, clientX: number, buttons = 1) => {
+    const event = new window.MouseEvent(type, { bubbles: true, buttons, clientX });
+    (event as unknown as Record<string, unknown>).pointerId = pointerId;
+    return event;
+  };
+  const onColumnWidth = vi.fn();
+  render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={onColumnWidth} />);
+  fireEvent(
+    screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }),
+    withId('pointerdown', 1, 100),
+  );
+  act(() => {
+    // Hovering stylus/mouse from another pointer: button-less AND foreign —
+    // the drag must survive both.
+    window.dispatchEvent(withId('pointermove', 2, 999, 0));
+  });
+  act(() => {
+    window.dispatchEvent(withId('pointermove', 1, 150));
+  });
+  expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
+});
+
+test('focus falls back to the platform scroll when nothing can be hit-tested', () => {
+  const proto = window.HTMLElement.prototype as Partial<HTMLElement>;
+  const original = proto.scrollIntoView;
+  const scrollIntoView = vi.fn();
+  proto.scrollIntoView = scrollIntoView;
+  try {
+    render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={() => {}} />);
+    const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+    // jsdom has no layout and no hit-testing: the reveal hands the strip to
+    // the platform scroll — once, with the handle as the receiver (S3.b),
+    // never a proxy.
+    fireEvent.focus(handle);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    expect(scrollIntoView.mock.contexts[0]).toBe(handle);
+  } finally {
+    // jsdom ships no `scrollIntoView` at all, so a plain assign-back would
+    // leave an own `undefined` on the prototype instead of removing the patch
+    // (S3.a).
+    if (original === undefined) delete proto.scrollIntoView;
+    else proto.scrollIntoView = original;
+  }
+});
+
+/** jsdom has no layout: pin the numbers this fixture's assertions read. */
+const mockRect = (el: Element, left: number, right: number): void => {
+  el.getBoundingClientRect = () =>
+    ({
+      left,
+      right,
+      top: 0,
+      bottom: 32,
+      width: right - left,
+      height: 32,
+      x: left,
+      y: 0,
+    }) as DOMRect;
+};
+
+/**
+ * Reveal fixture: mocked viewport metrics plus coordinate-honest hit-testing,
+ * so a wrong probe point or a wrong scroll target actually fails. `boxes` are
+ * in paint order — the first containing box wins, like a real
+ * elementFromPoint. `maxScroll` must be metric-honest for the scene: derive
+ * it as `contentWidth − portWidth`, where `contentWidth` is the focused
+ * column's content right edge plus the trailing content (the pinned block
+ * when the column is adjacent to a pin). Phantom slack hides clamp bugs (T4).
+ */
+const setupReveal = (options: {
+  scroller: HTMLElement;
+  port: [number, number];
+  scrollLeft: number;
+  maxScroll: number;
+  gutter?: number;
+  sticky?: Element[];
+  boxes: Array<[HTMLElement, number, number]>;
+}): (() => void) => {
+  const computed = vi.spyOn(window, 'getComputedStyle').mockImplementation(
+    (el) =>
+      ({
+        overflowX: el === options.scroller ? 'auto' : 'visible',
+        position: options.sticky?.includes(el) ? 'sticky' : 'static',
+      }) as CSSStyleDeclaration,
+  );
+  mockRect(options.scroller, options.port[0], options.port[1]);
+  Object.defineProperty(options.scroller, 'clientWidth', {
+    configurable: true,
+    value: options.port[1] - options.port[0],
+  });
+  Object.defineProperty(options.scroller, 'scrollWidth', {
+    configurable: true,
+    value: options.port[1] - options.port[0] + options.maxScroll,
+  });
+  Object.defineProperty(options.scroller, 'offsetWidth', {
+    configurable: true,
+    value: options.port[1] - options.port[0] + (options.gutter ?? 0),
+  });
+  options.scroller.scrollLeft = options.scrollLeft;
+  for (const [el, left, right] of options.boxes) mockRect(el, left, right);
+  document.elementFromPoint = vi.fn((x: number, y: number) => {
+    if (y < 0 || y > 32) return null;
+    return options.boxes.find(([, left, right]) => x >= left && x <= right)?.[0] ?? null;
+  });
+  return () => {
+    delete (document as Partial<Document>).elementFromPoint;
+    computed.mockRestore();
+  };
+};
+
+test('a focused handle under a stuck cover is scrolled clear of it', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'note', title: 'Ghi chú', width: 394 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  // Default mode: `.wrap` scrolls, `.scroll` stays visible — the reveal must
+  // resolve the real port, not the `[data-virtual]` div (T2).
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  // Strip content right 330 + 394 trailing → content 724 = port 521 + 203.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 203,
+    boxes: [
+      [cover, 324, 454],
+      [handle, 442, 451],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Left of the cover the strip cannot fit beside the band (324 is the port
+    // edge), so the pick is the right-side clear: 203 − (454 + 4 − 442).
+    expect(scroller.scrollLeft).toBe(187);
+    expect(document.elementFromPoint).toHaveBeenCalledWith(446.5, 16);
+  } finally {
+    restore();
+  }
+});
+
+test('an adjacent strip reveals into the range clamp, flush against the pin', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // The 2-column pinned scene: strip content right 730 plus the trailing pin
+  // (130) → content 860 = port 521 + 339 (T4's trailing == pin width).
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Clearing right of the cover would end past the port; the leftward move
+    // asks for 343, clamps to maxScroll 339 and still parks flush against
+    // the band's left edge — accepted, not vetoed (T4). Strip lands [706,715].
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('a straddling strip still reveals when only its center is buried', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // Strip content right 669 + trailing 130 → content 799 = port 521 + 278.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 278,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 712, 721],
+    ],
+  });
+  try {
+    // Center 716.5 is under the cover while the left edge (712) is not: a
+    // probe on any other point misses the occlusion and reveals nothing.
+    // The leftward move (10) clamps to 6 and still parks flush.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(278);
+  } finally {
+    restore();
+  }
+});
+
+test('an unclamped leftward clear keeps the full margin', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'note', title: 'Ghi chú', width: 53 },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // A wider strip (17px): strip content right 738 + trailing 183 (pin 130 +
+  // note 53) → content 921 = port 521 + 400. Leftward asks 79 ≤ 128 available,
+  // so no clamp.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 400,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 790],
+    ],
+  });
+  try {
+    // 272 + 79 = 351; the rightward clear (76, smaller move) is port-blocked
+    // at 866 — a gate that ignores the port would drag the strip 155 left.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(351);
+  } finally {
+    restore();
+  }
+});
+
+test('a tiled pin cluster clears as one band, not just the hit pin', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
+        { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Giá trị', align: 'right', width: 300 },
+        { key: 'note', title: 'Ghi chú', width: 600 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 145 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const outer = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // Declared sum 120 + 120 + 300 + 600 + 145 = 1285 = port 800 + 485; at
+  // sl 431 the measured layout is exact: total [−191, 109] (the strip), the
+  // index pins stuck [0, 120] / [120, 240], the right pin stuck [655, 800].
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 431,
+    maxScroll: 485,
+    sticky: [outer, inner, rightPin],
+    boxes: [
+      [outer, 0, 120],
+      [inner, 120, 240],
+      [handle, 100, 109],
+      [rightPin, 655, 800],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The band is [0, 240]: a single-pin clear (124 − 100 = 24) would land
+    // the strip inside the inner pin, and merging the far right pin in
+    // leaves no feasible move at all. Band clear: 431 − (240 + 4 − 100).
+    expect(scroller.scrollLeft).toBe(287);
+  } finally {
+    restore();
+  }
+});
+
+test('virtual mode reveals against the virtual scroller', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'note', title: 'Ghi chú', width: 394 },
+      ]}
+      data={rows}
+      resizable
+      virtual
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = container.querySelector('[data-virtual]') as HTMLElement;
+  const wrap = scroller.parentElement as HTMLElement;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 203,
+    boxes: [
+      [cover, 324, 454],
+      [handle, 442, 451],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(187);
+    expect(wrap.scrollLeft).toBe(0);
+  } finally {
+    restore();
+  }
+});
+
+test('a keyboard step reveals the strip after the width commit', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({});
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={(key, width) => setWidths((prev) => ({ ...prev, [key]: width }))}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // The step fires no focus (the span survives the re-render), so only the
+    // post-commit reveal can uncover the strip the step slid under the cover;
+    // the range clamp parks it flush at maxScroll.
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('a consumer that commits inside the callback still reveals', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({});
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={(key, width) =>
+          flushSync(() => setWidths((prev) => ({ ...prev, [key]: width })))
+        }
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // flushSync commits before the handler returns: the arm must be placed
+    // before reporting or the consuming effect already ran without it (M1).
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('Delete reset arms the reveal too', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // A reset narrows the track just like a step: the focused strip can end
+    // up buried, so the same reveal must run (T3).
+    fireEvent.keyDown(handle, { key: 'Delete' });
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('double-click reset arms the reveal too', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.doubleClick(handle);
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('an unadopted arm neither rides a later commit nor survives it', () => {
+  const onColumnWidth = vi.fn();
+  const visible = (widths: Record<string, number> | undefined, data: typeof rows) => (
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={data}
+      resizable
+      columnWidths={widths}
+      onColumnWidth={onColumnWidth}
+    />
+  );
+  const { container, rerender } = render(visible(undefined, rows));
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(onColumnWidth).toHaveBeenCalled();
+    // A fresh object carrying equal values is not an adoption: an inline
+    // caller's unrelated re-render must stay quiet (M1).
+    rerender(visible({}, rows));
+    expect(scroller.scrollLeft).toBe(272);
+    // And the consume-once arm is gone: even a later commit that changes the
+    // widths (with no new interaction) must not ride the stale handle.
+    rerender(visible({ code: 200 }, [...rows, { code: 'SO-2', total: '₫ 20M' }]));
+    expect(scroller.scrollLeft).toBe(272);
+  } finally {
+    restore();
+  }
+});
+
+test('a visible strip no-ops on focus and on reset', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => setWidths({})}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 203,
+    maxScroll: 679,
+    boxes: [[handle, 442, 451]],
+  });
+  // The handle's own header cell is not a cover: give it real metrics so a
+  // guard-less path would compute a scroll and fail the assertions below.
+  const ownHeader = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  mockRect(ownHeader, 324, 451);
+  try {
+    // The center hit-tests to the strip itself: nothing to clear, and the
+    // reset path must not scroll a visible strip either.
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(203);
+    fireEvent.doubleClick(handle);
+    expect(scroller.scrollLeft).toBe(203);
+  } finally {
+    restore();
+  }
+});
+
+test('a mid-cluster hit unions pins on both sides of the band', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'note', title: 'Ghi chú', width: 33 },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 95 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 99 },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const total = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const status = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const region = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  // The handle's center lands under the middle pin; the band must union the
+  // pins on BOTH sides of it: strip content right = 624 − 324 + 300 = 600,
+  // trailing = 33 + 95 + 99 + 130 = 357 → content 957 = port 521 + 436.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 300,
+    maxScroll: 436,
+    sticky: [total, status, region],
+    boxes: [
+      [region, 715, 845],
+      [status, 616, 715],
+      [total, 521, 616],
+      [handle, 615, 624],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward is port-blocked; leftward clears past the band's left edge
+    // (521 + 4): 300 + 107 = 407. Missing the left pin would clear only 12
+    // and park the strip [612,616] — under the pin it just left out.
+    expect(scroller.scrollLeft).toBe(407);
+  } finally {
+    restore();
+  }
+});
+
+test('a clear landing inside the opposite band is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 240 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'note', title: 'Ghi chú', width: 53 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 279 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const leftPin = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // Port [0, 521]: left band [0, 240], right pin 2px later at [242, 521].
+  // Strip content right 240 + 100 = 340; trailing = 53 + 279 = 332 → content
+  // 672 = port 521 + 151.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 521],
+    scrollLeft: 100,
+    maxScroll: 151,
+    sticky: [leftPin, rightPin],
+    boxes: [
+      [leftPin, 0, 240],
+      [rightPin, 242, 521],
+      [handle, 231, 240],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward (+13) lands [244, 253] — inside the right pin; leftward needs
+    // 244 with 51 in range and would end 13px past the left port edge. No
+    // position can show the strip, so it must stay put.
+    expect(scroller.scrollLeft).toBe(100);
+    // Refocusing must not bounce it either.
+    fireEvent.blur(handle);
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(100);
+  } finally {
+    restore();
+  }
+});
+
+test('the smaller clamped move wins when both sides clear', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 40 },
+        { key: 'note', title: 'Ghi chú', width: 611 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // A 40px right pin still at its natural position [200, 240] (sl 26 < its
+  // pin point): strip content right 223 + 26 = 249; trailing = 40 + 611 =
+  // 651 → content 900 = port 800 + 100.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 26,
+    maxScroll: 100,
+    sticky: [cover],
+    boxes: [
+      [cover, 200, 240],
+      [handle, 214, 223],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Both sides clear: rightward asks 30 but the range allows only 26
+    // (flush), leftward asks 27 — the clamped 26 is smaller, so the pick is
+    // rightward and the port lands at the very start. The unclamped tie
+    // (30 vs 27) would have scrolled left instead.
+    expect(scroller.scrollLeft).toBe(0);
+  } finally {
+    restore();
+  }
+});
+
+test('a 1px seam between two sticky cells still merges the band', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'lead', title: 'Đầu', pinned: 'right', width: 140 },
+        { key: 'tail', title: 'Đuôi', pinned: 'right', width: 59 },
+        { key: 'note', title: 'Ghi chú', width: 496 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const lead = screen.getByText('Đầu').closest('[role="columnheader"]') as HTMLElement;
+  const tail = screen.getByText('Đuôi').closest('[role="columnheader"]') as HTMLElement;
+  // Two pins measured 1px apart — a fractional seam pixel. Strip content
+  // right 205 + 200 = 405; trailing = 140 + 59 + 496 = 695 → content 1100 =
+  // port 800 + 300.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 200,
+    maxScroll: 300,
+    sticky: [lead, tail],
+    boxes: [
+      [lead, 100, 240],
+      [tail, 241, 300],
+      [handle, 196, 205],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The seam must bridge: the band is [100, 300], so the rightward clear
+    // asks 300 + 4 − 196. Without the ±1 the tail would join `others` and
+    // block the landing instead.
+    expect(scroller.scrollLeft).toBe(92);
+  } finally {
+    restore();
+  }
+});
+
+test('a 2px gap between two sticky cells leaves the band apart', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'lead', title: 'Đầu', pinned: 'right', width: 140 },
+        { key: 'tail', title: 'Đuôi', pinned: 'right', width: 58 },
+        { key: 'note', title: 'Ghi chú', width: 497 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const lead = screen.getByText('Đầu').closest('[role="columnheader"]') as HTMLElement;
+  const tail = screen.getByText('Đuôi').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 200,
+    maxScroll: 300,
+    sticky: [lead, tail],
+    boxes: [
+      [lead, 100, 240],
+      [tail, 242, 300],
+      [handle, 196, 205],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // A 2px gap is real: the rightward clear (+48) would park the strip at
+    // [244, 253] — inside the tail pin — and `clears` rejects it there; the
+    // leftward clear is out of range. No move.
+    expect(scroller.scrollLeft).toBe(200);
+  } finally {
+    restore();
+  }
+});
+
+test('unknown viewport metrics never veto a band clear', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 120 },
+        { key: 'mid', title: 'Giữa', pinned: 'left', width: 120 },
+        { key: 'total', title: 'Giá trị', align: 'right', width: 300 },
+        { key: 'note', title: 'Ghi chú', width: 600 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 145 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const outer = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const inner = screen.getByText('Giữa').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // jsdom reports a zero port: the port checks are unknowable and must not
+  // gate the band + range arithmetic away (same honest metrics as the
+  // tiled scene: sum 1285 = 800 + 485, sl 431).
+  const restore = setupReveal({
+    scroller,
+    port: [0, 0],
+    scrollLeft: 431,
+    maxScroll: 485,
+    sticky: [outer, inner, rightPin],
+    boxes: [
+      [outer, 0, 120],
+      [inner, 120, 240],
+      [handle, 100, 109],
+      [rightPin, 655, 800],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(287);
+  } finally {
+    restore();
+  }
+});
+
+test('an unmeasured scroll range still clears against the band', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'lead', title: 'Đầu', pinned: 'left', width: 140 },
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'note', title: 'Ghi chú', width: 520 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const lead = screen.getByText('Đầu').closest('[role="columnheader"]') as HTMLElement;
+  // Degenerate metrics: scrollWidth === clientWidth (no range at all).
+  // Strip content right 205 + trailing 520 = 725 ≤ the 800 port.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 0,
+    maxScroll: 0,
+    sticky: [lead],
+    boxes: [
+      [lead, 100, 240],
+      [handle, 196, 205],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // No measured range must mean "no clamp", not "zero room": the leftward
+    // clear (209 − 100) still lands with the full margin.
+    expect(scroller.scrollLeft).toBe(109);
+  } finally {
+    restore();
+  }
+});
+
+test('a destination inside the scrollbar gutter is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 115 },
+        { key: 'note', title: 'Ghi chú', width: 134 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // The right pin measures 15px short of the port edge — real scrollbar
+  // gutter. Strip content right 782 − 324 + 300 = 758; trailing = 115 + 134
+  // = 249 → content 1007 = port 521 + 486.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 300,
+    maxScroll: 486,
+    gutter: 15,
+    boxes: [
+      [cover, 715, 830],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward (+61) lands the strip's edge at 843 — 13px into the gutter
+    // stripe; leftward (71) is clean, so that must be the pick.
+    expect(scroller.scrollLeft).toBe(371);
+  } finally {
+    restore();
+  }
+});
+
+test('a same-key-set value change still reveals', () => {
+  const onColumnWidth = vi.fn();
+  const view = (widths: Record<string, number>) => (
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      columnWidths={widths}
+      onColumnWidth={onColumnWidth}
+    />
+  );
+  const { container, rerender } = render(view({ code: 100 }));
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    // The adoption keeps the key set and changes the value (live steps 6/8):
+    // a key-count-only compare would suppress exactly this reveal.
+    rerender(view({ code: 200 }));
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('an in-place-mutating updater still reveals', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({});
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={(key, width) =>
+          setWidths((prev) => {
+            prev[key] = width;
+            return { ...prev };
+          })
+        }
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // The updater mutates the state object before copying it. An arm that
+    // aliased `columnWidths` would see its own snapshot rewritten in place
+    // and go quiet; the snapshot copy keeps the pre-step values.
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('a consumer that resets inside the callback still reveals', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({ total: 200 });
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn' },
+          { key: 'total', title: 'Giá trị', pinned: 'right', width: 130 },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={() => {}}
+        onColumnWidthReset={() => flushSync(() => setWidths({}))}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 339,
+    boxes: [
+      [cover, 715, 845],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    // The reset twin of the flushSync step test: the reset path must arm
+    // before calling out, or the synchronous commit consumes nothing.
+    fireEvent.doubleClick(handle);
+    expect(scroller.scrollLeft).toBe(339);
+  } finally {
+    restore();
+  }
+});
+
+test('an exact tie prefers the rightward clear', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 44 },
+        { key: 'note', title: 'Ghi chú', width: 579.5 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  // A 44px pin straddled by a 9px strip at [217.5, 226.5]: both clears ask
+  // exactly 30.5. Strip content right 276.5 + trailing 623.5 = 900 = 800 + 100.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 800],
+    scrollLeft: 50,
+    maxScroll: 100,
+    sticky: [cover],
+    boxes: [
+      [cover, 200, 244],
+      [handle, 217.5, 226.5],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(19.5);
+  } finally {
+    restore();
+  }
+});
+
+test('a leftward clear into the opposite pin is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 110 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  // The left-side mirror of the F1 scene: strip buried under the right pin
+  // [715, 845], the other pin floating at [600, 710] (5px gap). Strip content
+  // right 782 − 324 + 272 = 730; trailing = 110 + 130 = 240 → content 970 =
+  // port 521 + 449.
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 449,
+    sticky: [cover, other],
+    boxes: [
+      [cover, 715, 845],
+      [other, 600, 710],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward is port-blocked; the leftward destination [702, 711] would
+    // land inside the other pin, so clears() rejects it — no move, and
+    // refocusing must not bounce it either.
+    expect(scroller.scrollLeft).toBe(272);
+    fireEvent.blur(handle);
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(272);
+  } finally {
+    restore();
+  }
+});
+
+test('a flush leftward landing beside the other pin is kept', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'region', title: 'Khu vực', pinned: 'right', width: 110 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Khu vực').closest('[role="columnheader"]') as HTMLElement;
+  const restore = setupReveal({
+    scroller,
+    port: [324, 845],
+    scrollLeft: 272,
+    maxScroll: 449,
+    sticky: [cover, other],
+    boxes: [
+      [cover, 715, 845],
+      [other, 592, 702],
+      [handle, 773, 782],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The same scene with the other pin ending exactly at the destination's
+    // left edge (702 == 702): touching is not overlapping — the leftward
+    // clear lands with the full margin.
+    expect(scroller.scrollLeft).toBe(343);
+  } finally {
+    restore();
+  }
+});
+
+test('a leftward clear past the port edge is declined', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 458 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 130 },
+        { key: 'note', title: 'Ghi chú', width: 597 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const rightPin = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // The live-F1 shape: a wide index pin [252, 710], the right pin [715, 845]
+  // 5px later. Strip content right 707 − 252 + 203 = 658; trailing = 130 +
+  // 597 = 727 → content 1385 = port 593 + 792.
+  const restore = setupReveal({
+    scroller,
+    port: [252, 845],
+    scrollLeft: 203,
+    maxScroll: 792,
+    sticky: [cover, rightPin],
+    boxes: [
+      [cover, 252, 710],
+      [rightPin, 715, 845],
+      [handle, 698, 707],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // Rightward lands [714, 723] inside the right pin (clears); leftward
+    // clears the band but its destination [239, 248] sneaks past the port's
+    // left edge — no position can show the strip, so it stays put.
+    expect(scroller.scrollLeft).toBe(203);
+    fireEvent.blur(handle);
+    fireEvent.focus(handle);
+    expect(scroller.scrollLeft).toBe(203);
+  } finally {
+    restore();
+  }
+});
+
+test('a rightward landing flush with the next pin is kept', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 240 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+        { key: 'note', title: 'Ghi chú', width: 171 },
+        { key: 'status', title: 'Trạng thái', pinned: 'right', width: 110 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroller = (container.querySelector('[data-virtual]') as HTMLElement).parentElement!;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const leftPin = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  const other = screen.getByText('Trạng thái').closest('[role="columnheader"]') as HTMLElement;
+  // The right-side equality boundary: strip under the left pin, the other
+  // pin starting exactly at the destination's right edge (253). Strip
+  // content right 240 + 100 = 340; trailing = 171 + 110 = 281 → content
+  // 621 = port 521 + 100.
+  const restore = setupReveal({
+    scroller,
+    port: [0, 521],
+    scrollLeft: 100,
+    maxScroll: 100,
+    sticky: [leftPin, other],
+    boxes: [
+      [leftPin, 0, 240],
+      [other, 253, 363],
+      [handle, 231, 240],
+    ],
+  });
+  try {
+    fireEvent.focus(handle);
+    // The rightward destination [244, 253] touches the other pin's left edge
+    // without overlapping — accepted.
+    expect(scroller.scrollLeft).toBe(87);
   } finally {
     restore();
   }
