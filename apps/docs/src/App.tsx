@@ -21,6 +21,10 @@ import AppShellPage from './pages/layout/AppShellPage';
 import PageHeaderPage from './pages/layout/PageHeaderPage';
 import SplitViewPage from './pages/layout/SplitViewPage';
 import PaginationPage from './pages/layout/PaginationPage';
+import TablePage from './pages/data/TablePage';
+import FilterBarPage from './pages/data/FilterBarPage';
+import KpiCardPage from './pages/data/KpiCardPage';
+import KpiGridPage from './pages/data/KpiGridPage';
 import styles from './App.module.css';
 
 function HeaderRight({
@@ -78,6 +82,10 @@ const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   splitview: { label: 'SplitView', el: <SplitViewPage /> },
   pagination: { label: 'Pagination', el: <PaginationPage /> },
   data: { label: 'Data', el: <div>Data</div> },
+  table: { label: 'Table', el: <TablePage /> },
+  filterbar: { label: 'FilterBar', el: <FilterBarPage /> },
+  kpicard: { label: 'KpiCard', el: <KpiCardPage /> },
+  kpigrid: { label: 'KpiGrid', el: <KpiGridPage /> },
   feedback: { label: 'Feedback', el: <div>Feedback</div> },
   form: { label: 'Form', el: <div>Form</div> },
   tokens: { label: 'Tokens', el: <div>Tokens</div> },
