@@ -75,7 +75,7 @@
 }
 
 .tooltip[data-placement='left']::before {
-  right: 100%;
+  left: 100%;
   top: 50%;
   transform: translateY(-50%);
   border-width: 6px 0 6px 6px;
@@ -83,7 +83,7 @@
 }
 
 .tooltip[data-placement='right']::before {
-  left: 100%;
+  right: 100%;
   top: 50%;
   transform: translateY(-50%);
   border-width: 6px 6px 6px 0;
