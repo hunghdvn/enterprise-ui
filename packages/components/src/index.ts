@@ -56,3 +56,5 @@ export type { DrawerProps } from './Drawer/Drawer';
 export { ToastProvider, useToast } from './Toast/ToastProvider';
 export type { ToastItem, ToastApi } from './Toast/ToastProvider';
 export type { ToastProps, ToastTone } from './Toast/Toast';
+export { Tooltip } from './Tooltip/Tooltip';
+export type { TooltipProps } from './Tooltip/types';
