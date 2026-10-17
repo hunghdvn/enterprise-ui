@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { toCSV } from '../internal/exportCsv';
 import { Table } from './Table';
@@ -2275,17 +2276,131 @@ test("another pointer's hover never ends the armed drag", () => {
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
 });
 
-test('focusing a handle scrolls it into view', () => {
-  const original = window.HTMLElement.prototype.scrollIntoView;
+test('focus falls back to the platform scroll when nothing can be hit-tested', () => {
+  const proto = window.HTMLElement.prototype as Partial<HTMLElement>;
+  const original = proto.scrollIntoView;
   const scrollIntoView = vi.fn();
-  window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+  proto.scrollIntoView = scrollIntoView;
   try {
     render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={() => {}} />);
-    // Tab lands on the handle: it must not stay an invisible stop behind a
-    // stuck cover (R1).
-    fireEvent.focus(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }));
+    const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+    // jsdom has no layout and no hit-testing: the reveal hands the strip to
+    // the platform scroll — once, with the handle as the receiver (S3.b),
+    // never a proxy.
+    fireEvent.focus(handle);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    expect(scrollIntoView.mock.contexts[0]).toBe(handle);
   } finally {
-    window.HTMLElement.prototype.scrollIntoView = original;
+    // jsdom ships no `scrollIntoView` at all, so a plain assign-back would
+    // leave an own `undefined` on the prototype instead of removing the patch
+    // (S3.a).
+    if (original === undefined) delete proto.scrollIntoView;
+    else proto.scrollIntoView = original;
+  }
+});
+
+/** jsdom has no layout: pin the numbers the reveal math reads. */
+const mockRect = (el: Element, left: number, right: number): void => {
+  el.getBoundingClientRect = () =>
+    ({
+      left,
+      right,
+      top: 0,
+      bottom: 32,
+      width: right - left,
+      height: 32,
+      x: left,
+      y: 0,
+    }) as DOMRect;
+};
+
+test('a focused handle under a stuck cover is scrolled clear of it', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
+        { key: 'total', title: 'Giá trị', align: 'right' },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  scroll.scrollLeft = 100;
+  mockRect(handle, 442, 451);
+  mockRect(cover, 324, 454);
+  document.elementFromPoint = vi.fn(() => cover);
+  try {
+    fireEvent.focus(handle);
+    // The center hit-tests to the cover, so the port scrolls left until the
+    // strip rides past its right edge plus margin: 100 − (454 + 4 − 442).
+    expect(scroll.scrollLeft).toBe(84);
+  } finally {
+    delete (document as Partial<Document>).elementFromPoint;
+  }
+});
+
+test('a right-side cover drives the mirror scroll', () => {
+  const { container } = render(
+    <Table
+      columns={[
+        { key: 'code', title: 'Mã đơn' },
+        { key: 'total', title: 'Giá trị', pinned: 'right', width: 108 },
+      ]}
+      data={rows}
+      resizable
+      onColumnWidth={() => {}}
+    />,
+  );
+  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ });
+  const cover = screen.getByText('Giá trị').closest('[role="columnheader"]') as HTMLElement;
+  mockRect(handle, 795, 804);
+  mockRect(cover, 800, 908);
+  document.elementFromPoint = vi.fn(() => cover);
+  try {
+    fireEvent.focus(handle);
+    // Scroll right until the strip clears the cover's left edge: 804 + 4 − 800.
+    expect(scroll.scrollLeft).toBe(8);
+  } finally {
+    delete (document as Partial<Document>).elementFromPoint;
+  }
+});
+
+test('a keyboard step reveals the strip after the width commit', () => {
+  function Controlled() {
+    const [widths, setWidths] = useState<Record<string, number>>({});
+    return (
+      <Table
+        columns={[
+          { key: 'code', title: 'Mã đơn', pinned: 'left', width: 130 },
+          { key: 'total', title: 'Giá trị', align: 'right' },
+        ]}
+        data={rows}
+        resizable
+        columnWidths={widths}
+        onColumnWidth={(key, width) => setWidths((prev) => ({ ...prev, [key]: width }))}
+      />
+    );
+  }
+  const { container } = render(<Controlled />);
+  const scroll = container.querySelector('[data-virtual]') as HTMLElement;
+  const handle = screen.getByRole('separator', { name: /Đổi rộng cột Giá trị/ });
+  const cover = screen.getByText('Mã đơn').closest('[role="columnheader"]') as HTMLElement;
+  scroll.scrollLeft = 100;
+  mockRect(handle, 442, 451);
+  mockRect(cover, 324, 454);
+  document.elementFromPoint = vi.fn(() => cover);
+  try {
+    // The step fires no focus (the span survives the re-render), so only the
+    // post-commit reveal can uncover the strip the step slid under the cover.
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(scroll.scrollLeft).toBe(84);
+  } finally {
+    delete (document as Partial<Document>).elementFromPoint;
   }
 });

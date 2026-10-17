@@ -36,6 +36,9 @@ const UNMEASURED_FALLBACK_WIDTH = 120;
 /** Keyboard step for resize handles (×4 with Shift). */
 const KEYBOARD_STEP = 8;
 
+/** Clearance kept between a revealed resize handle and the cover it clears. */
+const REVEAL_MARGIN = 4;
+
 /** Blank choice at the top of a select filter cell — clears the filter. */
 const FILTER_ALL_LABEL = 'Tất cả';
 
@@ -149,6 +152,48 @@ function trackOf<T>(column: Column<T>, columnWidths: Record<string, number> | un
   if (column.pinned && effective != null) return `${effective}px`;
   const min = effective != null ? `${effective}px` : 'var(--cell-min-width)';
   return `minmax(${min}, 1fr)`;
+}
+
+/**
+ * Bring a resize handle out from under a stuck cover (review S1/S2).
+ *
+ * `scrollIntoView({inline:'nearest'})` cannot do this job: a handle that
+ * slides beneath a sticky or pinned neighbor is still geometrically inside
+ * the scrollport — the cover paints over it, it never pushes it out — so
+ * `nearest` finds nothing to scroll, and on the boundary it aligns the strip
+ * flush with the scrollport edge, exactly the band an edge cover hugs.
+ * Hit-test the handle's center instead: when a cell of this grid paints over
+ * it, scroll the port just enough to clear that cover's edge.
+ */
+function revealHandle(handle: HTMLElement): void {
+  const scroll = handle.closest<HTMLElement>(`.${styles.scroll}`);
+  if (!scroll) return;
+  const rect = handle.getBoundingClientRect();
+  const hit =
+    typeof document.elementFromPoint === 'function'
+      ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      : null;
+  if (hit == null || hit === scroll || !scroll.contains(hit)) {
+    // No hit-testing at all (jsdom) or the center resolves off the scroll
+    // region's subtree: the strip is out of view geometrically — leave the
+    // platform's nearest-edge scroll to it.
+    handle.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    return;
+  }
+  if (hit === handle || handle.contains(hit)) return;
+  const cover =
+    hit.closest<HTMLElement>('[role="gridcell"], [role="columnheader"], [role="rowheader"]') ?? hit;
+  if (cover.contains(handle)) return;
+  const coverRect = cover.getBoundingClientRect();
+  if (coverRect.left <= rect.left) {
+    // A cover hugging the left side: scroll left until the strip rides clear
+    // of its right edge.
+    scroll.scrollLeft -= coverRect.right + REVEAL_MARGIN - rect.left;
+  } else {
+    // Mirror case — a right-side cover: scroll right until the strip clears
+    // its left edge.
+    scroll.scrollLeft += rect.right + REVEAL_MARGIN - coverRect.left;
+  }
 }
 
 function gridTemplateOf<T>(
@@ -377,6 +422,17 @@ export function Table<T extends object>(props: TableProps<T>) {
       resizeDrag.current = null;
     };
   }, []);
+  // Post-commit reveal (S2): a keyboard step reports a width, and only the
+  // caller's re-render gives the strip its new geometry — measuring inline in
+  // the handler would read the old template. Focus never re-fires for the
+  // surviving span, so a step hands its handle to the next commit.
+  const revealAfterRender = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const handle = revealAfterRender.current;
+    if (!handle) return;
+    revealAfterRender.current = null;
+    revealHandle(handle);
+  });
   // Drag-start width prefers the measured header cell (flexible columns have
   // no declared width to start from); jsdom measures 0, so fall back to the
   // effective width, then a constant.
@@ -458,6 +514,9 @@ export function Table<T extends object>(props: TableProps<T>) {
     // rendered edge instead of jumping from a stale declaration.
     const current = resolveStartWidth(column, handle);
     reportWidth(column.key, current + direction * KEYBOARD_STEP * (large ? 4 : 1));
+    // The strip can end up under a stuck cover once the new track renders;
+    // hand it to the post-commit reveal (S2).
+    if (handle) revealAfterRender.current = handle;
   };
   // One wiring point for the data-column resize handles (never on the select
   // / expand control tracks): drag + keyboard + double-click reset. A handle
@@ -474,9 +533,10 @@ export function Table<T extends object>(props: TableProps<T>) {
         className={styles.resizeHandle}
         onPointerDown={beginResize(column)}
         onFocus={(event) => {
-          // A focused handle scrolled under a stuck cover would be an
-          // invisible tab stop (R1) — bring it into view when focused.
-          event.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+          // A focused handle must not stay an invisible tab stop under a
+          // stuck cover (S1): reveal hit-tests the center instead of trusting
+          // geometry the cover does not move.
+          revealHandle(event.currentTarget);
         }}
         onKeyDown={(event: ReactKeyboardEvent<HTMLSpanElement>) => {
           if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
