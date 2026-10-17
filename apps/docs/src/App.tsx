@@ -13,6 +13,10 @@ import InputPage from './pages/primitives/InputPage';
 import SelectPage from './pages/primitives/SelectPage';
 import CheckboxPage from './pages/primitives/CheckboxPage';
 import BadgePage from './pages/primitives/BadgePage';
+import TabsPage from './pages/primitives/TabsPage';
+import TooltipPage from './pages/primitives/TooltipPage';
+import EmptyPage from './pages/primitives/EmptyPage';
+import SpinPage from './pages/primitives/SpinPage';
 import styles from './App.module.css';
 
 function HeaderRight({
@@ -60,6 +64,10 @@ const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   select: { label: 'Select', el: <SelectPage /> },
   checkbox: { label: 'Checkbox', el: <CheckboxPage /> },
   badge: { label: 'Badge', el: <BadgePage /> },
+  tabs: { label: 'Tabs', el: <TabsPage /> },
+  tooltip: { label: 'Tooltip', el: <TooltipPage /> },
+  empty: { label: 'Empty', el: <EmptyPage /> },
+  spin: { label: 'Spin', el: <SpinPage /> },
   layout: { label: 'Layout', el: <div>Layout</div> },
   data: { label: 'Data', el: <div>Data</div> },
   feedback: { label: 'Feedback', el: <div>Feedback</div> },
