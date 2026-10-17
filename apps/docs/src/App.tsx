@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import {
   AppShell,
   Button,
@@ -111,6 +111,12 @@ function Shell() {
         .map(([routeKey, r]) => ({ key: routeKey, label: r.label })),
     [q],
   );
+
+  // Long pages must not stay mid-scroll when navigating to another route.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [key]);
+
   return (
     <AppShell
       sidebar={sidebar}
@@ -120,7 +126,9 @@ function Shell() {
       headerRight={<HeaderRight query={query} onQueryChange={setQuery} />}
       sidebarEmptyState={q ? 'Không tìm thấy' : undefined}
     >
-      {current.el}
+      <div className={styles.page} key={key}>
+        {current.el}
+      </div>
     </AppShell>
   );
 }
