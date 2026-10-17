@@ -2274,3 +2274,18 @@ test("another pointer's hover never ends the armed drag", () => {
   });
   expect(onColumnWidth).toHaveBeenLastCalledWith('code', 170);
 });
+
+test('focusing a handle scrolls it into view', () => {
+  const original = window.HTMLElement.prototype.scrollIntoView;
+  const scrollIntoView = vi.fn();
+  window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+  try {
+    render(<Table columns={resizeCols} data={rows} resizable onColumnWidth={() => {}} />);
+    // Tab lands on the handle: it must not stay an invisible stop behind a
+    // stuck cover (R1).
+    fireEvent.focus(screen.getByRole('separator', { name: /Đổi rộng cột Mã đơn/ }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+  } finally {
+    window.HTMLElement.prototype.scrollIntoView = original;
+  }
+});

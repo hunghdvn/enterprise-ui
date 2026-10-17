@@ -473,6 +473,11 @@ export function Table<T extends object>(props: TableProps<T>) {
         tabIndex={0}
         className={styles.resizeHandle}
         onPointerDown={beginResize(column)}
+        onFocus={(event) => {
+          // A focused handle scrolled under a stuck cover would be an
+          // invisible tab stop (R1) — bring it into view when focused.
+          event.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        }}
         onKeyDown={(event: ReactKeyboardEvent<HTMLSpanElement>) => {
           if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
             event.preventDefault();
