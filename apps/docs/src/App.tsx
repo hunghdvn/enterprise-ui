@@ -17,6 +17,10 @@ import TabsPage from './pages/primitives/TabsPage';
 import TooltipPage from './pages/primitives/TooltipPage';
 import EmptyPage from './pages/primitives/EmptyPage';
 import SpinPage from './pages/primitives/SpinPage';
+import AppShellPage from './pages/layout/AppShellPage';
+import PageHeaderPage from './pages/layout/PageHeaderPage';
+import SplitViewPage from './pages/layout/SplitViewPage';
+import PaginationPage from './pages/layout/PaginationPage';
 import styles from './App.module.css';
 
 function HeaderRight({
@@ -69,6 +73,10 @@ const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   empty: { label: 'Empty', el: <EmptyPage /> },
   spin: { label: 'Spin', el: <SpinPage /> },
   layout: { label: 'Layout', el: <div>Layout</div> },
+  appshell: { label: 'AppShell', el: <AppShellPage /> },
+  pageheader: { label: 'PageHeader', el: <PageHeaderPage /> },
+  splitview: { label: 'SplitView', el: <SplitViewPage /> },
+  pagination: { label: 'Pagination', el: <PaginationPage /> },
   data: { label: 'Data', el: <div>Data</div> },
   feedback: { label: 'Feedback', el: <div>Feedback</div> },
   form: { label: 'Form', el: <div>Form</div> },

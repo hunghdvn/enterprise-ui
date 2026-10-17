@@ -1,0 +1,70 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.demo {
+  display: grid;
+  gap: 20px;
+}
+
+.section {
+  display: grid;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.frame {
+  height: 340px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageBody {
+  display: grid;
+  gap: 6px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 15px;
+}
+
+.pageText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
