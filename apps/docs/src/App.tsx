@@ -8,6 +8,11 @@ import {
   Input,
 } from '@enterprise-ui/components';
 import type { NavItem } from '@enterprise-ui/components';
+import ButtonPage from './pages/primitives/ButtonPage';
+import InputPage from './pages/primitives/InputPage';
+import SelectPage from './pages/primitives/SelectPage';
+import CheckboxPage from './pages/primitives/CheckboxPage';
+import BadgePage from './pages/primitives/BadgePage';
 import styles from './App.module.css';
 
 function HeaderRight({
@@ -50,6 +55,11 @@ function HeaderRight({
 const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   overview: { label: 'Tổng quan', el: <div>Overview</div> },
   primitives: { label: 'Primitives', el: <div>Primitives</div> },
+  button: { label: 'Button', el: <ButtonPage /> },
+  input: { label: 'Input', el: <InputPage /> },
+  select: { label: 'Select', el: <SelectPage /> },
+  checkbox: { label: 'Checkbox', el: <CheckboxPage /> },
+  badge: { label: 'Badge', el: <BadgePage /> },
   layout: { label: 'Layout', el: <div>Layout</div> },
   data: { label: 'Data', el: <div>Data</div> },
   feedback: { label: 'Feedback', el: <div>Feedback</div> },
