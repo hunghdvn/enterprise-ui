@@ -1,0 +1,17 @@
+/* App-level polish: smooth color transitions when theme or density switches.
+   The 120ms duration matches the ThemeProvider design spec. Colors only —
+   spacing and layout changes snap (they animate poorly at low cost). */
+[data-enterprise-ui],
+[data-enterprise-ui] * {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-enterprise-ui],
+  [data-enterprise-ui] * {
+    transition: none;
+  }
+}

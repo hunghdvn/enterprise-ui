@@ -38,3 +38,35 @@ test('brand word carries its own class so the narrow query can hide it', () => {
   expect(screen.getByText('Enterprise')).toHaveClass(styles.brandText);
   expect(screen.getByText('E')).not.toHaveClass(styles.brandText);
 });
+
+test('renders sidebarEmptyState in the nav when the sidebar is empty', () => {
+  render(
+    <AppShell
+      sidebar={[]}
+      activeKey="overview"
+      onNavigate={() => {}}
+      sidebarEmptyState="Không tìm thấy"
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  const empty = screen.getByText('Không tìm thấy');
+  expect(empty).toBeInTheDocument();
+  expect(empty).toHaveClass(styles.navEmpty);
+  expect(empty.closest('nav')).not.toBeNull();
+});
+
+test('does not render sidebarEmptyState while the sidebar has items', () => {
+  render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+      sidebarEmptyState="Không tìm thấy"
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  expect(screen.queryByText('Không tìm thấy')).not.toBeInTheDocument();
+  expect(screen.getByText('Đơn hàng')).toBeInTheDocument();
+});

@@ -36,3 +36,6 @@ jobs:
 
       - name: Build showcase
         run: npm run build --workspace=@enterprise-ui/showcase
+
+      - name: Build docs site
+        run: npm run build --workspace=@enterprise-ui/docs

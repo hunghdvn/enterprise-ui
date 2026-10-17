@@ -75,6 +75,11 @@
   padding: 0 7px;
   font-size: 11px;
 }
+.navEmpty {
+  padding: 7px 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
 .main {
   flex: 1;
   min-width: 0;
@@ -103,6 +108,9 @@
     display: none;
   }
   .brandText {
+    display: none;
+  }
+  .navEmpty {
     display: none;
   }
   .count {

@@ -1,0 +1,44 @@
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Fade-in on route change; the keyed wrapper in App.tsx replays it per route. */
+.page {
+  animation: pageIn 150ms ease;
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
+}
+
+/* AppShell collapses its sidebar to an icon rail at ≤768px; keep the header
+   controls (search + theme + density) from overflowing at the same widths.
+   box-sizing: border-box makes the width cap the true rendered width — the
+   Input's UA content-box default would otherwise render 96px as 114px
+   (padding 0 8px + 1px border), overflowing 360px viewports by 8px.
+   flex-wrap + min-width: 0 let the controls wrap to a second row instead of
+   overflowing (or squishing button labels) on the narrowest screens. */
+@media (max-width: 768px) {
+  .headerRight {
+    gap: 4px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .headerRight input {
+    width: 96px;
+    box-sizing: border-box;
+  }
+}

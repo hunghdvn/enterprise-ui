@@ -1,0 +1,91 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1000;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  /* Tooltip uses the inverted text/bg tokens so it stays legible in both themes. */
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.tooltip[data-placement='top'] {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+}
+
+.tooltip[data-placement='bottom'] {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+}
+
+.tooltip[data-placement='left'] {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 8px;
+}
+
+.tooltip[data-placement='right'] {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+}
+
+/* Arrow: 6px triangle via the border trick, colored with the tooltip bg. */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.tooltip[data-placement='top']::before {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px 6px 0 6px;
+  border-color: var(--text) transparent transparent transparent;
+}
+
+.tooltip[data-placement='bottom']::before {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 6px 6px 6px;
+  border-color: transparent transparent var(--text) transparent;
+}
+
+.tooltip[data-placement='left']::before {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px 0 6px 6px;
+  border-color: transparent transparent transparent var(--text);
+}
+
+.tooltip[data-placement='right']::before {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-color: transparent var(--text) transparent transparent;
+}

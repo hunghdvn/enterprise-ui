@@ -1,0 +1,124 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.section {
+  display: grid;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.helper {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.swatch {
+  height: 28px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.radiusPreview {
+  height: 28px;
+  border: 1px solid var(--color-blue-600);
+  background: var(--color-blue-50);
+}
+
+.shadowPreview {
+  height: 28px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.value {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sample {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+}
+
+.contrastList {
+  display: grid;
+  gap: 4px;
+  max-width: 560px;
+}
+
+.contrastRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.contrastLabel {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.contrastValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contrastValue {
+  font-size: 12px;
+  color: var(--text-muted);
+}

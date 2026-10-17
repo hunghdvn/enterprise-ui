@@ -1,0 +1,24 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.icon {
+  color: var(--text-muted);
+}
+
+.description {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.action {
+  margin-top: 16px;
+}
