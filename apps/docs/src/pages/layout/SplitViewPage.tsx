@@ -61,7 +61,8 @@ const props: PropDoc[] = [
     name: 'maxSize',
     type: 'number',
     default: '0.8 × track',
-    description: 'Giới hạn lớn nhất (px) của master khi kéo.',
+    description:
+      'Giới hạn lớn nhất (px) của master khi kéo. Mặc định tính từ 80% chiều rộng/cao khung.',
   },
   {
     name: 'onMasterWidthChange',
@@ -203,6 +204,34 @@ function OrderDetail({ order }: { order: Order | null }) {
   );
 }
 
+function OrderList({
+  items = orders,
+  selected,
+  onSelect,
+}: {
+  items?: Order[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className={styles.list}>
+      {items.map((order) => (
+        <button
+          key={order.id}
+          type="button"
+          className={styles.listItem}
+          data-active={order.id === selected}
+          aria-current={order.id === selected ? 'true' : undefined}
+          onClick={() => onSelect(order.id)}
+        >
+          <span className={styles.listName}>{order.name}</span>
+          <span className={styles.listMeta}>{order.customer}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SplitViewPage() {
   const [selected, setSelected] = useState<string | null>(orders[0].id);
   const [staticSelected, setStaticSelected] = useState<string | null>('all');
@@ -233,29 +262,17 @@ export default function SplitViewPage() {
                         onMasterWidthChange={setMasterWidth}
                         selectedKey={selected}
                         onBack={() => setSelected(null)}
-                        master={
-                          <div className={styles.list}>
-                            {orders.map((order) => (
-                              <button
-                                key={order.id}
-                                type="button"
-                                className={styles.listItem}
-                                data-active={order.id === selected}
-                                aria-current={order.id === selected ? 'true' : undefined}
-                                onClick={() => setSelected(order.id)}
-                              >
-                                <span className={styles.listName}>{order.name}</span>
-                                <span className={styles.listMeta}>{order.customer}</span>
-                              </button>
-                            ))}
-                          </div>
-                        }
+                        master={<OrderList selected={selected} onSelect={setSelected} />}
                         detail={<OrderDetail order={selectedOrder} />}
                       />
                     </div>
                     <p className={styles.note}>
                       Kéo tay cầm để thay đổi chiều rộng master (hiện tại {masterWidth}px). Hai pane
                       cuộn độc lập trong khung; thu hẹp xuống dưới 768px để thấy chế độ một pane.
+                    </p>
+                    <p className={styles.note}>
+                      Bàn phím (focus tay cầm): ← → tăng/giảm 8px, Shift + ← → ±32px, Delete đặt lại
+                      về mặc định; trên trục dọc dùng ↑ ↓.
                     </p>
                   </section>
                   <section className={styles.section}>
@@ -264,31 +281,22 @@ export default function SplitViewPage() {
                       <SplitView
                         orientation="vertical"
                         masterHeight={masterHeight}
+                        minSize={120}
                         onMasterHeightChange={setMasterHeight}
                         selectedKey={selected}
                         onBack={() => setSelected(null)}
                         master={
-                          <div className={styles.list}>
-                            {orders.slice(0, 3).map((order) => (
-                              <button
-                                key={order.id}
-                                type="button"
-                                className={styles.listItem}
-                                data-active={order.id === selected}
-                                aria-current={order.id === selected ? 'true' : undefined}
-                                onClick={() => setSelected(order.id)}
-                              >
-                                <span className={styles.listName}>{order.name}</span>
-                                <span className={styles.listMeta}>{order.customer}</span>
-                              </button>
-                            ))}
-                          </div>
+                          <OrderList
+                            items={orders.slice(0, 3)}
+                            selected={selected}
+                            onSelect={setSelected}
+                          />
                         }
                         detail={<OrderDetail order={selectedOrder} />}
                       />
                     </div>
                     <p className={styles.note}>
-                      orientation=vertical — master trên; kéo ngang để thay đổi chiều cao master
+                      orientation=vertical — master trên; kéo lên/xuống để thay đổi chiều cao master
                       (hiện tại {masterHeight}px).
                     </p>
                   </section>
@@ -300,23 +308,7 @@ export default function SplitViewPage() {
                         resizable={false}
                         selectedKey={selected}
                         onBack={() => setSelected(null)}
-                        master={
-                          <div className={styles.list}>
-                            {orders.map((order) => (
-                              <button
-                                key={order.id}
-                                type="button"
-                                className={styles.listItem}
-                                data-active={order.id === selected}
-                                aria-current={order.id === selected ? 'true' : undefined}
-                                onClick={() => setSelected(order.id)}
-                              >
-                                <span className={styles.listName}>{order.name}</span>
-                                <span className={styles.listMeta}>{order.customer}</span>
-                              </button>
-                            ))}
-                          </div>
-                        }
+                        master={<OrderList selected={selected} onSelect={setSelected} />}
                         detail={<OrderDetail order={selectedOrder} />}
                       />
                     </div>
@@ -329,6 +321,7 @@ export default function SplitViewPage() {
                     <div className={styles.frame}>
                       <SplitView
                         masterWidth={200}
+                        minSize={120}
                         selectedKey={staticSelected}
                         onBack={() => setStaticSelected(null)}
                         master={
@@ -347,7 +340,8 @@ export default function SplitViewPage() {
                       />
                     </div>
                     <p className={styles.note}>
-                      masterWidth=200 — pane master hẹp hơn mặc định, phù hợp danh mục ngắn.
+                      masterWidth=200 (minSize=120) — pane master hẹp hơn mặc định, phù hợp danh mục
+                      ngắn.
                     </p>
                   </section>
                 </div>
