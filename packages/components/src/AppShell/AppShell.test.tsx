@@ -212,7 +212,6 @@ test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle withou
   );
 });
 
-
 test('renders ReactNode icons for nav items', () => {
   render(
     <AppShell
