@@ -21,6 +21,22 @@ const props: PropDoc[] = [
       'Nội dung hiển thị trong vùng điều hướng khi sidebar rỗng (vd: trạng thái không tìm thấy).',
   },
   {
+    name: 'sidebarCollapsed',
+    type: 'boolean',
+    description: 'Trạng thái thu gọn sidebar (controlled).',
+  },
+  {
+    name: 'defaultSidebarCollapsed',
+    type: 'boolean',
+    default: 'false',
+    description: 'Trạng thái thu gọn ban đầu (uncontrolled).',
+  },
+  {
+    name: 'onSidebarToggle',
+    type: '(collapsed: boolean) => void',
+    description: 'Gọi khi người dùng bấm nút thu gọn/mở rộng sidebar.',
+  },
+  {
     name: 'activeKey',
     type: 'string',
     description: 'Key của mục đang được chọn trong sidebar.',
@@ -85,6 +101,10 @@ export function Admin() {
 export default function AppShellPage() {
   const [active, setActive] = useState('dashboard');
   const [minimalActive, setMinimalActive] = useState('orders');
+  // Controlled instances: the demos must not persist to the shared
+  // `eui-sidebar-collapsed` key (the docs' own shell reads it on load).
+  const [collapsed, setCollapsed] = useState(false);
+  const [minimalCollapsed, setMinimalCollapsed] = useState(false);
   const current = navItems.find((item) => item.key === active) ?? navItems[0];
 
   return (
@@ -108,6 +128,8 @@ export default function AppShellPage() {
                         sidebar={navItems}
                         activeKey={active}
                         onNavigate={setActive}
+                        sidebarCollapsed={collapsed}
+                        onSidebarToggle={setCollapsed}
                         breadcrumb={`Trang chủ / ${current.label}`}
                         headerRight={
                           <div className={styles.headerRight}>
@@ -141,6 +163,8 @@ export default function AppShellPage() {
                         sidebar={navItems}
                         activeKey={minimalActive}
                         onNavigate={setMinimalActive}
+                        sidebarCollapsed={minimalCollapsed}
+                        onSidebarToggle={setMinimalCollapsed}
                       >
                         <div className={styles.pageBody}>
                           <h3 className={styles.pageTitle}>Tổng quan</h3>
