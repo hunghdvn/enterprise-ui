@@ -1,4 +1,4 @@
-import { Button, Tabs } from '@enterprise-ui/components';
+import { Button, Icon, Tabs } from '@enterprise-ui/components';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
@@ -17,6 +17,12 @@ const props: PropDoc[] = [
     type: "'sm' | 'md'",
     default: "'sm'",
     description: 'Kích thước nút.',
+  },
+  {
+    name: 'icon',
+    type: 'ReactNode',
+    description:
+      'Icon tùy chọn hiển thị trước nhãn; được bọc aria-hidden vì chỉ mang tính trang trí.',
   },
   {
     name: 'loading',
@@ -42,13 +48,17 @@ const props: PropDoc[] = [
   },
 ];
 
-const code = `import { Button } from '@enterprise-ui/components';
+const code = `import { Button, Icon } from '@enterprise-ui/components';
 
 export function Actions() {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
-      <Button variant="primary" onClick={() => alert('Đã lưu')}>
-        Lưu
+      <Button
+        variant="primary"
+        icon={<Icon name="plus" size={14} />}
+        onClick={() => alert('Tạo đơn thành công')}
+      >
+        Tạo đơn
       </Button>
       <Button variant="secondary">Hủy</Button>
       <Button variant="ghost">Bỏ qua</Button>
@@ -70,7 +80,7 @@ export default function ButtonPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Button</h1>
       <p className={styles.subtitle}>
-        Nút hành động với 6 biến thể, 2 kích thước và trạng thái loading/vô hiệu hóa.
+        Nút hành động với 6 biến thể, 2 kích thước, icon tùy chọn và trạng thái loading/vô hiệu hóa.
       </p>
       <Tabs
         items={[
@@ -89,6 +99,15 @@ export default function ButtonPage() {
                       <Button variant="danger">Danger</Button>
                       <Button variant="accent">Accent</Button>
                       <Button variant="success">Success</Button>
+                    </div>
+                  </section>
+                  <section className={styles.section}>
+                    <h2 className={styles.sectionTitle}>Icon</h2>
+                    <div className={styles.row}>
+                      <Button icon={<Icon name="plus" size={14} />}>Tạo đơn</Button>
+                      <Button variant="secondary" icon={<Icon name="download" size={14} />}>
+                        Tải xuống
+                      </Button>
                     </div>
                   </section>
                   <section className={styles.section}>
