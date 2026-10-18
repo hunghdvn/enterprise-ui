@@ -1,0 +1,126 @@
+.wrap {
+  display: inline-flex;
+  flex-direction: column;
+  width: 100%;
+  font-family: var(--font, inherit);
+}
+
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  padding: 2px 8px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.control:focus-within {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 1px;
+  border-color: var(--color-blue-600);
+}
+
+.control[data-disabled='true'] {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.input {
+  border: 0;
+  outline: none;
+  flex: 1 1 120px;
+  min-width: 80px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px 0;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  border-radius: var(--radius);
+}
+
+.chip-remove:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.chevron {
+  margin-left: auto;
+  padding: 2px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.popover {
+  position: absolute;
+  z-index: 1000;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  list-style: none;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+.option {
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.option-highlighted {
+  background: var(--surface-muted);
+}
+
+.empty {
+  padding: 6px 10px;
+  color: var(--text-muted);
+  cursor: default;
+}

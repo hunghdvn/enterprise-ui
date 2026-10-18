@@ -10,6 +10,8 @@ export { Badge } from './Badge/Badge';
 export type { BadgeProps, BadgeTone } from './Badge/Badge';
 export { Select } from './Select/Select';
 export type { SelectProps } from './Select/Select';
+export { Combobox } from './Combobox/Combobox';
+export type { ComboboxProps, ComboboxOption } from './Combobox/types';
 export { Checkbox } from './Checkbox/Checkbox';
 export type { CheckboxProps } from './Checkbox/Checkbox';
 export { AppShell } from './AppShell/AppShell';
