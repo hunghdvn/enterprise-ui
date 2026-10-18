@@ -15,6 +15,12 @@ const props: PropDoc[] = [
       'Danh sách mục điều hướng; mỗi mục gồm key, label, icon (tùy chọn) và badge (tùy chọn).',
   },
   {
+    name: 'sidebarEmptyState',
+    type: 'ReactNode',
+    description:
+      'Nội dung hiển thị trong vùng điều hướng khi sidebar rỗng (vd: trạng thái không tìm thấy).',
+  },
+  {
     name: 'activeKey',
     type: 'string',
     description: 'Key của mục đang được chọn trong sidebar.',

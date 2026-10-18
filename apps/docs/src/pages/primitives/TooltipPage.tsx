@@ -31,7 +31,8 @@ const props: PropDoc[] = [
   {
     name: 'className',
     type: 'string',
-    description: 'Class gắn lên phần tử bọc (wrapper) quanh trigger — không áp vào bong bóng tooltip.',
+    description:
+      'Class gắn lên phần tử bọc (wrapper) quanh trigger — không áp vào bong bóng tooltip.',
   },
 ];
 
