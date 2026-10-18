@@ -211,3 +211,19 @@ test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle withou
     'false',
   );
 });
+
+
+test('renders ReactNode icons for nav items', () => {
+  render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng', icon: <span data-testid="nav-icon">Orders icon</span> }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  expect(screen.getByTestId('nav-icon')).toBeInTheDocument();
+  expect(screen.getByText('Đơn hàng')).toBeInTheDocument();
+});
