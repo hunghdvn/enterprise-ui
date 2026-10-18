@@ -4,7 +4,6 @@ import { Icon } from '../Icon';
 import styles from './AppShell.module.css';
 import type { AppShellProps } from './types';
 
-
 export function AppShell({
   sidebar,
   activeKey,

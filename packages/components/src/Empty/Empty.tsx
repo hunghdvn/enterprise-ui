@@ -3,7 +3,6 @@ import { Icon } from '../Icon';
 import styles from './Empty.module.css';
 import type { EmptyProps } from './types';
 
-
 export function Empty({ description, action, icon }: EmptyProps) {
   const desc = description ?? 'Không có dữ liệu';
   return (
