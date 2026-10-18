@@ -55,16 +55,47 @@ function Shell() {
     string,
     { label: string; breadcrumb: string; badge?: number; el: ReactNode; icon: IconName }
   > = {
-    orders: { label: 'Đơn hàng', breadcrumb: 'Đơn hàng bán', badge: 12, icon: 'inbox', el: <ListDemoPage /> },
-    detail: { label: 'Chi tiết đơn', breadcrumb: 'Chi tiết đơn hàng', icon: 'arrow-left', el: <OrderDetailDemoPage /> },
-    dashboard: { label: 'Dashboard', breadcrumb: 'Dashboard', icon: 'home', el: <DashboardDemoPage /> },
+    orders: {
+      label: 'Đơn hàng',
+      breadcrumb: 'Đơn hàng bán',
+      badge: 12,
+      icon: 'inbox',
+      el: <ListDemoPage />,
+    },
+    detail: {
+      label: 'Chi tiết đơn',
+      breadcrumb: 'Chi tiết đơn hàng',
+      icon: 'arrow-left',
+      el: <OrderDetailDemoPage />,
+    },
+    dashboard: {
+      label: 'Dashboard',
+      breadcrumb: 'Dashboard',
+      icon: 'home',
+      el: <DashboardDemoPage />,
+    },
     stock: { label: 'Kho vận', breadcrumb: 'Đơn hàng bán', icon: 'download', el: <ListDemoPage /> },
-    datagrid: { label: 'DataGrid 10k', breadcrumb: 'DataGrid demo', icon: 'filter', el: <DataGridDemoPage /> },
+    datagrid: {
+      label: 'DataGrid 10k',
+      breadcrumb: 'DataGrid demo',
+      icon: 'filter',
+      el: <DataGridDemoPage />,
+    },
     tokens: { label: 'Tokens', breadcrumb: 'Tokens', icon: 'settings', el: <TokensPage /> },
     tabs: { label: 'Tabs', breadcrumb: 'Primitives', icon: 'menu', el: <TabsDemoPage /> },
-    tooltip: { label: 'Tooltip', breadcrumb: 'Primitives', icon: 'help-circle', el: <TooltipDemoPage /> },
+    tooltip: {
+      label: 'Tooltip',
+      breadcrumb: 'Primitives',
+      icon: 'help-circle',
+      el: <TooltipDemoPage />,
+    },
     empty: { label: 'Empty', breadcrumb: 'Primitives', icon: 'inbox', el: <EmptyDemoPage /> },
-    icon: { label: 'Icon', breadcrumb: 'Primitives', icon: 'more-horizontal', el: <IconDemoPage /> },
+    icon: {
+      label: 'Icon',
+      breadcrumb: 'Primitives',
+      icon: 'more-horizontal',
+      el: <IconDemoPage />,
+    },
     spin: { label: 'Spin', breadcrumb: 'Primitives', icon: 'refresh', el: <SpinDemoPage /> },
   };
   const current = routes[key] ?? routes.orders;
