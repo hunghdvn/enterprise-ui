@@ -40,6 +40,21 @@ export default function TabsDemoPage() {
         <h3 className={styles.sectionTitle}>Kích thước nhỏ (sm)</h3>
         <Tabs items={smallItems} size="sm" />
       </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Segmented</h3>
+        <Tabs items={basicItems} variant="segmented" />
+      </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Pills</h3>
+        <Tabs items={basicItems} variant="pills" />
+      </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Enclosed</h3>
+        <Tabs items={basicItems} variant="enclosed" />
+      </section>
     </div>
   );
 }
