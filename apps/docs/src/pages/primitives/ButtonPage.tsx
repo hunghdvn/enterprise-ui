@@ -21,7 +21,8 @@ const props: PropDoc[] = [
   {
     name: 'icon',
     type: 'ReactNode',
-    description: 'Icon tùy chọn hiển thị trước nhãn; được bọc aria-hidden vì chỉ mang tính trang trí.',
+    description:
+      'Icon tùy chọn hiển thị trước nhãn; được bọc aria-hidden vì chỉ mang tính trang trí.',
   },
   {
     name: 'loading',
