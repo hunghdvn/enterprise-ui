@@ -7,6 +7,7 @@
   padding: 16px;
   background: var(--scrim);
   z-index: 50;
+  animation: modalOverlayIn 150ms ease-out;
 }
 .panel {
   width: min(480px, 100%);
@@ -19,6 +20,36 @@
   box-shadow: var(--shadow-md);
   font-family: var(--font);
   font-size: var(--font-size);
+  animation: modalPanelIn 150ms ease-out;
+}
+
+@keyframes modalOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+  .panel {
+    animation: none;
+  }
 }
 .panel:focus-visible {
   outline: 2px solid var(--color-blue-600);
