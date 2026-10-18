@@ -69,18 +69,28 @@ function tokenize(code: string): Token[] {
     } else if (match[3]) {
       // Re-emit the captured character (if any) so nothing is dropped or
       // double-counted; the tag token itself starts at the '<'.
-      const lead = match[4];
-      if (lead) tokens.push({ type: 'plain', value: lead });
-      tokens.push({ type: 'jsx', value: full.slice(lead ? lead.length : 0) });
+      const lead = match[4] ?? '';
+      // Restore the original lookbehind semantics: a tag must not be matched
+      // when it immediately follows an identifier/`)` (e.g. `useState<string>`).
+      // In that case the preceding character is not captured, so treat the
+      // whole match as plain text instead of JSX.
+      const prevChar = match.index > 0 ? code[match.index - 1] : '';
+      const suppress = lead === '' && /[\w)]/.test(prevChar);
+      if (suppress) {
+        tokens.push({ type: 'plain', value: full });
+      } else {
+        if (lead) tokens.push({ type: 'plain', value: lead });
+        tokens.push({ type: 'jsx', value: full.slice(lead ? lead.length : 0) });
+      }
     } else if (match[5]) {
-      tokens.push({ type: 'number', value: full });
-    } else if (match[4]) {
       const word = full;
       if (KEYWORDS.has(word)) {
         tokens.push({ type: 'keyword', value: full });
       } else {
         tokens.push({ type: 'plain', value: full });
       }
+    } else if (match[6]) {
+      tokens.push({ type: 'number', value: full });
     } else {
       tokens.push({ type: 'plain', value: full });
     }
