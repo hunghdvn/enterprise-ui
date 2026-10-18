@@ -93,3 +93,67 @@ test('block-level sidebarEmptyState does not trip validateDOMNesting', () => {
   expect(nestingWarning).toBe(false);
   errorSpy.mockRestore();
 });
+
+test('toggle button collapses and expands sidebar (uncontrolled)', () => {
+  render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  const toggle = screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i });
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(toggle);
+  expect(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i }));
+  expect(screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});
+
+test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle', () => {
+  const onToggle = vi.fn();
+  const { rerender } = render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+      sidebarCollapsed={false}
+      onSidebarToggle={onToggle}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  const toggle = screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i });
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(toggle);
+  expect(onToggle).toHaveBeenCalledWith(true);
+  // controlled: internal state doesn't change without prop update
+  expect(screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+
+  rerender(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+      sidebarCollapsed={true}
+      onSidebarToggle={onToggle}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  expect(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+});

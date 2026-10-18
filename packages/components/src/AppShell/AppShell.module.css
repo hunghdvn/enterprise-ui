@@ -11,6 +11,43 @@
   border-right: 1px solid var(--border);
   padding: 12px 8px;
   flex-shrink: 0;
+  transition: width 150ms ease;
+  overflow: hidden;
+}
+.shell[data-collapsed='true'] .sidebar {
+  width: 64px;
+}
+.shell[data-collapsed='true'] .brandText,
+.shell[data-collapsed='true'] .nav .item > span:last-child,
+.shell[data-collapsed='true'] .count {
+  display: none;
+}
+.shell[data-collapsed='true'] .nav {
+  justify-content: center;
+}
+.shell[data-collapsed='true'] .navEmpty {
+  font-size: 10px;
+  padding: 4px 2px;
+  text-align: center;
+}
+.toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.toggle:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 2px;
+}
+.toggle:hover {
+  color: var(--text);
 }
 .brand {
   display: flex;
@@ -121,5 +158,11 @@
   }
   .count {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
   }
 }

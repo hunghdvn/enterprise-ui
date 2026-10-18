@@ -21,6 +21,22 @@ const props: PropDoc[] = [
       'Nội dung hiển thị trong vùng điều hướng khi sidebar rỗng (vd: trạng thái không tìm thấy).',
   },
   {
+    name: 'sidebarCollapsed',
+    type: 'boolean',
+    description: 'Trạng thái thu gọn sidebar (controlled).',
+  },
+  {
+    name: 'defaultSidebarCollapsed',
+    type: 'boolean',
+    default: 'false',
+    description: 'Trạng thái thu gọn ban đầu (uncontrolled).',
+  },
+  {
+    name: 'onSidebarToggle',
+    type: '(collapsed: boolean) => void',
+    description: 'Gọi khi người dùng bấm nút thu gọn/mở rộng sidebar.',
+  },
+  {
     name: 'activeKey',
     type: 'string',
     description: 'Key của mục đang được chọn trong sidebar.',
