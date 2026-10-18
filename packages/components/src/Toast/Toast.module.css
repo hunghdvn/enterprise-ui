@@ -20,6 +20,24 @@
   padding: 8px 12px;
   font-family: var(--font);
   font-size: var(--font-size);
+  animation: toastIn 150ms ease-out;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }
 .toast[data-tone='success'] {
   border-left-color: var(--success);
