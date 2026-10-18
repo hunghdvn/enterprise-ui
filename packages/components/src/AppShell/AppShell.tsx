@@ -1,11 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import { isPresent } from '../internal/isPresent';
 import { Icon } from '../Icon';
 import styles from './AppShell.module.css';
 import type { AppShellProps } from './types';
 
-function isPresent(value: ReactNode): boolean {
-  return value != null && value !== false && value !== '' && value !== 0;
-}
 
 export function AppShell({
   sidebar,
