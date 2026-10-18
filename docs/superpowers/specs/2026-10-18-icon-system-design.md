@@ -94,4 +94,4 @@ packages/components/src/Icon/
 5. Showcase IconDemoPage.
 6. Zero runtime deps maintained; bundle <150KB gzip.
 7. Typecheck, lint, format, builds all pass.
-EOF
+   EOF

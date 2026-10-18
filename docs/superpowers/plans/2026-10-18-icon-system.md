@@ -31,10 +31,12 @@
 ### Task 1: types.ts + icons.ts registry
 
 **Files:**
+
 - Create: `packages/components/src/Icon/types.ts`
 - Create: `packages/components/src/Icon/icons.ts`
 
 **Interfaces:**
+
 - Produces: `IconName`, `IconProps`
 
 - [ ] **Step 1: Create types.ts**
@@ -43,12 +45,42 @@
 import type { ReactNode } from 'react';
 
 export type IconName =
-  | 'check' | 'x' | 'chevron-down' | 'chevron-up' | 'chevron-left' | 'chevron-right'
-  | 'arrow-left' | 'arrow-right' | 'plus' | 'minus' | 'search' | 'filter'
-  | 'settings' | 'user' | 'bell' | 'mail' | 'home' | 'edit' | 'trash'
-  | 'download' | 'upload' | 'copy' | 'check-circle' | 'refresh' | 'info'
-  | 'alert-circle' | 'alert-triangle' | 'help-circle' | 'calendar' | 'clock'
-  | 'eye' | 'eye-off' | 'external-link' | 'inbox' | 'lock' | 'menu'
+  | 'check'
+  | 'x'
+  | 'chevron-down'
+  | 'chevron-up'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'arrow-left'
+  | 'arrow-right'
+  | 'plus'
+  | 'minus'
+  | 'search'
+  | 'filter'
+  | 'settings'
+  | 'user'
+  | 'bell'
+  | 'mail'
+  | 'home'
+  | 'edit'
+  | 'trash'
+  | 'download'
+  | 'upload'
+  | 'copy'
+  | 'check-circle'
+  | 'refresh'
+  | 'info'
+  | 'alert-circle'
+  | 'alert-triangle'
+  | 'help-circle'
+  | 'calendar'
+  | 'clock'
+  | 'eye'
+  | 'eye-off'
+  | 'external-link'
+  | 'inbox'
+  | 'lock'
+  | 'menu'
   | 'more-horizontal';
 
 export interface IconProps {
@@ -87,11 +119,13 @@ git commit -m "feat(icon): add Icon types and icon registry (~33 icons)"
 ### Task 2: Icon component
 
 **Files:**
+
 - Create: `packages/components/src/Icon/Icon.tsx`
 - Create: `packages/components/src/Icon/Icon.module.css`
 - Create: `packages/components/src/Icon/index.ts`
 
 **Interfaces:**
+
 - Consumes: `IconProps`, `IconName`, `ICONS`
 - Produces: `Icon`
 
@@ -146,6 +180,7 @@ export type { IconProps, IconName } from './types';
 - [ ] **Step 4: Export from src/index.ts**
 
 Add to `packages/components/src/index.ts`:
+
 ```ts
 export { Icon } from './Icon/Icon';
 export type { IconProps, IconName } from './Icon/types';
@@ -163,9 +198,11 @@ git commit -m "feat(icon): add Icon component"
 ### Task 3: Icon tests (TDD)
 
 **Files:**
+
 - Create: `packages/components/src/Icon/Icon.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `Icon`, `IconName`
 
 - [ ] **Step 1: Write tests**
@@ -229,11 +266,13 @@ git commit -m "test(icon): add Icon component tests"
 ### Task 4: Refactor Empty/Toast/Modal to use Icon
 
 **Files:**
+
 - Modify: `packages/components/src/Empty/Empty.tsx`
 - Modify: `packages/components/src/Toast/Toast.tsx`
 - Modify: `packages/components/src/Modal/Modal.tsx`
 
 **Interfaces:**
+
 - Consumes: `Icon` from `../Icon`
 
 - [ ] **Step 1: Empty — default icon → Icon name="inbox" size={48}**
@@ -265,6 +304,7 @@ git commit -m "refactor: use Icon in Empty, Toast, Modal"
 ### Task 5: Docs page + Showcase demo
 
 **Files:**
+
 - Create: `apps/docs/src/pages/primitives/IconPage.tsx`
 - Create: `apps/docs/src/pages/primitives/IconPage.module.css`
 - Modify: `apps/docs/src/App.tsx` (add route)
@@ -272,6 +312,7 @@ git commit -m "refactor: use Icon in Empty, Toast, Modal"
 - Modify: `apps/showcase/src/App.tsx` (add route)
 
 **Interfaces:**
+
 - Consumes: `Icon`, `IconName` from library
 
 - [ ] **Step 1: Create IconPage (docs)**

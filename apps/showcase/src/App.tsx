@@ -14,6 +14,7 @@ import TokensPage from './pages/TokensPage';
 import TabsDemoPage from './pages/TabsDemoPage';
 import TooltipDemoPage from './pages/TooltipDemoPage';
 import EmptyDemoPage from './pages/EmptyDemoPage';
+import IconDemoPage from './pages/IconDemoPage';
 import SpinDemoPage from './pages/SpinDemoPage';
 import styles from './App.module.css';
 
@@ -61,6 +62,7 @@ function Shell() {
     tabs: { label: 'Tabs', breadcrumb: 'Primitives', el: <TabsDemoPage /> },
     tooltip: { label: 'Tooltip', breadcrumb: 'Primitives', el: <TooltipDemoPage /> },
     empty: { label: 'Empty', breadcrumb: 'Primitives', el: <EmptyDemoPage /> },
+    icon: { label: 'Icon', breadcrumb: 'Primitives', el: <IconDemoPage /> },
     spin: { label: 'Spin', breadcrumb: 'Primitives', el: <SpinDemoPage /> },
   };
   const current = routes[key] ?? routes.orders;
