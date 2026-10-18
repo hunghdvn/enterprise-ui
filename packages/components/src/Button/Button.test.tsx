@@ -73,6 +73,31 @@ test.each(['sm', 'md'] as const)('renders a ReactNode icon before the label at s
   expect(button.textContent!.indexOf('★')).toBeLessThan(button.textContent!.indexOf('Tạo đơn'));
 });
 
+test('renders the requested data-size for each supported size', () => {
+  const { rerender } = render(<Button size="sm">Lưu</Button>);
+  expect(screen.getByRole('button', { name: 'Lưu' })).toHaveAttribute('data-size', 'sm');
+
+  rerender(<Button size="md">Lưu</Button>);
+  expect(screen.getByRole('button', { name: 'Lưu' })).toHaveAttribute('data-size', 'md');
+});
+
+test('does not render an icon wrapper when no icon is provided', () => {
+  const { container } = render(<Button>Lưu</Button>);
+
+  expect(container.querySelector('[class*="icon"]')).toBeNull();
+  expect(container.querySelector('button')?.textContent).toBe('Lưu');
+});
+
+test.each([0, false, ''] as const)(
+  'does not render a wrapper or content for a falsy icon value (%j)',
+  (icon) => {
+    const { container } = render(<Button icon={icon}>Lưu</Button>);
+
+    expect(container.querySelector('[class*="icon"]')).toBeNull();
+    expect(container.querySelector('button')?.textContent).toBe('Lưu');
+  },
+);
+
 test('keeps the icon and label when loading disables the button', () => {
   render(
     <Button loading icon={<span data-testid="button-icon">★</span>}>
