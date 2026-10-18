@@ -78,7 +78,12 @@
 .tabs[data-variant='segmented'] > .tabList > .tab {
   border-radius: 999px;
   padding: 0 14px;
-  /* Label on the colored track must hit WCAG AA (spec section 6). */
+}
+
+/* Segmented inactive labels use --text on the colored track for WCAG AA.
+   `:not(:hover)` keeps the base `.tab:hover` -> action-text feedback alive,
+   since this rule's specificity would otherwise shadow hover. */
+.tabs[data-variant='segmented'] > .tabList > .tab:not(:hover) {
   color: var(--text);
 }
 
