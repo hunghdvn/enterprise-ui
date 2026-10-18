@@ -45,4 +45,3 @@ export interface IconProps {
   label?: string;
   className?: string;
 }
-EOF

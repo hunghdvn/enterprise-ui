@@ -1,3 +1,4 @@
+import { Icon } from '../Icon';
 import styles from './Toast.module.css';
 
 export type ToastTone = 'success' | 'error' | 'info';
@@ -21,7 +22,7 @@ export function Toast({ message, tone = 'info', onClose }: ToastProps) {
           onClick={onClose}
           aria-label="Đóng thông báo"
         >
-          ✕
+          <Icon name="x" size={14} />
         </button>
       )}
     </div>
