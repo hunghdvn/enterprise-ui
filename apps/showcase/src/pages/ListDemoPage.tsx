@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Badge, Button, FilterBar, Icon, Pagination, Table, useToast } from '@enterprise-ui/components';
+import {
+  Badge,
+  Button,
+  FilterBar,
+  Icon,
+  Pagination,
+  Table,
+  useToast,
+} from '@enterprise-ui/components';
 import type { SortEntry } from '@enterprise-ui/components';
 import { ORDERS, toneFor, type Order } from '../demo-data/orders';
 import styles from './ListDemoPage.module.css';
