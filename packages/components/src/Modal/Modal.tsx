@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../Button/Button';
+import { Icon } from '../Icon';
 import styles from './Modal.module.css';
 import {
   FOCUSABLE,
@@ -124,7 +125,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         <div className={styles.header}>
           <h3 className={styles.title}>{title}</h3>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="Đóng">
-            ✕
+            <Icon name="x" size={16} />
           </Button>
         </div>
         <div className={styles.body}>{children}</div>

@@ -16,6 +16,7 @@ import BadgePage from './pages/primitives/BadgePage';
 import TabsPage from './pages/primitives/TabsPage';
 import TooltipPage from './pages/primitives/TooltipPage';
 import EmptyPage from './pages/primitives/EmptyPage';
+import IconPage from './pages/primitives/IconPage';
 import SpinPage from './pages/primitives/SpinPage';
 import AppShellPage from './pages/layout/AppShellPage';
 import PageHeaderPage from './pages/layout/PageHeaderPage';
@@ -80,6 +81,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode }> = {
   tabs: { label: 'Tabs', el: <TabsPage /> },
   tooltip: { label: 'Tooltip', el: <TooltipPage /> },
   empty: { label: 'Empty', el: <EmptyPage /> },
+  icon: { label: 'Icon', el: <IconPage /> },
   spin: { label: 'Spin', el: <SpinPage /> },
   layout: { label: 'Layout', el: <div>Layout</div> },
   appshell: { label: 'AppShell', el: <AppShellPage /> },
