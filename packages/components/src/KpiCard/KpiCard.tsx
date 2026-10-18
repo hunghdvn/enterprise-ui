@@ -1,15 +1,6 @@
-import type { ReactNode } from 'react';
+import { isPresent } from '../internal/isPresent';
 import styles from './KpiCard.module.css';
 import type { KpiCardProps } from './types';
-
-/**
- * Slot content actually renders something: `null`/`undefined`/`false` are
- * absent by design, and `""`/`0` would leave an empty pill or a stray "0"
- * (follow-up N1) — so they count as absent too.
- */
-function isPresent(value: ReactNode): boolean {
-  return value != null && value !== false && value !== '' && value !== 0;
-}
 
 export function KpiCard({
   label,

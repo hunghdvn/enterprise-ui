@@ -1,11 +1,7 @@
-import type { ReactNode } from 'react';
+import { isPresent } from '../internal/isPresent';
 import { Icon } from '../Icon';
 import styles from './Empty.module.css';
 import type { EmptyProps } from './types';
-
-function isPresent(value: ReactNode): boolean {
-  return value != null && value !== false && value !== '' && value !== 0;
-}
 
 export function Empty({ description, action, icon }: EmptyProps) {
   const desc = description ?? 'Không có dữ liệu';

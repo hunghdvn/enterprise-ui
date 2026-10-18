@@ -211,3 +211,114 @@ test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle withou
     'false',
   );
 });
+
+test('renders ReactNode icons for nav items', () => {
+  render(
+    <AppShell
+      sidebar={[
+        {
+          key: 'orders',
+          label: 'Đơn hàng',
+          icon: <span data-testid="nav-icon">Orders icon</span>,
+        },
+      ]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  expect(screen.getByTestId('nav-icon')).toBeInTheDocument();
+  expect(screen.getByText('Đơn hàng')).toBeInTheDocument();
+});
+
+test.each([0, false, ''] as const)(
+  'uses the default registry icon for an absent ReactNode value (%j)',
+  (icon) => {
+    render(
+      <AppShell
+        sidebar={[{ key: 'orders', label: 'Đơn hàng', icon }]}
+        activeKey="orders"
+        onNavigate={() => {}}
+      >
+        <div>Body</div>
+      </AppShell>,
+    );
+
+    const navItem = screen.getByRole('button', { name: 'Đơn hàng' });
+    expect(navItem.querySelector('[class*="icon"] svg')).toBeInTheDocument();
+    expect(navItem.textContent).not.toContain('0');
+    expect(navItem.textContent).not.toContain('▦');
+  },
+);
+
+test('uses the default registry icon when no icon is provided', () => {
+  render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  const navItem = screen.getByRole('button', { name: 'Đơn hàng' });
+  expect(navItem.querySelector('[class*="icon"] svg')).toBeInTheDocument();
+});
+
+test('keeps supporting string icons for existing NavItem consumers', () => {
+  render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng', icon: '★' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  expect(screen.getByRole('button', { name: 'Đơn hàng' })).toHaveTextContent('★');
+});
+
+test('keeps ReactNode icons visible in the collapsed rail and supports clicking the icon', () => {
+  const onNavigate = vi.fn();
+  const { rerender, container } = render(
+    <AppShell
+      sidebar={[
+        { key: 'orders', label: 'Đơn hàng', icon: <span data-testid="nav-icon">★</span> },
+        { key: 'stock', label: 'Kho vận' },
+      ]}
+      activeKey="orders"
+      onNavigate={onNavigate}
+      sidebarCollapsed
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  expect(container.querySelector('[data-collapsed]')).toHaveAttribute('data-collapsed', 'true');
+  const icon = screen.getByTestId('nav-icon');
+  expect(icon).toBeInTheDocument();
+  expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
+
+  fireEvent.click(icon);
+  expect(onNavigate).toHaveBeenCalledWith('orders');
+
+  rerender(
+    <AppShell
+      sidebar={[
+        { key: 'orders', label: 'Đơn hàng', icon: <span data-testid="nav-icon">★</span> },
+        { key: 'stock', label: 'Kho vận' },
+      ]}
+      activeKey="stock"
+      onNavigate={onNavigate}
+      sidebarCollapsed
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+
+  expect(screen.getByRole('button', { name: 'Kho vận' })).toHaveAttribute('aria-current', 'page');
+});

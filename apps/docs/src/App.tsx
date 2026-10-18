@@ -6,8 +6,9 @@ import {
   ToastProvider,
   useTheme,
   Input,
+  Icon,
 } from '@enterprise-ui/components';
-import type { NavItem } from '@enterprise-ui/components';
+import type { IconName, NavItem } from '@enterprise-ui/components';
 import ButtonPage from './pages/primitives/ButtonPage';
 import InputPage from './pages/primitives/InputPage';
 import SelectPage from './pages/primitives/SelectPage';
@@ -70,35 +71,35 @@ function HeaderRight({
   );
 }
 
-const ROUTES: Record<string, { label: string; el: ReactNode }> = {
-  overview: { label: 'Tổng quan', el: <div>Overview</div> },
-  primitives: { label: 'Primitives', el: <div>Primitives</div> },
-  button: { label: 'Button', el: <ButtonPage /> },
-  input: { label: 'Input', el: <InputPage /> },
-  select: { label: 'Select', el: <SelectPage /> },
-  checkbox: { label: 'Checkbox', el: <CheckboxPage /> },
-  badge: { label: 'Badge', el: <BadgePage /> },
-  tabs: { label: 'Tabs', el: <TabsPage /> },
-  tooltip: { label: 'Tooltip', el: <TooltipPage /> },
-  empty: { label: 'Empty', el: <EmptyPage /> },
-  icon: { label: 'Icon', el: <IconPage /> },
-  spin: { label: 'Spin', el: <SpinPage /> },
-  layout: { label: 'Layout', el: <div>Layout</div> },
-  appshell: { label: 'AppShell', el: <AppShellPage /> },
-  pageheader: { label: 'PageHeader', el: <PageHeaderPage /> },
-  splitview: { label: 'SplitView', el: <SplitViewPage /> },
-  pagination: { label: 'Pagination', el: <PaginationPage /> },
-  data: { label: 'Data', el: <div>Data</div> },
-  table: { label: 'Table', el: <TablePage /> },
-  filterbar: { label: 'FilterBar', el: <FilterBarPage /> },
-  kpicard: { label: 'KpiCard', el: <KpiCardPage /> },
-  kpigrid: { label: 'KpiGrid', el: <KpiGridPage /> },
-  feedback: { label: 'Feedback', el: <div>Feedback</div> },
-  modal: { label: 'Modal', el: <ModalPage /> },
-  drawer: { label: 'Drawer', el: <DrawerPage /> },
-  toast: { label: 'Toast', el: <ToastPage /> },
-  form: { label: 'Form', el: <FormPage /> },
-  tokens: { label: 'Tokens', el: <TokensPage /> },
+const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> = {
+  overview: { label: 'Tổng quan', icon: 'home', el: <div>Overview</div> },
+  primitives: { label: 'Primitives', icon: 'copy', el: <div>Primitives</div> },
+  button: { label: 'Button', icon: 'plus', el: <ButtonPage /> },
+  input: { label: 'Input', icon: 'edit', el: <InputPage /> },
+  select: { label: 'Select', icon: 'chevron-down', el: <SelectPage /> },
+  checkbox: { label: 'Checkbox', icon: 'check-circle', el: <CheckboxPage /> },
+  badge: { label: 'Badge', icon: 'alert-circle', el: <BadgePage /> },
+  tabs: { label: 'Tabs', icon: 'menu', el: <TabsPage /> },
+  tooltip: { label: 'Tooltip', icon: 'help-circle', el: <TooltipPage /> },
+  empty: { label: 'Empty', icon: 'inbox', el: <EmptyPage /> },
+  icon: { label: 'Icon', icon: 'eye', el: <IconPage /> },
+  spin: { label: 'Spin', icon: 'refresh', el: <SpinPage /> },
+  layout: { label: 'Layout', icon: 'more-horizontal', el: <div>Layout</div> },
+  appshell: { label: 'AppShell', icon: 'settings', el: <AppShellPage /> },
+  pageheader: { label: 'PageHeader', icon: 'arrow-left', el: <PageHeaderPage /> },
+  splitview: { label: 'SplitView', icon: 'arrow-right', el: <SplitViewPage /> },
+  pagination: { label: 'Pagination', icon: 'chevron-right', el: <PaginationPage /> },
+  data: { label: 'Data', icon: 'filter', el: <div>Data</div> },
+  table: { label: 'Table', icon: 'download', el: <TablePage /> },
+  filterbar: { label: 'FilterBar', icon: 'search', el: <FilterBarPage /> },
+  kpicard: { label: 'KpiCard', icon: 'check', el: <KpiCardPage /> },
+  kpigrid: { label: 'KpiGrid', icon: 'calendar', el: <KpiGridPage /> },
+  feedback: { label: 'Feedback', icon: 'bell', el: <div>Feedback</div> },
+  modal: { label: 'Modal', icon: 'external-link', el: <ModalPage /> },
+  drawer: { label: 'Drawer', icon: 'minus', el: <DrawerPage /> },
+  toast: { label: 'Toast', icon: 'mail', el: <ToastPage /> },
+  form: { label: 'Form', icon: 'trash', el: <FormPage /> },
+  tokens: { label: 'Tokens', icon: 'lock', el: <TokensPage /> },
 };
 
 function Shell() {
@@ -110,7 +111,11 @@ function Shell() {
     () =>
       Object.entries(ROUTES)
         .filter(([, r]) => r.label.toLowerCase().includes(q))
-        .map(([routeKey, r]) => ({ key: routeKey, label: r.label })),
+        .map(([routeKey, r]) => ({
+          key: routeKey,
+          label: r.label,
+          icon: <Icon name={r.icon} size={16} />,
+        })),
     [q],
   );
 
