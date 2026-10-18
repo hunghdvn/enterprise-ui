@@ -45,8 +45,12 @@ const KEYWORDS = new Set([
   'readonly',
 ]);
 
+// The jsx alternative captures the character before a tag (group 4) instead of
+// using a `(?<![\w)])` lookbehind: lookbehind throws a SyntaxError at module
+// parse on Safari <16.4 and esbuild does not transpile regex features. The
+// captured character is re-emitted before the jsx token in tokenize().
 const TOKEN_REGEX =
-  /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|((?<![\w)])<\/?[A-Za-z][\w.-]*)|(\b[A-Za-z_]\w*\b)|(\b\d+(?:\.\d+)?\b)/g;
+  /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|(([\w)]?)<\/?[A-Za-z][\w.-]*)|(\b[A-Za-z_]\w*\b)|(\b\d+(?:\.\d+)?\b)/g;
 
 function tokenize(code: string): Token[] {
   const tokens: Token[] = [];
@@ -63,7 +67,11 @@ function tokenize(code: string): Token[] {
     } else if (match[2]) {
       tokens.push({ type: 'string', value: full });
     } else if (match[3]) {
-      tokens.push({ type: 'jsx', value: full });
+      // Re-emit the captured character (if any) so nothing is dropped or
+      // double-counted; the tag token itself starts at the '<'.
+      const lead = match[4];
+      if (lead) tokens.push({ type: 'plain', value: lead });
+      tokens.push({ type: 'jsx', value: full.slice(lead ? lead.length : 0) });
     } else if (match[5]) {
       tokens.push({ type: 'number', value: full });
     } else if (match[4]) {
@@ -91,8 +99,11 @@ export function CodeBlock({ code, language = 'tsx' }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    // Without the Clipboard API (insecure context, older browsers) fall
+    // through to "Đã sao chép" — bail out before touching any state.
+    if (!navigator.clipboard) return;
     try {
-      await navigator.clipboard?.writeText(code);
+      await navigator.clipboard.writeText(code);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
