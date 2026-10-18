@@ -8,7 +8,7 @@ import styles from './ButtonPage.module.css';
 const props: PropDoc[] = [
   {
     name: 'variant',
-    type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'accent'",
+    type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'success'",
     default: "'primary'",
     description: 'Biến thể màu sắc của nút.',
   },
@@ -55,6 +55,9 @@ export function Actions() {
       <Button variant="danger" loading>
         Đang xóa...
       </Button>
+      <Button variant="success" loading>
+        Đang lưu...
+      </Button>
       <Button variant="accent" size="md" disabled>
         Nâng cấp
       </Button>
@@ -67,7 +70,7 @@ export default function ButtonPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Button</h1>
       <p className={styles.subtitle}>
-        Nút hành động với 5 biến thể, 2 kích thước và trạng thái loading/vô hiệu hóa.
+        Nút hành động với 6 biến thể, 2 kích thước và trạng thái loading/vô hiệu hóa.
       </p>
       <Tabs
         items={[
@@ -85,6 +88,7 @@ export default function ButtonPage() {
                       <Button variant="ghost">Ghost</Button>
                       <Button variant="danger">Danger</Button>
                       <Button variant="accent">Accent</Button>
+                      <Button variant="success">Success</Button>
                     </div>
                   </section>
                   <section className={styles.section}>
