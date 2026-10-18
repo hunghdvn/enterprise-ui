@@ -12,7 +12,7 @@ const props: PropDoc[] = [
     name: 'sidebar',
     type: 'NavItem[]',
     description:
-      'Danh sách mục điều hướng; icon nhận ReactNode (khuyến nghị dùng <Icon />), badge là tùy chọn.',
+      'Danh sách NavItem; mỗi mục cần key và label; icon ReactNode tùy chọn, chỉ mang tính trang trí (AppShell bọc aria-hidden, khuyến nghị dùng <Icon />); badge số là tùy chọn.',
   },
   {
     name: 'sidebarEmptyState',

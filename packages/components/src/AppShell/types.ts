@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 export interface NavItem {
   key: string;
   label: string;
+  /** Optional decorative icon content; AppShell hides this slot from assistive technology with aria-hidden. */
   icon?: ReactNode;
   badge?: number;
 }

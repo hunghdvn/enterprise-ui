@@ -89,7 +89,7 @@ function Shell() {
       icon: 'help-circle',
       el: <TooltipDemoPage />,
     },
-    empty: { label: 'Empty', breadcrumb: 'Primitives', icon: 'inbox', el: <EmptyDemoPage /> },
+    empty: { label: 'Empty', breadcrumb: 'Primitives', icon: 'alert-circle', el: <EmptyDemoPage /> },
     icon: {
       label: 'Icon',
       breadcrumb: 'Primitives',

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Icon } from '../Icon';
 import styles from './AppShell.module.css';
 import type { AppShellProps } from './types';
+
+function isPresent(value: ReactNode): boolean {
+  return value != null && value !== false && value !== '' && value !== 0;
+}
 
 export function AppShell({
   sidebar,
@@ -73,7 +77,7 @@ export function AppShell({
               >
                 <span className={styles.item}>
                   <span className={styles.icon} aria-hidden="true">
-                    {i.icon ?? '▦'}
+                    {isPresent(i.icon) ? i.icon : <Icon name="inbox" size={16} />}
                   </span>{' '}
                   <span>{i.label}</span>
                 </span>
