@@ -51,8 +51,10 @@ A mockup review on 2026-10-18 selected three new looks (the fourth option, a bor
 - No hardcoded hex. Available tokens: `--surface-muted`, `--surface`, `--bg`,
   `--border`, `--text`, `--text-muted`, `--action-text`, `--color-blue-600`,
   `--color-blue-700`, `--on-primary`, `--radius`, `--radius-lg`, `--shadow-sm`.
-- Inactive labels keep `--text-muted` (as `line` does today) so contrast behaves the
-  same across themes; the only change is the segmented track behind them.
+- `line`/`pills`/`enclosed` inactive labels keep `--text-muted` (as `line` does today);
+  on their backgrounds that is ≥ 4.5:1 (WCAG AA). `segmented` inactive labels use
+  `--text` (not `--text-muted`) because they sit on the colored `--surface-muted`
+  track, where muted reads only ~4.0–4.3:1; see the contrast note under §6.2.
 - Bordered variants must stay on the input height scale: `enclosed` tabs set
   `box-sizing: border-box` (the pattern `Input.module.css` uses) so the 1px borders do
   not grow the control beyond `var(--input-h)` / `var(--input-h-lg)`.
@@ -94,7 +96,8 @@ Existing styles untouched: flex row, `gap: 16px`,
   padding ×2 plus the inner height totals exactly the input scale, so the control
   lines up with Input/Button/Select (the mockup drew the track taller than a flat row;
   the component standardises on the input scale). In dark theme the active segment
-  reads deeper instead of raised — accepted, see §10.
+  reads deeper instead of raised — accepted, see §10. Inactive label color is `--text`
+  (not the base `--text-muted`) so it stays ≥ 4.5:1 on the `--surface-muted` track; see §4.
 - Active: `background: var(--surface)`, `color: var(--text)`,
   `box-shadow: var(--shadow-sm)` — the white pill "pops" out of the track.
 - Inactive hover: text color → `var(--action-text)`; no background change.
