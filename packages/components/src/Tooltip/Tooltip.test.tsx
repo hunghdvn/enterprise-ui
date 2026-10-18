@@ -93,6 +93,39 @@ test('sets aria-describedby on the trigger while visible and removes it when hid
   vi.useRealTimers();
 });
 
+test('does not show tooltip for a disabled button on hover or focus', () => {
+  vi.useFakeTimers();
+  render(
+    <Tooltip content="Help text">
+      <button disabled>Unavailable action</button>
+    </Tooltip>,
+  );
+  const trigger = screen.getByText('Unavailable action');
+  fireEvent.mouseEnter(trigger);
+  fireEvent.focus(trigger);
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+test('does not show tooltip for an aria-disabled trigger', () => {
+  vi.useFakeTimers();
+  render(
+    <Tooltip content="Help text">
+      <button aria-disabled="true">Unavailable action</button>
+    </Tooltip>,
+  );
+  const trigger = screen.getByText('Unavailable action');
+  fireEvent.mouseEnter(trigger);
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  vi.useRealTimers();
+});
+
 // Under StrictMode (apps/docs renders inside it) two show() calls batched in
 // one act() used to double-invoke the setTimerId updater, losing one timer id
 // and leaving an orphan timer that stuck the tooltip open after mouse leave.
