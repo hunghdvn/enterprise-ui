@@ -15,7 +15,7 @@
   overflow: hidden;
 }
 .shell[data-collapsed='true'] .sidebar {
-  width: 64px;
+  width: 76px;
 }
 .shell[data-collapsed='true'] .brandText,
 .shell[data-collapsed='true'] .nav .item > span:last-child,
@@ -65,6 +65,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .nav {
   width: 100%;
@@ -135,8 +136,17 @@
   padding: 12px 16px;
 }
 @media (max-width: 768px) {
-  .sidebar {
+  /* Keep the fixed 64px rail even when a desktop collapse was persisted:
+     `data-collapsed` outranks the plain `.sidebar` rule below. */
+  .sidebar,
+  .shell[data-collapsed='true'] .sidebar {
     width: 64px;
+  }
+  /* Mobile is already a fixed icon rail: collapsing is a desktop-only
+     affordance, and the toggle would persist false state under a visual
+     no-op. */
+  .toggle {
+    display: none;
   }
   .nav {
     justify-content: center;

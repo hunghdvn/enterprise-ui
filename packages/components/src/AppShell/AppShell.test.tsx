@@ -3,6 +3,12 @@ import { AppShell } from './AppShell';
 import { Empty } from '../Empty';
 import styles from './AppShell.module.css';
 
+// The uncontrolled shell reads/writes the shared `eui-sidebar-collapsed` key;
+// isolate every test from state left by its neighbors.
+beforeEach(() => {
+  localStorage.clear();
+});
+
 test('white sidebar navigates and shows orange badge', () => {
   const fn = vi.fn();
   render(
@@ -94,8 +100,9 @@ test('block-level sidebarEmptyState does not trip validateDOMNesting', () => {
   errorSpy.mockRestore();
 });
 
-test('toggle button collapses and expands sidebar (uncontrolled)', () => {
-  render(
+test('toggle button collapses and expands sidebar and writes localStorage (uncontrolled)', () => {
+  localStorage.clear();
+  const { container } = render(
     <AppShell
       sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
       activeKey="orders"
@@ -104,23 +111,65 @@ test('toggle button collapses and expands sidebar (uncontrolled)', () => {
       <div>Body</div>
     </AppShell>,
   );
+  const shell = () => container.querySelector('[data-collapsed]');
+  expect(shell()).toHaveAttribute('data-collapsed', 'false');
   const toggle = screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i });
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   fireEvent.click(toggle);
+  expect(shell()).toHaveAttribute('data-collapsed', 'true');
+  expect(localStorage.getItem('eui-sidebar-collapsed')).toBe('1');
   expect(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i })).toHaveAttribute(
     'aria-expanded',
     'false',
   );
   fireEvent.click(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i }));
+  expect(shell()).toHaveAttribute('data-collapsed', 'false');
+  expect(localStorage.getItem('eui-sidebar-collapsed')).toBe('0');
   expect(screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
 });
 
-test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle', () => {
+test('uncontrolled sidebar reads persisted localStorage value on mount', () => {
+  localStorage.setItem('eui-sidebar-collapsed', '1');
+  const { container } = render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  expect(container.querySelector('[data-collapsed]')).toHaveAttribute('data-collapsed', 'true');
+  expect(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  localStorage.clear();
+});
+
+test('defaultSidebarCollapsed wins over localStorage for the initial state', () => {
+  localStorage.setItem('eui-sidebar-collapsed', '1');
+  const { container } = render(
+    <AppShell
+      sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
+      activeKey="orders"
+      onNavigate={() => {}}
+      defaultSidebarCollapsed={false}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  expect(container.querySelector('[data-collapsed]')).toHaveAttribute('data-collapsed', 'false');
+  localStorage.clear();
+});
+
+test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle without persisting', () => {
+  localStorage.clear();
   const onToggle = vi.fn();
-  const { rerender } = render(
+  const { container, rerender } = render(
     <AppShell
       sidebar={[{ key: 'orders', label: 'Đơn hàng' }]}
       activeKey="orders"
@@ -135,7 +184,11 @@ test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle', () =
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   fireEvent.click(toggle);
   expect(onToggle).toHaveBeenCalledWith(true);
-  // controlled: internal state doesn't change without prop update
+  // controlled: internal state doesn't change without prop update, and the
+  // shared localStorage key is left untouched.
+  const shell = container.querySelector('[data-collapsed]');
+  expect(shell).toHaveAttribute('data-collapsed', 'false');
+  expect(localStorage.getItem('eui-sidebar-collapsed')).toBeNull();
   expect(screen.getByRole('button', { name: /Thu gọn thanh điều hướng/i })).toHaveAttribute(
     'aria-expanded',
     'true',
@@ -152,6 +205,7 @@ test('controlled sidebarCollapsed prop reflects and calls onSidebarToggle', () =
       <div>Body</div>
     </AppShell>,
   );
+  expect(shell).toHaveAttribute('data-collapsed', 'true');
   expect(screen.getByRole('button', { name: /Mở rộng thanh điều hướng/i })).toHaveAttribute(
     'aria-expanded',
     'false',

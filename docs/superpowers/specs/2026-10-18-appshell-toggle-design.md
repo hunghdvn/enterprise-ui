@@ -11,7 +11,7 @@ AppShell's sidebar is always expanded on desktop (210px) and collapses to a 64px
 ## 2. Goals
 
 - Add a toggle button (chevron icon) in the sidebar brand area.
-- Collapsed state: sidebar width 64px, labels/brand text/counts hidden, icons only.
+- Collapsed state: sidebar width 76px, labels/brand text/counts hidden, icons only.
 - Controlled + uncontrolled: `sidebarCollapsed?` + `onSidebarToggle?` + `defaultSidebarCollapsed?`.
 - Persist collapsed state to localStorage (`eui-sidebar-collapsed`), default expanded.
 - Smooth width transition (150ms).
@@ -50,7 +50,7 @@ export interface AppShellProps {
 ## 6. CSS
 
 - `.sidebar` width transition 150ms.
-- `.collapsed` modifier: width 64px, hide `.brandText`, `.nav` label spans, `.count`, `.navEmpty` text (show icon).
+- `.collapsed` modifier: width 76px, hide `.brandText`, `.nav` label spans, `.count`; `.navEmpty` keeps small centered text.
 - Reduced-motion: no transition.
 
 ## 7. Implementation Order
@@ -61,4 +61,3 @@ export interface AppShellProps {
 4. AppShell.test.tsx — toggle tests
 5. Docs page AppShellPage — add prop docs + demo
 6. Build + verify
-   EOF

@@ -24,7 +24,7 @@
 - localStorage persistence
 - Toggle button a11y (aria-label, aria-expanded)
 - Reduced-motion guard
-- Existing AppShell tests still pass (16 tests)
+- Existing AppShell tests still pass (base has 5)
 
 ---
 
@@ -144,7 +144,10 @@ git commit -m "feat(appshell): add sidebar collapse toggle"
   transition: width 150ms ease;
 }
 .shell[data-collapsed='true'] .sidebar {
-  width: 64px;
+  width: 76px;
+}
+.logo {
+  flex-shrink: 0; /* keep the 28px square when collapsed space is tight */
 }
 .shell[data-collapsed='true'] .brandText,
 .shell[data-collapsed='true'] .nav .item > span:last-child,
@@ -155,8 +158,10 @@ git commit -m "feat(appshell): add sidebar collapse toggle"
   justify-content: center;
 }
 .shell[data-collapsed='true'] .navEmpty {
+  /* keeps small centered text, like the mobile rail */
   font-size: 10px;
   padding: 4px 2px;
+  text-align: center;
 }
 .toggle {
   background: transparent;
@@ -222,7 +227,7 @@ test('controlled sidebarCollapsed prop', () => {
 - [ ] **Step 2: Run tests**
 
 Run: `npm run test --workspace=@enterprise-ui/components -- --run src/AppShell`
-Expected: all pass (existing 16 + new)
+Expected: all pass (existing 5 + new)
 
 - [ ] **Step 3: Commit**
 
@@ -233,12 +238,11 @@ git commit -m "test(appshell): add sidebar toggle tests"
 
 ---
 
-### Task 5: Docs + showcase
+### Task 5: Docs page
 
 **Files:**
 
 - Modify: `apps/docs/src/pages/layout/AppShellPage.tsx` (add props: sidebarCollapsed, defaultSidebarCollapsed, onSidebarToggle)
-- Modify: `apps/showcase/src/App.tsx` (add toggle demo? optional)
 
 **Interfaces:**
 
@@ -248,20 +252,20 @@ git commit -m "test(appshell): add sidebar toggle tests"
 
 Add 3 new props to the props array.
 
-- [ ] **Step 2: Showcase — add toggle to the existing AppShell demo**
+- [ ] **Step 2: Wire demo instances as controlled**
 
-The showcase App.tsx already uses AppShell with sidebar. Add `defaultSidebarCollapsed={false}` to demonstrate. Actually, the showcase is the main consumer — let me add the toggle there so users can see it.
+AppShellPage: add the 3 new props to the props table and wire both demo instances as controlled (`sidebarCollapsed` + `onSidebarToggle`) so demos never persist to the shared `eui-sidebar-collapsed` key.
 
 - [ ] **Step 3: Build + verify**
 
-Run: `npm run build --workspace=@enterprise-ui/components && npm run build --workspace=@enterprise-ui/docs && npm run build --workspace=@enterprise-ui/showcase`
+Run: `npm run build --workspace=@enterprise-ui/components && npm run build --workspace=@enterprise-ui/docs`
 Expected: all pass
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/docs/src/pages/layout/AppShellPage.tsx apps/showcase/src/App.tsx
-git commit -m "feat(docs,showcase): document and demo AppShell sidebar toggle"
+git add apps/docs/src/pages/layout/AppShellPage.tsx
+git commit -m "feat(docs): document and demo AppShell sidebar toggle"
 ```
 
 ---
