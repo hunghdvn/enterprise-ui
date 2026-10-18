@@ -399,3 +399,148 @@ test('no onMasterWidthChange keeps the splitter inert (no throw)', () => {
     restore();
   }
 });
+
+// --- review fix coverage (findings #4, #10, #11, #12) ---
+
+test('aria-valuemax is rendered when maxSize is provided', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={400}
+        minSize={280}
+        maxSize={720}
+        onMasterWidthChange={() => {}}
+      />,
+    );
+    const splitter = screen.getByRole('separator');
+    expect(splitter.getAttribute('aria-valuenow')).toBe('400');
+    expect(splitter.getAttribute('aria-valuemin')).toBe('280');
+    expect(splitter.getAttribute('aria-valuemax')).toBe('720');
+  } finally {
+    restore();
+  }
+});
+
+test('dragging past the minimum clamps to it (reverse direction)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={400}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(400)); // start at 400
+    fireEvent(window, pm(300)); // 400 - 100 = 300
+    expect(onWidthChange).toHaveBeenLastCalledWith(300);
+    fireEvent(window, pm(0)); // 0 → clamped to 280
+    expect(onWidthChange).toHaveBeenLastCalledWith(280);
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('maxSize below minSize falls back to min as the ceiling', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={500}
+        minSize={300}
+        maxSize={200}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100)); // startSize 500
+    fireEvent(window, pm(9999)); // way beyond → clamped to 300 (floor wins)
+    expect(onWidthChange).toHaveBeenLastCalledWith(300);
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('a buttons===0 pointer ends the drag', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100)); // arm
+    fireEvent(window, pm(150)); // 380 + 50 = 430
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    // buttons===0 mid-stream ends the drag
+    fireEvent(window, pm(300, 0, 1, 0));
+    onWidthChange.mockClear();
+    fireEvent(window, pm(400, 0, 1, 1));
+    expect(onWidthChange).not.toHaveBeenCalled();
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('vertical keyboard resizes height: Arrow ±8, Shift ±32, Delete resets to default', () => {
+  const Wrapper = () => {
+    const [h, setH] = useState(280);
+    return (
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={h}
+        minSize={120}
+        onMasterHeightChange={setH}
+      />
+    );
+  };
+  const restore = stubMatchMedia(false);
+  try {
+    render(<Wrapper />);
+    const handle = screen.getByRole('separator');
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'ArrowDown' }); // 280 + 8 = 288
+    expect(handle.getAttribute('aria-valuenow')).toBe('288');
+    fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true }); // 288 + 32 = 320
+    expect(handle.getAttribute('aria-valuenow')).toBe('320');
+    fireEvent.keyDown(handle, { key: 'ArrowUp' }); // 320 - 8 = 312
+    expect(handle.getAttribute('aria-valuenow')).toBe('312');
+    fireEvent.keyDown(handle, { key: 'Delete' }); // reset to default 280
+    expect(handle.getAttribute('aria-valuenow')).toBe('280');
+  } finally {
+    restore();
+  }
+});

@@ -45,15 +45,19 @@
   background: var(--border);
   border-radius: var(--radius);
   cursor: col-resize;
+  /* Touch drags must resize, not scroll/pinch-zoom the page. */
+  touch-action: none;
 }
 
 .splitter:focus-visible {
   outline: 2px solid var(--color-blue-600);
-  outlineoffset: -2px;
+  outline-offset: -2px;
 }
 
 .splitter:focus-visible .splitterGrip,
-.splitter:focus-visible .splitterGrip span {
+.splitter:focus-visible .splitterGripVertical,
+.splitter:focus-visible .splitterGrip span,
+.splitter:focus-visible .splitterGripVertical span {
   background: var(--color-blue-600);
 }
 
@@ -89,6 +93,8 @@
 .splitterGripVertical span {
   width: 6px;
   height: 2px;
+  background: var(--surface);
+  border-radius: 1px;
 }
 
 .mobileBar {
