@@ -8,6 +8,9 @@ test.each([null, undefined, false, '', 0, -0] as const)(
   },
 );
 
-test.each(['★', 1, true, NaN] as const)('treats %p as present slot content', (value) => {
-  expect(isPresent(value as ReactNode)).toBe(true);
-});
+test.each(['★', 1, true, NaN] as const)(
+  'treats %p as present slot content',
+  (value) => {
+    expect(isPresent(value as ReactNode)).toBe(true);
+  },
+);
