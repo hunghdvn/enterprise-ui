@@ -78,7 +78,9 @@ export function Tooltip({
 
   const existingDescribedBy = childProps['aria-describedby'] as string | undefined;
 
-  const describedBy = visible ? cx(existingDescribedBy, tooltipId) || undefined : existingDescribedBy;
+  const describedBy = visible
+    ? cx(existingDescribedBy, tooltipId) || undefined
+    : existingDescribedBy;
 
   const handleMouseEnter = useCallback(
     (event: unknown) => {
@@ -143,6 +145,12 @@ export function Tooltip({
   }
   if (describedBy) cloneProps['aria-describedby'] = describedBy;
 
+  // react-hooks/refs false positive: cloneProps only carries event handlers
+  // (plus className/aria-describedby). The rule sees that the handlers
+  // transitively call computePlacement/clearTimer — which read wrapperRef and
+  // timerRef — and flags passing them as "refs during render", but React only
+  // invokes these functions from event handlers, never during render.
+  // eslint-disable-next-line react-hooks/refs
   const child = cloneElement(children, cloneProps);
 
   return (
