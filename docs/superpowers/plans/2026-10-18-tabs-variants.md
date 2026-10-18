@@ -34,6 +34,7 @@ Inputs/conditions the spec implies that task tests can't exercise in jsdom (each
 ### Task 1: `variant` prop + `data-variant` hook
 
 **Files:**
+
 - Modify: `packages/components/src/Tabs/types.ts`
 - Modify: `packages/components/src/Tabs/Tabs.tsx`
 - Modify: `packages/components/src/Tabs/Tabs.test.tsx`
@@ -41,6 +42,7 @@ Inputs/conditions the spec implies that task tests can't exercise in jsdom (each
 - Modify: `packages/components/src/index.ts`
 
 **Interfaces:**
+
 - Produces: `export type TabsVariant = 'line' | 'segmented' | 'pills' | 'enclosed';` and `TabsProps.variant?: TabsVariant` (default `'line'`); root `<div>` renders `data-variant={variant}`.
 
 - [ ] **Step 1: Write the failing tests** (append to `Tabs.test.tsx`)
@@ -121,9 +123,11 @@ git commit -m "feat(tabs): add variant prop and data-variant hook"
 ### Task 2: Variant styles (segmented / pills / enclosed)
 
 **Files:**
+
 - Modify: `packages/components/src/Tabs/Tabs.module.css`
 
 **Interfaces:**
+
 - Consumes: `data-variant` attribute from Task 1.
 - Produces: attribute-scoped CSS rules (values pinned by spec §6.2–§6.4).
 
@@ -234,9 +238,11 @@ git commit -m "feat(tabs): add segmented, pills and enclosed styles"
 ### Task 3: Docs page — prop, demo, snippet
 
 **Files:**
+
 - Modify: `apps/docs/src/pages/primitives/TabsPage.tsx`
 
 **Interfaces:**
+
 - Consumes: `variant` prop (Task 1) and the visuals (Task 2).
 
 - [ ] **Step 1: Add the prop row** (after the `size` row in `props`)
@@ -257,9 +263,21 @@ Add near the other item constants:
 
 ```tsx
 const variantItems: TabItem[] = [
-  { key: 'v-overview', label: 'Tổng quan', content: <p className={styles.panelText}>Nội dung tab.</p> },
-  { key: 'v-details', label: 'Chi tiết', content: <p className={styles.panelText}>Nội dung tab.</p> },
-  { key: 'v-history', label: 'Lịch sử', content: <p className={styles.panelText}>Nội dung tab.</p> },
+  {
+    key: 'v-overview',
+    label: 'Tổng quan',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
+  {
+    key: 'v-details',
+    label: 'Chi tiết',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
+  {
+    key: 'v-history',
+    label: 'Lịch sử',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
 ];
 ```
 
@@ -306,9 +324,11 @@ git commit -m "docs(tabs): document and demo the new variants"
 ### Task 4: Showcase demo sections
 
 **Files:**
+
 - Modify: `apps/showcase/src/pages/TabsDemoPage.tsx`
 
 **Interfaces:**
+
 - Consumes: `variant` prop (Task 1).
 
 - [ ] **Step 1: Add three sections** (after the "Kích thước nhỏ (sm)" section, reusing `basicItems`)
@@ -347,9 +367,11 @@ git commit -m "docs(showcase): demo Tabs variants"
 ### Task 5: Browser verification (light + dark, sm + md) + full gate
 
 **Files:**
+
 - No new files; fixes only if verification finds defects.
 
 **Interfaces:**
+
 - Consumes: everything above, served through the docs build.
 
 - [ ] **Step 1: Build + serve the docs app**
@@ -360,13 +382,13 @@ Run: `npm run build --workspace=@enterprise-ui/components && npm run build --wor
 
 Playwright, at 1440px on `http://localhost:4176/enterprise-ui/` → Tabs page. For each variant measure computed styles and fill in:
 
-| Check | Expected |
-| --- | --- |
-| md total heights (all variants) | 40px (line/segmented track/pills/enclosed row) |
-| segmented track | `background` = `--surface-muted` (#f1f5f9), radius 999px, padding 3px; active segment `background` = #ffffff, `box-shadow` set |
-| pills active | `background` = rgb(30,71,196) (`--color-blue-600`), colour = #ffffff |
-| enclosed active | `border-bottom-color` equals its `background` (#ffffff) so the bar line is covered (zoom/screenshot the boundary — no grey line under the active tab) |
-| sm pass | repeat quickly: totals 32px; segmented inner 26px |
+| Check                           | Expected                                                                                                                                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| md total heights (all variants) | 40px (line/segmented track/pills/enclosed row)                                                                                                        |
+| segmented track                 | `background` = `--surface-muted` (#f1f5f9), radius 999px, padding 3px; active segment `background` = #ffffff, `box-shadow` set                        |
+| pills active                    | `background` = rgb(30,71,196) (`--color-blue-600`), colour = #ffffff                                                                                  |
+| enclosed active                 | `border-bottom-color` equals its `background` (#ffffff) so the bar line is covered (zoom/screenshot the boundary — no grey line under the active tab) |
+| sm pass                         | repeat quickly: totals 32px; segmented inner 26px                                                                                                     |
 
 - [ ] **Step 3: Verify hover + dark theme**
 
