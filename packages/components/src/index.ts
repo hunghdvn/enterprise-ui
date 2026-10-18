@@ -60,5 +60,8 @@ export { Tooltip } from './Tooltip/Tooltip';
 export type { TooltipProps } from './Tooltip/types';
 export { Empty } from './Empty/Empty';
 export type { EmptyProps } from './Empty/types';
+export { Icon } from './Icon/Icon';
+export type { IconProps, IconName } from './Icon/types';
+export { ICONS } from './Icon/icons';
 export { Spin } from './Spin/Spin';
 export type { SpinProps } from './Spin/types';
