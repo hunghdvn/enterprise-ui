@@ -322,4 +322,3 @@ test('keeps ReactNode icons visible in the collapsed rail and supports clicking 
 
   expect(screen.getByRole('button', { name: 'Kho vận' })).toHaveAttribute('aria-current', 'page');
 });
-
