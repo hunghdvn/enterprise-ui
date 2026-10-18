@@ -7,6 +7,13 @@ test('primary renders and accent uses orange', () => {
   expect(screen.getByRole('button')).toHaveAttribute('data-variant', 'accent');
 });
 
+test('success variant renders with success data-variant', () => {
+  render(<Button variant="success">Xác nhận</Button>);
+  const button = screen.getByRole('button', { name: 'Xác nhận' });
+  expect(button).toHaveAttribute('data-variant', 'success');
+  expect(button).not.toBeDisabled();
+});
+
 test('defaults to type button so it never submits an enclosing form', () => {
   const onSubmit = vi.fn();
   render(
