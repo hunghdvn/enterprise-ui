@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { ICONS } from './icons';
 import { Icon } from './Icon';
+import type { IconName } from './types';
 
 test('renders an svg for a valid name', () => {
   render(<Icon name="check" />);
@@ -30,7 +31,7 @@ test('className is applied', () => {
 
 test('all registered icons render without error', () => {
   for (const name of Object.keys(ICONS)) {
-    const { unmount } = render(<Icon name={name as any} />);
+    const { unmount } = render(<Icon name={name as IconName} />);
     expect(document.querySelector('svg')).toBeInTheDocument();
     unmount();
   }
