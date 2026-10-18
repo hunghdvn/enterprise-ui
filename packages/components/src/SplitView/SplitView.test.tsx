@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { SplitView } from './SplitView';
 
@@ -540,6 +540,222 @@ test('vertical keyboard resizes height: Arrow ±8, Shift ±32, Delete resets to 
     expect(handle.getAttribute('aria-valuenow')).toBe('312');
     fireEvent.keyDown(handle, { key: 'Delete' }); // reset to default 280
     expect(handle.getAttribute('aria-valuenow')).toBe('280');
+  } finally {
+    restore();
+  }
+});
+
+// --- review fix coverage (round 2: N1 reconcile + N2 harness coverage) ---
+
+// Non-vacuous guard of the measured default-max path (#1): when the track is
+// laid out, `maxSize` defaults to 0.8x track and a drag past it clamps. Mirrors
+// the ResizeObserver+clientHeight stub technique in Table.test.tsx:891-925.
+test('default maxSize is 0.8x the measured track when laid out', async () => {
+  let roCallback: ResizeObserverCallback | undefined;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(callback: ResizeObserverCallback) {
+        roCallback = callback;
+      }
+    },
+  );
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={<div data-testid="master">m</div>}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 500, configurable: true });
+    // The RO callback is what re-measures on layout change.
+    await act(async () => {
+      roCallback?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    const splitter = screen.getByRole('separator');
+    await waitFor(() => expect(splitter.getAttribute('aria-valuemax')).toBe('400')); // 0.8 * 500
+    // Dragging past the measured cap now clamps instead of reporting 5000+.
+    fireEvent(splitter, pd(100));
+    fireEvent(window, pm(9999));
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+    fireEvent(window, pu());
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('minSize=0 still floors the master at 1px', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={280}
+        minSize={0}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100)); // startSize 280
+    fireEvent(window, pm(0)); // 280 - 100 = 180
+    expect(onWidthChange).toHaveBeenLastCalledWith(180);
+    fireEvent(window, pm(-9999)); // floored to 1, not 0 / negative
+    expect(onWidthChange).toHaveBeenLastCalledWith(1);
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('a foreign pointer neither drives nor ends the active drag', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100, 100, 0, 1)); // arm pointer 1
+    fireEvent(window, pm(120, 100, 2, 1)); // pointerId 2 → ignored
+    expect(onWidthChange).not.toHaveBeenCalled();
+    fireEvent(window, pu(2)); // foreign release → must not end the p1 drag
+    fireEvent(window, pm(150, 100, 1, 1)); // p1 still drives
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    fireEvent(window, pu(1));
+  } finally {
+    restore();
+  }
+});
+
+test('a second pointerdown cancels the first drag (take-over)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100, 100, 0, 1)); // arm pointer 1
+    fireEvent(window, pm(120, 100, 1, 1)); // p1 -> 400
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+    const callsBefore = onWidthChange.mock.calls.length;
+    // New pointerdown takes over and tears the old drag's listeners down.
+    fireEvent(handle, pd(200, 200, 0, 2));
+    // The old pointer (id 1) must no longer drive the drag after take-over.
+    fireEvent(window, pm(130, 100, 1, 1));
+    expect(onWidthChange.mock.calls.length).toBe(callsBefore);
+    fireEvent(window, pu(1));
+    fireEvent(window, pu(2));
+  } finally {
+    restore();
+  }
+});
+
+test('unmounting mid-drag tears down window listeners', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { unmount } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100)); // arm
+    fireEvent(window, pm(150)); // 430
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    onWidthChange.mockClear();
+    unmount();
+    // After unmount the window listeners are gone: a stray move must neither
+    // report to the (now-dead) callback nor throw.
+    expect(() => fireEvent(window, pm(200))).not.toThrow();
+    expect(onWidthChange).not.toHaveBeenCalled();
+  } finally {
+    restore();
+  }
+});
+
+test('orientation change mid-drag switches the active axis live', () => {
+  const onWidthChange = vi.fn();
+  const onHeightChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100, 100)); // arm horizontal (X origin at 100)
+    fireEvent(window, pm(120, 100)); // 380 + 20 = 400 on X axis
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+    // Switch axis while the drag is armed; the live axis (Y) must take over.
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={280}
+        minSize={120}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    fireEvent(window, pm(100, 140)); // Y delta = 40 -> onHeightChange(380 + 40)
+    expect(onHeightChange).toHaveBeenLastCalledWith(420);
+    expect(onWidthChange).toHaveBeenLastCalledWith(400); // unchanged by Y move
+    fireEvent(window, pu());
   } finally {
     restore();
   }

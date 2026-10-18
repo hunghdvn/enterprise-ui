@@ -10,11 +10,13 @@ const DEFAULT_MASTER_HEIGHT = 280;
 const KEYBOARD_STEP = 8;
 const MAX_SIZE_RATIO = 0.8;
 
-function clamp(value: number, min: number, max: number | undefined): number {
-  // The floor is always >= 1 so the master pane can never collapse to a 0px
-  // sliver (mirrors Table's `Math.max(1, minColumnWidth)`). When `max` is
-  // undefined (no clamp) we pass Infinity so the upper bound is a no-op.
-  return Math.max(min, Math.min(value, max === undefined ? Infinity : max));
+function clamp(value: number, min: number, max: number): number {
+  // Single source of truth for dragging/keyboard bounds (clean N7). `max` is
+  // always a real number at the call sites — Infinity means "no upper clamp" —
+  // so there is no `undefined` branch to drift out of sync. The floor is always
+  // >= 1 so the master pane can never collapse to a 0px sliver (mirrors
+  // Table's `Math.max(1, minColumnWidth)`).
+  return Math.max(min, Math.min(value, max));
 }
 
 /**
@@ -57,7 +59,6 @@ export function SplitView({
   // only reflects `masterWidth`/`masterHeight` and reports changes back.
   const currentSize = isVertical ? masterHeight : masterWidth;
   const defaultSize = isVertical ? DEFAULT_MASTER_HEIGHT : DEFAULT_MASTER_WIDTH;
-  const sizeStyle = isVertical ? { height: currentSize } : { width: currentSize };
 
   // The hard floor always leaves room for the grip so the master pane can
   // never collapse to a 0px sliver (mirrors Table's `Math.max(1, minColumnWidth)`).
@@ -80,7 +81,7 @@ export function SplitView({
     const ro = new ResizeObserver(() => measure());
     ro.observe(node);
     return () => ro.disconnect();
-  }, [isVertical]);
+  }, [isVertical, isMobile]);
 
   const defaultMax =
     maxSize !== undefined
@@ -92,11 +93,19 @@ export function SplitView({
   // [valuemin, valuemax]; an undefined ceiling stays a no-clamp (Infinity).
   const effectiveMax = defaultMax === undefined ? Infinity : Math.max(defaultMax, minFloor);
 
+  // Reconcile the controlled size into the legal range in ONE place: this
+  // clamped value drives the rendered width/height, aria-valuenow and the
+  // drag/keyboard origin, so size, ARIA and the keyboard step can never
+  // disagree (review N1). `Infinity` (no clamp) leaves currentSize untouched.
+  const effectiveSize = clamp(currentSize, minFloor, effectiveMax);
+  const sizeStyle = isVertical ? { height: effectiveSize } : { width: effectiveSize };
+
   // Latest props visible to pointer/keyboard handlers that outlive a render
   // (so an orientation/bounds/handler change mid-drag is reflected live).
   const liveRef = useRef<{
     isVertical: boolean;
     currentSize: number;
+    effectiveSize: number;
     minFloor: number;
     effectiveMax: number;
     onW: ((size: number) => void) | undefined;
@@ -104,6 +113,7 @@ export function SplitView({
   }>({
     isVertical,
     currentSize,
+    effectiveSize,
     minFloor,
     effectiveMax,
     onW: onMasterWidthChange,
@@ -116,12 +126,21 @@ export function SplitView({
     liveRef.current = {
       isVertical,
       currentSize,
+      effectiveSize,
       minFloor,
       effectiveMax,
       onW: onMasterWidthChange,
       onH: onMasterHeightChange,
     };
-  }, [isVertical, currentSize, minFloor, effectiveMax, onMasterWidthChange, onMasterHeightChange]);
+  }, [
+    isVertical,
+    currentSize,
+    effectiveSize,
+    minFloor,
+    effectiveMax,
+    onMasterWidthChange,
+    onMasterHeightChange,
+  ]);
 
   const report = useCallback((next: number) => {
     const l = liveRef.current;
@@ -144,28 +163,30 @@ export function SplitView({
   );
 
   const beginDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    // Only the primary button starts a drag (right/middle must not). A pointer
-    // down always clears any stale drag first (self-healing on touch — ignoring
-    // it instead would deadlock the next pointerId after a lost pointerup).
+    // Only the primary button starts a drag (right/middle must not). The
+    // take-over below also clears any stale drag on pointerdown — without it a
+    // lost pointerup (touch/cancel) would deadlock the next pointerId forever.
     if (e.button !== 0) return;
     const l = liveRef.current;
     const onChange = l.isVertical ? l.onH : l.onW;
-    // An unreported handle (no onChange) stays inert: a dead affordance is
-    // worse than none (matches Table.tsx:622-626).
+    // Intentionally inert per spec G1/G4: a handle that cannot report stays
+    // rendered (NOT removed like Table's, which returns null without a handler).
+    // `no onMasterWidthChange keeps the splitter inert` is the locked contract.
     if (!onChange) return;
     e.preventDefault();
-    // Focus the handle: preventDefault suppresses click-focus, which would
-    // otherwise leave keyboard controls dead after any mouse use.
-    e.currentTarget.focus();
-    // Pointer capture keeps the move stream while the cursor leaves the window;
-    // guarded for engines without it (the window listeners below are fallback).
+    // Capture the element once: React 18 nulls `currentTarget` after dispatch,
+    // which would make releasePointerCapture below a silent no-op (cleanup N5).
+    const el = e.currentTarget;
+    el.focus(); // preventDefault suppressed click-focus, so focus by hand
+    // Tear down any stale drag BEFORE capturing the new pointer, so we never
+    // release the just-captured pointer (cleanup N5 ordering).
+    teardownRef.current?.();
     try {
-      e.currentTarget.setPointerCapture(e.pointerId);
+      el.setPointerCapture(e.pointerId);
     } catch {
       /* no-op: window listeners below are the fallback */
     }
-    teardownRef.current?.(); // take-over: clear any stale drag first
-    const startSize = l.currentSize;
+    const startSize = l.effectiveSize;
     const startX = e.clientX;
     const startY = e.clientY;
     const pointerId = e.pointerId;
@@ -179,7 +200,7 @@ export function SplitView({
       }
       const live = liveRef.current;
       const delta = live.isVertical ? ev.clientY - startY : ev.clientX - startX;
-      report(clamp(startSize + delta, live.minFloor, live.effectiveMax));
+      report(startSize + delta); // report() is the single clamp site (cleanup N7)
     };
     const end = (ev?: PointerEvent) => {
       // A second pointer's release must not end the first pointer's drag.
@@ -188,7 +209,7 @@ export function SplitView({
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
       try {
-        e.currentTarget.releasePointerCapture(pointerId);
+        el.releasePointerCapture(pointerId);
       } catch {
         /* no-op */
       }
@@ -215,7 +236,7 @@ export function SplitView({
     if (!isAxisKey) return;
     e.preventDefault();
     const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
-    report(l.currentSize + dir * (e.shiftKey ? 4 : 1) * KEYBOARD_STEP);
+    report(l.effectiveSize + dir * (e.shiftKey ? 4 : 1) * KEYBOARD_STEP);
   };
 
   // Screen-reader users get no announcement on an instant pane swap — move
@@ -254,7 +275,7 @@ export function SplitView({
             aria-orientation={isVertical ? 'horizontal' : 'vertical'}
             aria-label="Thay đổi kích thước"
             aria-valuemin={minFloor}
-            aria-valuenow={currentSize}
+            aria-valuenow={effectiveSize}
             aria-valuemax={effectiveMax === Infinity ? undefined : effectiveMax}
             tabIndex={0}
             onPointerDown={beginDrag}

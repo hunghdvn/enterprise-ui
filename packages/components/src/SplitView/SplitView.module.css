@@ -83,18 +83,20 @@
   height: 2px;
 }
 
+.splitterGrip span,
+.splitterGripVertical span {
+  background: var(--surface);
+  border-radius: 1px;
+}
+
 .splitterGrip span {
   width: 2px;
   height: 6px;
-  background: var(--surface);
-  border-radius: 1px;
 }
 
 .splitterGripVertical span {
   width: 6px;
   height: 2px;
-  background: var(--surface);
-  border-radius: 1px;
 }
 
 .mobileBar {
