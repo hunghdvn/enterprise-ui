@@ -64,8 +64,7 @@ export default function ListDemoPage() {
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>Đơn hàng bán</h2>
           <p className={styles.subtitle}>
-            P1 List demo — chỉ dùng ThemeProvider, AppShell, Table, FilterBar, Pagination, Button,
-            Badge, Toast.
+            P1 List demo — chỉ dùng ThemeProvider, AppShell, Table, FilterBar, Pagination, Button, Icon, Badge, Toast.
           </p>
         </div>
         <Button

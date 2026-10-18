@@ -21,7 +21,7 @@ const props: PropDoc[] = [
   {
     name: 'icon',
     type: 'ReactNode',
-    description: 'Nội dung icon tùy chọn, hiển thị trước nhãn nút.',
+    description: 'Icon tùy chọn hiển thị trước nhãn; được bọc aria-hidden vì chỉ mang tính trang trí.',
   },
   {
     name: 'loading',
@@ -55,7 +55,7 @@ export function Actions() {
       <Button
         variant="primary"
         icon={<Icon name="plus" size={14} />}
-        onClick={() => alert('Đã lưu')}
+        onClick={() => alert('Tạo đơn thành công')}
       >
         Tạo đơn
       </Button>

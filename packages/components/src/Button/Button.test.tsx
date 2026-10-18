@@ -68,17 +68,10 @@ test.each(['sm', 'md'] as const)('renders a ReactNode icon before the label at s
   const button = screen.getByRole('button', { name: 'Tạo đơn' });
   const icon = screen.getByTestId('button-icon');
 
+  expect(button).toHaveAttribute('data-size', size);
   expect(button).toContainElement(icon);
   expect(button).not.toHaveAttribute('icon');
   expect(button.textContent!.indexOf('★')).toBeLessThan(button.textContent!.indexOf('Tạo đơn'));
-});
-
-test('renders the requested data-size for each supported size', () => {
-  const { rerender } = render(<Button size="sm">Lưu</Button>);
-  expect(screen.getByRole('button', { name: 'Lưu' })).toHaveAttribute('data-size', 'sm');
-
-  rerender(<Button size="md">Lưu</Button>);
-  expect(screen.getByRole('button', { name: 'Lưu' })).toHaveAttribute('data-size', 'md');
 });
 
 test('does not render an icon wrapper when no icon is provided', () => {
