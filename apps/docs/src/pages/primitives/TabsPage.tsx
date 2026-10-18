@@ -34,6 +34,13 @@ const props: PropDoc[] = [
     default: "'md'",
     description: 'Kích thước thanh tab.',
   },
+  {
+    name: 'variant',
+    type: "'line' | 'segmented' | 'pills' | 'enclosed'",
+    default: "'line'",
+    description:
+      'Kiểu hiển thị thanh tab: gạch chân (line), segmented, viên (pills) hoặc dạng card gắn liền nội dung (enclosed).',
+  },
 ];
 
 const basicItems: TabItem[] = [
@@ -93,6 +100,24 @@ const sizeMdItems: TabItem[] = [
   },
 ];
 
+const variantItems: TabItem[] = [
+  {
+    key: 'v-overview',
+    label: 'Tổng quan',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
+  {
+    key: 'v-details',
+    label: 'Chi tiết',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
+  {
+    key: 'v-history',
+    label: 'Lịch sử',
+    content: <p className={styles.panelText}>Nội dung tab.</p>,
+  },
+];
+
 const code = `import { useState } from 'react';
 import { Tabs } from '@enterprise-ui/components';
 import type { TabItem } from '@enterprise-ui/components';
@@ -106,7 +131,7 @@ const items: TabItem[] = [
 export function ReportTabs() {
   const [active, setActive] = useState('overview');
 
-  return <Tabs items={items} activeKey={active} onChange={setActive} />;
+  return <Tabs items={items} variant="pills" activeKey={active} onChange={setActive} />;
 }`;
 
 export default function TabsPage() {
@@ -116,8 +141,8 @@ export default function TabsPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Tabs</h1>
       <p className={styles.subtitle}>
-        Thanh tab điều hướng nội dung với hai kích thước, hỗ trợ chế độ điều khiển và thao tác bàn
-        phím.
+        Thanh tab điều hướng nội dung với bốn kiểu hiển thị, hai kích thước, hỗ trợ chế độ điều
+        khiển và thao tác bàn phím.
       </p>
       <Tabs
         items={[
@@ -133,6 +158,21 @@ export default function TabsPage() {
                     <p className={styles.note}>
                       Dùng phím ← và → để chuyển tab khi thanh tab đang được focus.
                     </p>
+                  </section>
+                  <section className={styles.section}>
+                    <h2 className={styles.sectionTitle}>Biến thể</h2>
+                    <div className={styles.block}>
+                      <Tabs items={variantItems} variant="segmented" />
+                      <span className={styles.helper}>segmented — chuyển view nhanh</span>
+                    </div>
+                    <div className={styles.block}>
+                      <Tabs items={variantItems} variant="pills" />
+                      <span className={styles.helper}>pills — điều hướng dạng viên</span>
+                    </div>
+                    <div className={styles.block}>
+                      <Tabs items={variantItems} variant="enclosed" />
+                      <span className={styles.helper}>enclosed — tab gắn liền nội dung</span>
+                    </div>
                   </section>
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Điều khiển (controlled)</h2>
