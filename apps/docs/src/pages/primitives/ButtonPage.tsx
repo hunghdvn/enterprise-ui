@@ -52,7 +52,11 @@ const code = `import { Button, Icon } from '@enterprise-ui/components';
 export function Actions() {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
-      <Button variant="primary" icon={<Icon name="plus" size={14} />} onClick={() => alert('Đã lưu')}>
+      <Button
+        variant="primary"
+        icon={<Icon name="plus" size={14} />}
+        onClick={() => alert('Đã lưu')}
+      >
         Tạo đơn
       </Button>
       <Button variant="secondary">Hủy</Button>

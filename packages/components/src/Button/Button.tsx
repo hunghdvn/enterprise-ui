@@ -22,7 +22,11 @@ export function Button({
       {...rest}
     >
       {loading && <span aria-hidden="true">… </span>}
-      {icon != null && <span className={styles.icon}>{icon}</span>}
+      {icon != null && (
+        <span aria-hidden="true" className={styles.icon}>
+          {icon}
+        </span>
+      )}
       {children}
     </button>
   );

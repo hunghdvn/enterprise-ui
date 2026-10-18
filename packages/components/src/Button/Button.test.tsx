@@ -65,10 +65,11 @@ test.each(['sm', 'md'] as const)('renders a ReactNode icon before the label at s
       Tạo đơn
     </Button>,
   );
-  const button = screen.getByRole('button', { name: /Tạo đơn/ });
+  const button = screen.getByRole('button', { name: 'Tạo đơn' });
   const icon = screen.getByTestId('button-icon');
 
   expect(button).toContainElement(icon);
+  expect(button).not.toHaveAttribute('icon');
   expect(button.textContent!.indexOf('★')).toBeLessThan(button.textContent!.indexOf('Tạo đơn'));
 });
 
@@ -78,7 +79,7 @@ test('keeps the icon and label when loading disables the button', () => {
       Đang lưu
     </Button>,
   );
-  const button = screen.getByRole('button', { name: /Đang lưu/ });
+  const button = screen.getByRole('button', { name: 'Đang lưu' });
 
   expect(button).toBeDisabled();
   expect(button).toHaveAttribute('aria-busy', 'true');
