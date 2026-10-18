@@ -1,10 +1,12 @@
-import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
-import styles from './Combobox.module.css';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import type { ComboboxOption, ComboboxProps } from './types';
+import styles from './Combobox.module.css';
 
 const DEFAULT_PLACEHOLDER = 'Chọn...';
 const DEFAULT_SEARCH_PLACEHOLDER = 'Tìm kiếm...';
+const GAP_PX = 4;
+const EST_ROW_HEIGHT = 32; // .option padding (6 + 10 + 10) + line height
 
 function searchValueOf(opt: ComboboxOption): string {
   if (typeof opt.searchText === 'string') return opt.searchText;
@@ -12,29 +14,43 @@ function searchValueOf(opt: ComboboxOption): string {
   return typeof opt.value === 'string' ? opt.value : String(opt.value);
 }
 
-const OptionItem = memo(function OptionItem({
+function OptionItem({
+  id,
   option,
   selected,
   highlighted,
   onPointerEnter,
   onClick,
 }: {
+  id: string;
   option: ComboboxOption;
   selected: boolean;
   highlighted: boolean;
   onPointerEnter: () => void;
   onClick: () => void;
 }) {
+  const ref = useRef<HTMLLIElement>(null);
+  // Keep the keyboard-highlighted option visible (review #8).
+  useEffect(() => {
+    if (highlighted && ref.current) {
+      // jsdom has no `scrollIntoView`; the optional call is a no-op there and
+      // runs in real browsers.
+      ref.current.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }
+  }, [highlighted]);
   return (
     <li
+      id={id}
+      ref={ref}
       role="option"
       aria-selected={selected}
       aria-disabled={option.disabled || undefined}
-      className={[
-        styles.option,
-        highlighted ? styles.optionHighlighted : '',
-        option.disabled ? styles.optionDisabled : '',
-      ].join(' ')}
+      className={
+        // Class names are kebab with no `localsConvention`; the camelCase
+        // form would resolve to `undefined` and the highlight would never
+        // show (review #4).
+        [styles.option, highlighted ? styles['option-highlighted'] : ''].join(' ')
+      }
       tabIndex={-1}
       data-value={option.value}
       onPointerEnter={onPointerEnter}
@@ -43,8 +59,15 @@ const OptionItem = memo(function OptionItem({
       {option.label}
     </li>
   );
-});
+}
 
+/**
+ * Searchable, chip-backed select with a live-filtered popover. The master pane
+ * size is **controlled**: the parent passes `value`/`defaultValue` and owns the
+ * state, reporting changes back via `onChange`. Filter text is the only
+ * internal state (unreported — spec G5). The popover is positioned once on
+ * open and flipped above when it would overflow the viewport bottom (spec D5).
+ */
 export function Combobox({
   options,
   value,
@@ -59,9 +82,15 @@ export function Combobox({
   disabled = false,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  className,
+  ...rest
 }: ComboboxProps) {
   const uid = useId();
   const listboxId = `combobox-list-${uid.replace(/:/g, '')}`;
+  // `wrap` is the widget root for click-away / scroll / focus containment
+  // (review #1: `.control` is a sibling of the popover, so it cannot be the
+  // containment root — clicks on options would close the list first).
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const controlRef = useRef<HTMLSpanElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +103,7 @@ export function Combobox({
 
   const controlled = value !== undefined;
   const [internal, setInternal] = useState<string | string[] | undefined>(defaultValue);
+  // Resolved value: `value` when controlled, else internal state (spec G5).
   const resolved = controlled ? value : internal;
 
   const selected: string[] = useMemo(
@@ -82,11 +112,33 @@ export function Combobox({
         ? Array.isArray(resolved)
           ? resolved
           : []
-        : typeof resolved === 'string' && resolved
+        : // Empty string can never render a chip, so it is treated as "no
+          // selection" in single mode (spec G3 / review #14).
+          typeof resolved === 'string' && resolved !== ''
           ? [resolved]
           : [],
     [multiple, resolved],
   );
+
+  // Surface duplicate / empty option values — they break keying and
+  // single-mode identity (review #14). Dev-only: never shipped to production.
+  useEffect(() => {
+    const seen = new Set<string>();
+    for (const opt of options) {
+      if (opt.value === '') {
+        console.warn(
+          `[Combobox] option with an empty value cannot be toggled in single mode:`,
+          String(opt.label),
+        );
+      } else if (seen.has(opt.value)) {
+        console.warn(
+          `[Combobox] duplicate option value "${opt.value}" — identity is ambiguous:`,
+          String(opt.label),
+        );
+      }
+      seen.add(opt.value);
+    }
+  }, [options]);
 
   const byValue = useMemo(() => {
     const map = new Map<string, ComboboxOption>();
@@ -94,11 +146,24 @@ export function Combobox({
     return map;
   }, [options]);
 
-  const filtered = useMemo(() => {
-    const text = filterText.trim().toLowerCase();
-    if (!text) return options;
-    return options.filter((opt) => searchValueOf(opt).toLowerCase().includes(text));
-  }, [options, filterText]);
+  const filtered = useMemo(
+    () =>
+      filterText.trim().toLowerCase()
+        ? options.filter((opt) =>
+            searchValueOf(opt).toLowerCase().includes(filterText.trim().toLowerCase()),
+          )
+        : options,
+    [options, filterText],
+  );
+
+  // Highlight clamped to the live list so a parent update that shrinks
+  // `filtered` while open can never point off the end (#9c). Derived
+  // (not an effect) so we don't call setState inside an effect.
+  const clampedHighlight = useMemo(
+    () =>
+      filtered.length === 0 ? 0 : Math.max(-1, Math.min(highlightedIndex, filtered.length - 1)),
+    [highlightedIndex, filtered.length],
+  );
 
   const commit = (next: string | string[]) => {
     if (!controlled) setInternal(next);
@@ -109,12 +174,20 @@ export function Combobox({
     if (multiple) {
       commit((Array.isArray(resolved) ? resolved : []).filter((x) => x !== v));
     } else {
-      commit('');
+      commit(''); // clear the single selection
     }
   };
 
+  // Wrap an index into [0, n-1]; negatives wrap so keyboard highlight can
+  // never run off the ends of the list (review #9).
+  const safeIndex = (i: number) => {
+    const n = filtered.length;
+    if (n === 0) return 0;
+    return ((i % n) + n) % n;
+  };
+
   const selectOption = (index: number) => {
-    const opt = filtered[index];
+    const opt = filtered[safeIndex(index)];
     if (!opt || opt.disabled) return;
     if (multiple) {
       const arr = Array.isArray(resolved) ? resolved : [];
@@ -127,17 +200,26 @@ export function Combobox({
       commit(opt.value);
       setFilterText('');
       setOpen(false);
+      setPosition(null);
     }
     setHighlightedIndex(0);
   };
 
   const openAt = (highlight = 0) => {
-    setHighlightedIndex(highlight);
+    const n = filtered.length;
+    let h = highlight;
+    if (n === 0) h = 0;
+    else if (h < -1) h = -1;
+    else if (h > n - 1) h = n - 1;
+    setHighlightedIndex(h);
     setOpen(true);
     const cr = controlRef.current?.getBoundingClientRect();
     if (cr) {
-      const below = cr.bottom + 4 + Math.min(filtered.length * 36, maxDropdownHeight) + 4;
-      const top = below <= (window.innerHeight || 0) ? cr.bottom + 4 : Math.max(0, cr.top - 4);
+      // One gap (4px) only — applied in JS, not in the CSS margin (review #7).
+      const ddHeight = Math.min(Math.max(n, 1) * EST_ROW_HEIGHT, maxDropdownHeight);
+      const spaceBelow = (window.innerHeight || 0) - cr.bottom - GAP_PX;
+      const top =
+        spaceBelow >= ddHeight ? cr.bottom + GAP_PX : Math.max(0, cr.top - ddHeight - GAP_PX);
       setPosition({ top, left: cr.left, width: cr.width });
     } else {
       setPosition(null);
@@ -148,47 +230,56 @@ export function Combobox({
     setOpen(false);
     setFilterText('');
     setHighlightedIndex(0);
+    setPosition(null);
   };
 
+  // Click-away, scroll, and focus-boundary dismissal. Every branch contains
+  // against the widget root (`wrapRef`) — never `.control`, which does not
+  // contain the popover (review #1 / #3 / #6).
   useEffect(() => {
     if (!open) return;
+    const root = wrapRef.current;
     const onDocMouseDown = (e: MouseEvent) => {
-      if (controlRef.current && !controlRef.current.contains(e.target as Node)) {
-        close();
-      }
+      if (e.button !== 0) return; // only a primary press dismisses
+      if (e.target instanceof Node && root && !root.contains(e.target)) close();
     };
-    const onScroll = () => close();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        close();
-        inputRef.current?.focus();
-      }
+    // Ignore scrolls whose origin is the popover list itself (review #3).
+    const onScroll = (e: Event) => {
+      const target = e.target;
+      if (target instanceof Node && root?.contains(target)) return;
+      close();
+    };
+    // `focusout` (native, bubbles) closes when focus leaves the widget, but a
+    // move to a chip button / option inside the root keeps it open (#6 D4).
+    const onFocusOut = (e: FocusEvent) => {
+      const related = e.relatedTarget as Node | null;
+      if (related && root?.contains(related)) return;
+      close();
     };
     document.addEventListener('mousedown', onDocMouseDown, true);
     window.addEventListener('scroll', onScroll, true);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('focusout', onFocusOut, true);
     return () => {
       document.removeEventListener('mousedown', onDocMouseDown, true);
       window.removeEventListener('scroll', onScroll, true);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('focusout', onFocusOut, true);
     };
   }, [open]);
 
   const wrapKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!searchable && !open) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        openAt(0);
-      }
-      return;
-    }
+    // IME composition: never steal Arrow/Enter/Escape/Delete from the
+    // candidate window (review #10).
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    const n = filtered.length;
     switch (e.key) {
       case 'ArrowDown': {
         e.preventDefault();
         if (!open) {
           openAt(0);
         } else {
-          setHighlightedIndex((i) => (i + 1) % filtered.length);
+          // From the no-highlight state (-1) the first down lands on index 0;
+          // otherwise wrap within [0, n-1] (review #9).
+          setHighlightedIndex((i) => (n === 0 ? i : i < 0 ? 0 : (i + 1) % n));
         }
         break;
       }
@@ -197,29 +288,31 @@ export function Combobox({
         if (!open) {
           openAt(0);
         } else {
-          setHighlightedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+          // ArrowUp wraps to the last item — and from -1 it too lands on last,
+          // so the previous "skips last" off-by-one is gone (review #9).
+          setHighlightedIndex((i) => (n === 0 ? i : i < 0 ? n - 1 : (i - 1 + n) % n));
         }
         break;
       }
       case 'Enter': {
-        if (open && filterText === '') {
+        // Always preventDefault so a <form> never submits on Enter, and select
+        // the highlighted match when one is available (review #2).
+        if (open) {
           e.preventDefault();
-          selectOption(highlightedIndex);
+          if (n > 0) selectOption(clampedHighlight);
         }
         break;
       }
       case 'Escape': {
         e.preventDefault();
-        close();
+        if (open) close();
         break;
       }
       case 'Backspace': {
         if (filterText === '' && selected.length > 0) {
           e.preventDefault();
-          const last = selected[selected.length - 1];
           if (multiple) commit(selected.slice(0, -1));
-          else commit('');
-          void last;
+          else commit(''); // clear single selection
         }
         break;
       }
@@ -236,24 +329,48 @@ export function Combobox({
       }
     : undefined;
 
+  // Clicking the control (chevron / blank area) toggles the popover — before
+  // this there was no mouse-open path (review #5). Clicks that land on the
+  // input are passed through so a text caret never toggles the list closed.
+  const onControlMouseDown = (e: React.MouseEvent<HTMLSpanElement>) => {
+    if (disabled || e.button !== 0) return;
+    if (inputRef.current?.contains(e.target as Node)) {
+      if (!searchable && !open) openAt(selected.length > 0 ? -1 : 0);
+      return;
+    }
+    e.preventDefault(); // move focus to the input without jumping the caret
+    inputRef.current?.focus();
+    if (open) close();
+    else openAt(selected.length > 0 ? -1 : 0);
+  };
+
   return (
-    <span className={styles.wrap} style={{ minWidth: minSelectWidth }}>
+    <span
+      ref={wrapRef}
+      className={className ? `${styles.wrap} ${className}` : styles.wrap}
+      style={{ minWidth: minSelectWidth }}
+      data-disabled={disabled || undefined}
+      data-open={open || undefined}
+    >
       <span
         ref={controlRef}
         className={styles.control}
         data-disabled={disabled || undefined}
         data-open={open || undefined}
+        onMouseDown={onControlMouseDown}
       >
         {selected.map((v) => {
           const opt = byValue.get(v);
-          const label = opt ? opt.label : v;
+          // Use the filterable text for the accessible label so a ReactNode
+          // label never stringifies to "[object Object]" (review #13).
+          const chipLabel = opt ? searchValueOf(opt) : String(v);
           return (
             <span key={v} className={styles.chip}>
-              {label}
+              {opt ? opt.label : v}
               <button
                 type="button"
                 className={styles['chip-remove']}
-                aria-label={`Xóa ${String(label)}`}
+                aria-label={`Xóa ${chipLabel}`}
                 disabled={disabled}
                 onClick={() => removeChip(v)}
               >
@@ -265,12 +382,18 @@ export function Combobox({
         <input
           ref={inputRef}
           className={styles.input}
+          {...rest}
           type="text"
           role="combobox"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
           aria-autocomplete="list"
+          aria-activedescendant={
+            open && filtered.length > 0 && clampedHighlight >= 0
+              ? `${listboxId}-option-${clampedHighlight}`
+              : undefined
+          }
           aria-label={ariaLabel ?? placeholder}
           aria-labelledby={ariaLabelledBy}
           aria-disabled={disabled || undefined}
@@ -283,9 +406,6 @@ export function Combobox({
             if (disabled || !searchable) return;
             if (!open) openAt(selected.length > 0 ? -1 : 0);
           }}
-          onBlur={() => {
-            // keep open briefly for click-away handled by document listener
-          }}
           onKeyDown={wrapKeyDown}
         />
         <span className={styles.chevron} aria-hidden="true">
@@ -293,34 +413,29 @@ export function Combobox({
         </span>
       </span>
 
-      {open && (
+      {open && position && (
         <ul
           id={listboxId}
           role="listbox"
           className={styles.popover}
-          style={
-            position
-              ? {
-                  position: 'fixed',
-                  top: position.top,
-                  left: position.left,
-                  width: position.width,
-                  maxHeight: maxDropdownHeight,
-                }
-              : {}
-          }
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            width: position.width,
+            maxHeight: maxDropdownHeight,
+          }}
         >
           {filtered.length === 0 ? (
-            <li className={styles.empty} role="option" aria-selected="false">
-              Không có kết quả
-            </li>
+            <li className={styles.empty}>Không có kết quả</li>
           ) : (
             filtered.map((opt, i) => (
               <OptionItem
                 key={opt.value}
+                id={`${listboxId}-option-${i}`}
                 option={opt}
                 selected={selected.includes(opt.value)}
-                highlighted={i === highlightedIndex}
+                highlighted={i === clampedHighlight}
                 onPointerEnter={() => setHighlightedIndex(i)}
                 onClick={() => selectOption(i)}
               />

@@ -58,6 +58,35 @@ const props: PropDoc[] = [
     description: 'Placeholder khi đã có lựa chọn.',
   },
   { name: 'disabled', type: 'boolean', default: 'false', description: 'Vô hiệu hóa toàn bộ.' },
+  {
+    name: 'id',
+    type: 'string',
+    description: 'Được forward tới <input> để gán nhãnh <label htmlFor>.',
+  },
+  {
+    name: 'name',
+    type: 'string',
+    description: 'Được forward tới <input> để gửi trong form.',
+  },
+  {
+    name: 'aria-describedby',
+    type: 'string',
+    description: 'ID của thông báo lỗi/mô tả được forward tới <input>.',
+  },
+  { name: 'aria-invalid', type: 'boolean', description: 'Đánh dấu lỗi kiểu cho <input>.' },
+  { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ widget (.wrap).' },
+  {
+    name: 'minSelectWidth',
+    type: 'number',
+    default: '240',
+    description: 'Chiều rộng tối thiểu của bảng chọn (px).',
+  },
+  {
+    name: 'maxDropdownHeight',
+    type: 'number',
+    default: '240',
+    description: 'Chiều cao tối đa cuộn của danh sách mở xuống (px).',
+  },
 ];
 
 const code = `import { useState } from 'react';

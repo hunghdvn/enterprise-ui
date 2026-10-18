@@ -10,7 +10,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  min-height: 36px;
+  min-height: var(--input-h);
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--border);
@@ -58,7 +58,7 @@
   border-radius: var(--radius);
   background: var(--surface-muted);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-size);
   line-height: 1.4;
 }
 
@@ -90,7 +90,8 @@
 .popover {
   position: absolute;
   z-index: 1000;
-  margin: 4px 0 0;
+  /* Gap is owned by the positioning math in `openAt` (GAP_PX) — do not double it */
+  margin: 0;
   padding: 4px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -99,7 +100,7 @@
   box-shadow: var(--shadow-md);
   list-style: none;
   overflow-y: auto;
-  font-size: 14px;
+  font-size: var(--font-size);
 }
 
 .option {
