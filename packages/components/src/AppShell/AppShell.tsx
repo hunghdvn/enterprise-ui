@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isPresent } from '../internal/isPresent';
 import { Icon } from '../Icon';
 import styles from './AppShell.module.css';
 import type { AppShellProps } from './types';
@@ -73,7 +74,7 @@ export function AppShell({
               >
                 <span className={styles.item}>
                   <span className={styles.icon} aria-hidden="true">
-                    {i.icon ?? '▦'}
+                    {isPresent(i.icon) ? i.icon : <Icon name="inbox" size={16} />}
                   </span>{' '}
                   <span>{i.label}</span>
                 </span>

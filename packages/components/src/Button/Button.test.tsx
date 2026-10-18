@@ -58,3 +58,48 @@ test('an idle button carries no aria-busy and hides the loading glyph', () => {
   expect(button.textContent).toBe('Lưu');
   expect(button).not.toBeDisabled();
 });
+
+test.each(['sm', 'md'] as const)('renders a ReactNode icon before the label at size %s', (size) => {
+  render(
+    <Button size={size} icon={<span data-testid="button-icon">★</span>}>
+      Tạo đơn
+    </Button>,
+  );
+  const button = screen.getByRole('button', { name: 'Tạo đơn' });
+  const icon = screen.getByTestId('button-icon');
+
+  expect(button).toHaveAttribute('data-size', size);
+  expect(button).toContainElement(icon);
+  expect(button).not.toHaveAttribute('icon');
+  expect(button.textContent!.indexOf('★')).toBeLessThan(button.textContent!.indexOf('Tạo đơn'));
+});
+
+test('does not render an icon wrapper when no icon is provided', () => {
+  const { container } = render(<Button>Lưu</Button>);
+
+  expect(container.querySelector('[class*="icon"]')).toBeNull();
+  expect(container.querySelector('button')?.textContent).toBe('Lưu');
+});
+
+test.each([0, false, ''] as const)(
+  'does not render a wrapper or content for a falsy icon value (%j)',
+  (icon) => {
+    const { container } = render(<Button icon={icon}>Lưu</Button>);
+
+    expect(container.querySelector('[class*="icon"]')).toBeNull();
+    expect(container.querySelector('button')?.textContent).toBe('Lưu');
+  },
+);
+
+test('keeps the icon and label when loading disables the button', () => {
+  render(
+    <Button loading icon={<span data-testid="button-icon">★</span>}>
+      Đang lưu
+    </Button>,
+  );
+  const button = screen.getByRole('button', { name: 'Đang lưu' });
+
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute('aria-busy', 'true');
+  expect(screen.getByTestId('button-icon')).toBeInTheDocument();
+});
