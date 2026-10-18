@@ -1,46 +1,10 @@
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import styles from './Combobox.module.css';
+import { Icon } from '../Icon';
 import type { ComboboxOption, ComboboxProps } from './types';
 
 const DEFAULT_PLACEHOLDER = 'Chọn...';
 const DEFAULT_SEARCH_PLACEHOLDER = 'Tìm kiếm...';
-
-function ClearIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
 
 function searchValueOf(opt: ComboboxOption): string {
   if (typeof opt.searchText === 'string') return opt.searchText;
@@ -293,7 +257,7 @@ export function Combobox({
                 disabled={disabled}
                 onClick={() => removeChip(v)}
               >
-                <ClearIcon />
+                <Icon name="x" size={12} />
               </button>
             </span>
           );
@@ -325,7 +289,7 @@ export function Combobox({
           onKeyDown={wrapKeyDown}
         />
         <span className={styles.chevron} aria-hidden="true">
-          <ChevronIcon />
+          <Icon name="chevron-down" size={14} />
         </span>
       </span>
 
