@@ -60,3 +60,100 @@
 .tabPanel {
   padding-top: 16px;
 }
+
+/* --- Variants: `line` keeps the base styles above; each rule below is
+   scoped to the data-variant hook on the root. --- */
+
+.tabs[data-variant='segmented'] .tabList {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-muted);
+  border-radius: 999px;
+  border-bottom: none;
+}
+
+.tabs[data-variant='segmented'] .tab {
+  border-radius: 999px;
+  padding: 0 14px;
+}
+
+.tabs[data-variant='segmented'] .tab[data-size='sm'] {
+  height: calc(var(--input-h) - 6px);
+  padding: 0 12px;
+}
+
+.tabs[data-variant='segmented'] .tab[data-size='md'] {
+  height: calc(var(--input-h-lg) - 6px);
+}
+
+.tabs[data-variant='segmented'] .tab[aria-selected='true'] {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.tabs[data-variant='pills'] .tabList {
+  display: inline-flex;
+  gap: 6px;
+  border-bottom: none;
+}
+
+.tabs[data-variant='pills'] .tab {
+  border-radius: 999px;
+  padding: 0 14px;
+}
+
+.tabs[data-variant='pills'] .tab[data-size='sm'] {
+  padding: 0 12px;
+}
+
+.tabs[data-variant='pills'] .tab:hover {
+  background: var(--surface-muted);
+}
+
+.tabs[data-variant='pills'] .tab[aria-selected='true'] {
+  background: var(--color-blue-600);
+  color: var(--on-primary);
+}
+
+.tabs[data-variant='pills'] .tab[aria-selected='true']:hover {
+  background: var(--color-blue-700);
+}
+
+.tabs[data-variant='enclosed'] .tabList {
+  gap: 4px;
+}
+
+.tabs[data-variant='enclosed'] .tab {
+  box-sizing: border-box;
+  margin-bottom: -1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--bg);
+  padding: 0 16px;
+}
+
+.tabs[data-variant='enclosed'] .tab[data-size='sm'] {
+  padding: 0 12px;
+}
+
+.tabs[data-variant='enclosed'] .tab[aria-selected='true'] {
+  background: var(--surface);
+  border-bottom-color: var(--surface);
+}
+
+/* The 2px selection underline stays exclusive to `line` (spec §6). */
+.tabs[data-variant='segmented'] .tab[aria-selected='true']::after,
+.tabs[data-variant='pills'] .tab[aria-selected='true']::after,
+.tabs[data-variant='enclosed'] .tab[aria-selected='true']::after {
+  content: none;
+}
+
+.tabs[data-variant='segmented'] .tab:focus-visible,
+.tabs[data-variant='pills'] .tab:focus-visible {
+  border-radius: 999px;
+}
+
+.tabs[data-variant='enclosed'] .tab:focus-visible {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
