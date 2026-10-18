@@ -22,6 +22,9 @@ export function Tooltip({
   }
   const tooltipId = useId();
   const wrapperRef = useRef<HTMLSpanElement>(null);
+  // Timer id lives in a ref, not state: side effects (clearTimeout/setTimeout)
+  // must never run inside a state updater — StrictMode double-invokes updaters,
+  // which used to lose one timer id and orphan a show() timer.
   const timerRef = useRef<number | null>(null);
 
   const childProps = useMemo(() => (children.props ?? {}) as Record<string, unknown>, [children]);
@@ -60,7 +63,11 @@ export function Tooltip({
   }, []);
 
   const show = useCallback(() => {
-    if (children.props.disabled === true || children.props['aria-disabled'] === true || children.props['aria-disabled'] === 'true') {
+    if (
+      children.props.disabled === true ||
+      children.props['aria-disabled'] === true ||
+      children.props['aria-disabled'] === 'true'
+    ) {
       clearTimer();
       setVisible(false);
       return;
@@ -75,9 +82,11 @@ export function Tooltip({
     setVisible(false);
   }, [clearTimer]);
 
+  // Clear any pending show when the component unmounts.
   useEffect(() => clearTimer, [clearTimer]);
 
   const existingDescribedBy = childProps['aria-describedby'] as string | undefined;
+
   const describedBy = visible
     ? cx(existingDescribedBy, tooltipId) || undefined
     : existingDescribedBy;
@@ -127,7 +136,11 @@ export function Tooltip({
     [childProps, hide],
   );
 
+  // `className` styles the wrapper (the positioning context) only — the child
+  // keeps its own className untouched and the bubble never receives it, so
+  // trigger-only utilities (truncate, transforms) cannot break the tooltip.
   const childClassName = childProps['className'];
+
   const cloneProps: Record<string, unknown> = {
     ...rest,
     onMouseEnter: handleMouseEnter,
@@ -141,6 +154,11 @@ export function Tooltip({
   }
   if (describedBy) cloneProps['aria-describedby'] = describedBy;
 
+  // react-hooks/refs false positive: cloneProps only carries event handlers
+  // (plus className/aria-describedby). The rule sees that the handlers
+  // transitively call computePlacement/clearTimer — which read wrapperRef and
+  // timerRef — and flags passing them as "refs during render", but React only
+  // invokes these functions from event handlers, never during render.
   // eslint-disable-next-line react-hooks/refs
   const child = cloneElement(children, cloneProps);
 
