@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, FilterBar, Pagination, Table, useToast } from '@enterprise-ui/components';
+import { Badge, Button, FilterBar, Icon, Pagination, Table, useToast } from '@enterprise-ui/components';
 import type { SortEntry } from '@enterprise-ui/components';
 import { ORDERS, toneFor, type Order } from '../demo-data/orders';
 import styles from './ListDemoPage.module.css';
@@ -60,7 +60,11 @@ export default function ListDemoPage() {
             Badge, Toast.
           </p>
         </div>
-        <Button variant="primary" onClick={() => toast.success('Tạo đơn thành công (demo)')}>
+        <Button
+          variant="primary"
+          icon={<Icon name="plus" size={14} />}
+          onClick={() => toast.success('Tạo đơn thành công (demo)')}
+        >
           Tạo đơn
         </Button>
       </div>

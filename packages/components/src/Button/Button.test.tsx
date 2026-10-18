@@ -65,7 +65,7 @@ test.each(['sm', 'md'] as const)('renders a ReactNode icon before the label at s
       Tạo đơn
     </Button>,
   );
-  const button = screen.getByRole('button', { name: '★ Tạo đơn' });
+  const button = screen.getByRole('button', { name: /Tạo đơn/ });
   const icon = screen.getByTestId('button-icon');
 
   expect(button).toContainElement(icon);

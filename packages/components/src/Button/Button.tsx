@@ -5,6 +5,7 @@ export function Button({
   variant = 'primary',
   size = 'sm',
   loading,
+  icon,
   disabled,
   className = '',
   children,
@@ -21,6 +22,7 @@ export function Button({
       {...rest}
     >
       {loading && <span aria-hidden="true">… </span>}
+      {icon != null && <span className={styles.icon}>{icon}</span>}
       {children}
     </button>
   );
