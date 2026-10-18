@@ -32,14 +32,15 @@
   }
 }
 
+/* Opacity only: a transform on .panel would make it the containing block for
+   `position: fixed` descendants while the animation runs (nested dialogs are
+   supported), anchoring their overlays inside the panel for 150ms. */
 @keyframes modalPanelIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
