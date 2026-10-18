@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AppShell, Button, Input, Tabs } from '@enterprise-ui/components';
+import { AppShell, Button, Icon, Input, Tabs } from '@enterprise-ui/components';
 import type { NavItem } from '@enterprise-ui/components';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
@@ -12,7 +12,7 @@ const props: PropDoc[] = [
     name: 'sidebar',
     type: 'NavItem[]',
     description:
-      'Danh sách mục điều hướng; mỗi mục gồm key, label, icon (tùy chọn) và badge (tùy chọn).',
+      'Danh sách mục điều hướng; icon nhận ReactNode (khuyến nghị dùng <Icon />), badge là tùy chọn.',
   },
   {
     name: 'sidebarEmptyState',
@@ -64,21 +64,21 @@ const props: PropDoc[] = [
 ];
 
 const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Tổng quan', icon: '▦' },
-  { key: 'orders', label: 'Đơn hàng', icon: '▤', badge: 12 },
-  { key: 'customers', label: 'Khách hàng', icon: '☺' },
-  { key: 'reports', label: 'Báo cáo', icon: '▥' },
-  { key: 'settings', label: 'Cài đặt', icon: '⚙' },
+  { key: 'dashboard', label: 'Tổng quan', icon: <Icon name="home" size={16} /> },
+  { key: 'orders', label: 'Đơn hàng', icon: <Icon name="inbox" size={16} />, badge: 12 },
+  { key: 'customers', label: 'Khách hàng', icon: <Icon name="user" size={16} /> },
+  { key: 'reports', label: 'Báo cáo', icon: <Icon name="calendar" size={16} /> },
+  { key: 'settings', label: 'Cài đặt', icon: <Icon name="settings" size={16} /> },
 ];
 
 const code = `import { useState } from 'react';
-import { AppShell } from '@enterprise-ui/components';
+import { AppShell, Icon } from '@enterprise-ui/components';
 import type { NavItem } from '@enterprise-ui/components';
 
 const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Tổng quan', icon: '▦' },
-  { key: 'orders', label: 'Đơn hàng', icon: '▤', badge: 12 },
-  { key: 'customers', label: 'Khách hàng', icon: '☺' },
+  { key: 'dashboard', label: 'Tổng quan', icon: <Icon name="home" size={16} /> },
+  { key: 'orders', label: 'Đơn hàng', icon: <Icon name="inbox" size={16} />, badge: 12 },
+  { key: 'customers', label: 'Khách hàng', icon: <Icon name="user" size={16} /> },
 ];
 
 export function Admin() {
