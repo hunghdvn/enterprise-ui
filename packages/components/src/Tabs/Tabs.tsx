@@ -9,6 +9,7 @@ export function Tabs({
   defaultActiveKey,
   onChange,
   size = 'md',
+  variant = 'line',
   className = '',
 }: TabsProps) {
   const isControlled = activeKey !== undefined;
@@ -35,7 +36,7 @@ export function Tabs({
   }
 
   return (
-    <div className={`${styles.tabs} ${className}`}>
+    <div className={`${styles.tabs} ${className}`} data-variant={variant}>
       <div role="tablist" className={styles.tabList}>
         {items.map((item, index) => (
           <button

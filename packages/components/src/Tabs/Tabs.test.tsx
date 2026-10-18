@@ -108,3 +108,34 @@ test('namespaces DOM ids per instance so two Tabs never collide', () => {
   expect(panels[0]).toHaveAttribute('aria-labelledby', tabs[0].id);
   expect(document.querySelectorAll('[id="tab-overview"]')).toHaveLength(0);
 });
+
+test('root carries data-variant, defaulting to line', () => {
+  const { container } = render(
+    <Tabs
+      items={[
+        { key: 'a', label: 'Tab A', content: <div>Content A</div> },
+        { key: 'b', label: 'Tab B', content: <div>Content B</div> },
+      ]}
+    />,
+  );
+  expect(container.querySelector('[data-variant]')).toHaveAttribute('data-variant', 'line');
+});
+
+test.each(['segmented', 'pills', 'enclosed'] as const)(
+  'variant %s renders data-variant and still switches content',
+  (variant) => {
+    const { container } = render(
+      <Tabs
+        variant={variant}
+        items={[
+          { key: 'a', label: 'Tab A', content: <div>Content A</div> },
+          { key: 'b', label: 'Tab B', content: <div>Content B</div> },
+        ]}
+      />,
+    );
+    expect(container.querySelector('[data-variant]')).toHaveAttribute('data-variant', variant);
+    fireEvent.click(screen.getByRole('tab', { name: 'Tab B' }));
+    expect(screen.getByText('Content B')).toBeVisible();
+    expect(screen.getByText('Content A')).not.toBeVisible();
+  },
+);

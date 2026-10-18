@@ -40,7 +40,7 @@ export type { PageHeaderProps } from './PageHeader/types';
 export { SplitView } from './SplitView/SplitView';
 export type { SplitViewProps } from './SplitView/types';
 export { Tabs } from './Tabs/Tabs';
-export type { TabsProps, TabItem } from './Tabs/types';
+export type { TabsProps, TabItem, TabsVariant } from './Tabs/types';
 export { KpiCard } from './KpiCard/KpiCard';
 export type { KpiCardProps, KpiDeltaTone } from './KpiCard/types';
 export { KpiGrid } from './KpiGrid/KpiGrid';
