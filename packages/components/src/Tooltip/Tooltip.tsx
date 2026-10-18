@@ -1,4 +1,5 @@
 import { cloneElement, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { cx } from '../internal/cx';
 import styles from './Tooltip.module.css';
 import type { TooltipProps } from './types';
 
@@ -13,7 +14,6 @@ export function Tooltip({
   ...rest
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
-  const [timerId, setTimerId] = useState<number | null>(null);
   const [actualPlacement, setActualPlacement] = useState(placement);
   const [prevPlacement, setPrevPlacement] = useState(placement);
   if (prevPlacement !== placement) {
@@ -22,6 +22,10 @@ export function Tooltip({
   }
   const tooltipId = useId();
   const wrapperRef = useRef<HTMLSpanElement>(null);
+  // Timer id lives in a ref, not state: side effects (clearTimeout/setTimeout)
+  // must never run inside a state updater — StrictMode double-invokes updaters,
+  // which used to lose one timer id and orphan a show() timer.
+  const timerRef = useRef<number | null>(null);
 
   const childProps = useMemo(() => (children.props ?? {}) as Record<string, unknown>, [children]);
 
@@ -51,33 +55,31 @@ export function Tooltip({
     return placement;
   }, [placement]);
 
-  const show = useCallback(() => {
-    setTimerId((prev) => {
-      if (prev !== null) window.clearTimeout(prev);
-      setActualPlacement(computePlacement());
-      return window.setTimeout(() => setVisible(true), delay);
-    });
-  }, [computePlacement, delay]);
-
-  const hide = useCallback(() => {
-    setTimerId((prev) => {
-      if (prev !== null) window.clearTimeout(prev);
-      return null;
-    });
-    setVisible(false);
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   }, []);
 
-  // Clear any pending show when the timer changes or the component unmounts.
-  useEffect(() => {
-    return () => {
-      if (timerId !== null) window.clearTimeout(timerId);
-    };
-  }, [timerId]);
+  const show = useCallback(() => {
+    clearTimer();
+    setActualPlacement(computePlacement());
+    timerRef.current = window.setTimeout(() => setVisible(true), delay);
+  }, [clearTimer, computePlacement, delay]);
+
+  const hide = useCallback(() => {
+    clearTimer();
+    setVisible(false);
+  }, [clearTimer]);
+
+  // Clear any pending show when the component unmounts.
+  useEffect(() => clearTimer, [clearTimer]);
 
   const existingDescribedBy = childProps['aria-describedby'] as string | undefined;
 
   const describedBy = visible
-    ? [existingDescribedBy, tooltipId].filter(Boolean).join(' ') || undefined
+    ? cx(existingDescribedBy, tooltipId) || undefined
     : existingDescribedBy;
 
   const handleMouseEnter = useCallback(
@@ -125,10 +127,10 @@ export function Tooltip({
     [childProps, hide],
   );
 
-  const mergedClassName = [childProps['className'], className]
-    .filter((v) => typeof v === 'string' && v.trim() !== '')
-    .join(' ')
-    .trim();
+  // `className` styles the wrapper (the positioning context) only — the child
+  // keeps its own className untouched and the bubble never receives it, so
+  // trigger-only utilities (truncate, transforms) cannot break the tooltip.
+  const childClassName = childProps['className'];
 
   const cloneProps: Record<string, unknown> = {
     ...rest,
@@ -138,21 +140,27 @@ export function Tooltip({
     onBlur: handleBlur,
     onKeyDown: handleKeyDown,
   };
-  if (mergedClassName) cloneProps.className = mergedClassName;
+  if (typeof childClassName === 'string' && childClassName.trim() !== '') {
+    cloneProps.className = childClassName;
+  }
   if (describedBy) cloneProps['aria-describedby'] = describedBy;
 
+  // react-hooks/refs false positive: cloneProps only carries event handlers
+  // (plus className/aria-describedby). The rule sees that the handlers
+  // transitively call computePlacement/clearTimer — which read wrapperRef and
+  // timerRef — and flags passing them as "refs during render", but React only
+  // invokes these functions from event handlers, never during render.
+  // eslint-disable-next-line react-hooks/refs
   const child = cloneElement(children, cloneProps);
 
-  const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ').trim();
-
   return (
-    <span ref={wrapperRef} className={wrapperClassName || styles.wrapper}>
+    <span ref={wrapperRef} className={cx(styles.wrapper, className)}>
       {child}
       {visible && (
         <span
           id={tooltipId}
           role="tooltip"
-          className={[styles.tooltip, className].filter(Boolean).join(' ').trim()}
+          className={styles.tooltip}
           data-placement={actualPlacement}
         >
           {content}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import styles from './Tabs.module.css';
 import type { TabsProps } from './types';
@@ -15,6 +15,10 @@ export function Tabs({
   const [internalKey, setInternalKey] = useState(defaultActiveKey ?? items[0]?.key);
   const currentKey = isControlled ? activeKey : internalKey;
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Instance-scoped prefix: raw item.key ids would collide across two Tabs
+  // with overlapping keys, sending aria-controls/aria-labelledby to the wrong
+  // instance's nodes.
+  const baseId = useId();
 
   function selectKey(key: string) {
     if (!isControlled) setInternalKey(key);
@@ -30,8 +34,6 @@ export function Tabs({
     tabRefs.current[next]?.focus();
   }
 
-  const activeItem = items.find((item) => item.key === currentKey);
-
   return (
     <div className={`${styles.tabs} ${className}`}>
       <div role="tablist" className={styles.tabList}>
@@ -43,9 +45,9 @@ export function Tabs({
             }}
             type="button"
             role="tab"
-            id={`tab-${item.key}`}
+            id={`${baseId}-tab-${item.key}`}
             aria-selected={item.key === currentKey}
-            aria-controls={`tabpanel-${item.key}`}
+            aria-controls={`${baseId}-tabpanel-${item.key}`}
             tabIndex={item.key === currentKey ? 0 : -1}
             data-size={size}
             className={styles.tab}
@@ -56,16 +58,24 @@ export function Tabs({
           </button>
         ))}
       </div>
-      {activeItem && (
+      {/*
+        All tabpanels render persistently and inactive ones carry [hidden]:
+        every tab's aria-controls points at an existing id, and panel-internal
+        state (form input, scroll) survives tab switches. .tabPanel sets no
+        display, so the [hidden] UA style applies.
+      */}
+      {items.map((item) => (
         <div
+          key={item.key}
           role="tabpanel"
-          id={`tabpanel-${activeItem.key}`}
-          aria-labelledby={`tab-${activeItem.key}`}
+          id={`${baseId}-tabpanel-${item.key}`}
+          aria-labelledby={`${baseId}-tab-${item.key}`}
+          hidden={item.key !== currentKey}
           className={styles.tabPanel}
         >
-          {activeItem.content}
+          {item.content}
         </div>
-      )}
+      ))}
     </div>
   );
 }

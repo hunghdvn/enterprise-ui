@@ -11,8 +11,9 @@ test('renders tab labels and shows first tab content by default', () => {
     />,
   );
   expect(screen.getByRole('tab', { name: 'Tab A' })).toHaveAttribute('aria-selected', 'true');
-  expect(screen.getByText('Content A')).toBeInTheDocument();
-  expect(screen.queryByText('Content B')).not.toBeInTheDocument();
+  expect(screen.getByText('Content A')).toBeVisible();
+  // Panels render persistently; the inactive one is hidden via [hidden].
+  expect(screen.getByText('Content B')).not.toBeVisible();
 });
 
 test('clicking a tab switches content', () => {
@@ -25,8 +26,8 @@ test('clicking a tab switches content', () => {
     />,
   );
   fireEvent.click(screen.getByRole('tab', { name: 'Tab B' }));
-  expect(screen.getByText('Content B')).toBeInTheDocument();
-  expect(screen.queryByText('Content A')).not.toBeInTheDocument();
+  expect(screen.getByText('Content B')).toBeVisible();
+  expect(screen.getByText('Content A')).not.toBeVisible();
 });
 
 test('keyboard navigation with ArrowRight and ArrowLeft', () => {
@@ -59,4 +60,51 @@ test('calls onChange when tab changes', () => {
   );
   fireEvent.click(screen.getByRole('tab', { name: 'Tab B' }));
   expect(onChange).toHaveBeenCalledWith('b');
+});
+
+test('controlled mode: onChange fires but selection stays on activeKey', () => {
+  const onChange = vi.fn();
+  render(
+    <Tabs
+      items={[
+        { key: 'a', label: 'Tab A', content: <div>Content A</div> },
+        { key: 'b', label: 'Tab B', content: <div>Content B</div> },
+      ]}
+      activeKey="b"
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole('tab', { name: 'Tab A' }));
+  expect(onChange).toHaveBeenCalledWith('a');
+  expect(screen.getByRole('tab', { name: 'Tab B' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Tab A' })).toHaveAttribute('aria-selected', 'false');
+  expect(screen.getByText('Content B')).toBeVisible();
+});
+
+test('namespaces DOM ids per instance so two Tabs never collide', () => {
+  render(
+    <div>
+      <Tabs
+        items={[
+          { key: 'overview', label: 'A1 Overview', content: <div>A1 content</div> },
+          { key: 'detail', label: 'A1 Detail', content: <div>A1 detail</div> },
+        ]}
+      />
+      <Tabs
+        items={[
+          { key: 'overview', label: 'A2 Overview', content: <div>A2 content</div> },
+          { key: 'detail', label: 'A2 Detail', content: <div>A2 detail</div> },
+        ]}
+      />
+    </div>,
+  );
+  // With raw item.key ids both instances would render id="tab-overview" and
+  // aria-controls would resolve to the first instance's panel.
+  const tabs = screen.getAllByRole('tab', { name: 'A1 Overview' });
+  const panels = screen.getAllByRole('tabpanel', { name: 'A1 Overview' });
+  expect(tabs).toHaveLength(1);
+  expect(panels).toHaveLength(1);
+  expect(tabs[0]).toHaveAttribute('aria-controls', panels[0].id);
+  expect(panels[0]).toHaveAttribute('aria-labelledby', tabs[0].id);
+  expect(document.querySelectorAll('[id="tab-overview"]')).toHaveLength(0);
 });

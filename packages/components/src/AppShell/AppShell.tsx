@@ -19,7 +19,9 @@ export function AppShell({
         </div>
         <nav>
           {sidebar.length === 0 && sidebarEmptyState ? (
-            <p className={styles.navEmpty}>{sidebarEmptyState}</p>
+            // A <div>, not a <p>: sidebarEmptyState is a ReactNode and block
+            // content (e.g. <Empty/>) would trip validateDOMNesting inside a p.
+            <div className={styles.navEmpty}>{sidebarEmptyState}</div>
           ) : (
             sidebar.map((i) => (
               <button

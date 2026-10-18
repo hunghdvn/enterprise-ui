@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AppShell } from './AppShell';
+import { Empty } from '../Empty';
 import styles from './AppShell.module.css';
 
 test('white sidebar navigates and shows orange badge', () => {
@@ -69,4 +70,26 @@ test('does not render sidebarEmptyState while the sidebar has items', () => {
   );
   expect(screen.queryByText('Không tìm thấy')).not.toBeInTheDocument();
   expect(screen.getByText('Đơn hàng')).toBeInTheDocument();
+});
+
+test('block-level sidebarEmptyState does not trip validateDOMNesting', () => {
+  // sidebarEmptyState renders inside a <div> (not a <p>), so block content
+  // like <Empty/> nests legally.
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <AppShell
+      sidebar={[]}
+      activeKey="overview"
+      onNavigate={() => {}}
+      sidebarEmptyState={<Empty description="Không có mục nào" />}
+    >
+      <div>Body</div>
+    </AppShell>,
+  );
+  expect(screen.getByText('Không có mục nào')).toBeInTheDocument();
+  const nestingWarning = errorSpy.mock.calls.some((args) =>
+    args.some((arg) => String(arg).includes('validateDOMNesting')),
+  );
+  expect(nestingWarning).toBe(false);
+  errorSpy.mockRestore();
 });

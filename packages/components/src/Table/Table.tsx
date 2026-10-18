@@ -13,6 +13,7 @@ import {
 import { Button } from '../Button/Button';
 import { Input } from '../Input/Input';
 import { toCSV } from '../internal/exportCsv';
+import { cx } from '../internal/cx';
 import { buildGroups, type Group } from '../internal/gridLogic';
 import { Pagination } from '../Pagination/Pagination';
 import { Select } from '../Select/Select';
@@ -41,8 +42,6 @@ const REVEAL_MARGIN = 4;
 
 /** Blank choice at the top of a select filter cell — clears the filter. */
 const FILTER_ALL_LABEL = 'Tất cả';
-
-const cx = (...parts: string[]): string => parts.filter(Boolean).join(' ');
 
 /**
  * One windowable body item: a data row, a group header — which is a full

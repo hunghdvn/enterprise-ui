@@ -28,6 +28,12 @@ const props: PropDoc[] = [
     default: '200',
     description: 'Thời gian trễ (ms) trước khi tooltip xuất hiện.',
   },
+  {
+    name: 'className',
+    type: 'string',
+    description:
+      'Class gắn lên phần tử bọc (wrapper) quanh trigger — không áp vào bong bóng tooltip.',
+  },
 ];
 
 const code = `import { Button, Tooltip } from '@enterprise-ui/components';

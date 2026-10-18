@@ -22,7 +22,7 @@ export function Spin({ size = 'md', tip, fullscreen = false }: SpinProps) {
   );
 
   if (fullscreen) {
-    return <div className="fullscreen">{content}</div>;
+    return <div className={styles.fullscreen}>{content}</div>;
   }
 
   return <div className={styles.root}>{content}</div>;
