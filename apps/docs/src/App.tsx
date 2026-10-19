@@ -12,6 +12,7 @@ import type { IconName, NavItem } from '@enterprise-ui/components';
 import ButtonPage from './pages/primitives/ButtonPage';
 import InputPage from './pages/primitives/InputPage';
 import SelectPage from './pages/primitives/SelectPage';
+import ComboboxPage from './pages/primitives/ComboboxPage';
 import CheckboxPage from './pages/primitives/CheckboxPage';
 import BadgePage from './pages/primitives/BadgePage';
 import TabsPage from './pages/primitives/TabsPage';
@@ -77,6 +78,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   button: { label: 'Button', icon: 'plus', el: <ButtonPage /> },
   input: { label: 'Input', icon: 'edit', el: <InputPage /> },
   select: { label: 'Select', icon: 'chevron-down', el: <SelectPage /> },
+  combobox: { label: 'Combobox', icon: 'search', el: <ComboboxPage /> },
   checkbox: { label: 'Checkbox', icon: 'check-circle', el: <CheckboxPage /> },
   badge: { label: 'Badge', icon: 'alert-circle', el: <BadgePage /> },
   tabs: { label: 'Tabs', icon: 'menu', el: <TabsPage /> },
