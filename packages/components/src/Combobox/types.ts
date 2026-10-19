@@ -15,12 +15,15 @@ export interface ComboboxOption {
  * Extends `InputHTMLAttributes` so the widget integrates with a `Field`/`Form`
  * wrapper that clones `id`, `name`, `aria-describedby`, `aria-invalid`, etc.
  * onto the real `<input>` (review #11). Combobox-specific props shadow the
- * native ones with the narrower signatures below.
+ * native ones with the narrower signatures below. `type` is omitted — the
+ * widget is a text-role input (`type="text"`) and an accepted-but-ignored
+ * consumer `type` would be a silent no-op (review round-4).
  */
 export interface ComboboxProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
   | 'onChange'
   | 'size'
+  | 'type'
   | 'value'
   | 'defaultValue'
   | 'multiple'

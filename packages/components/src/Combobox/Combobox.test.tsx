@@ -330,16 +330,24 @@ test('#13 chip remove button is labeled with searchText, not [object Object]', (
 
 test('#14 warns on duplicate option values', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  render(<Combobox options={[...options, { value: 'a', label: 'Dup' }]} onChange={() => {}} />);
-  expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate option value'), 'Dup');
-  warn.mockRestore();
+  // mockRestore in finally: a failing assert must not leave console.warn
+  // mocked for the rest of the file (review round-4 hygiene).
+  try {
+    render(<Combobox options={[...options, { value: 'a', label: 'Dup' }]} onChange={() => {}} />);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate option value'), 'Dup');
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 test('#14 warns on empty-string option values', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  render(<Combobox options={[...options, { value: '', label: 'Blank' }]} onChange={() => {}} />);
-  expect(warn).toHaveBeenCalledWith(expect.stringContaining('empty value'), 'Blank');
-  warn.mockRestore();
+  try {
+    render(<Combobox options={[...options, { value: '', label: 'Blank' }]} onChange={() => {}} />);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('empty value'), 'Blank');
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 // ---- Round-3 (New-A..E + partly-fixed follow-ups) ----
@@ -444,6 +452,7 @@ test('#7 popover sits one gap below when it fits, and re-places on resize', () =
     configurable: true,
     value: () => ({ top: 460, bottom: 500, left: 10, width: 200 }) as DOMRect,
   });
+  const originalInner = window.innerHeight;
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
   try {
     open(input);
@@ -454,7 +463,9 @@ test('#7 popover sits one gap below when it fits, and re-places on resize', () =
     expect(screen.getByRole('listbox').style.top).toBe('350px'); // now above
   } finally {
     delete (control as { getBoundingClientRect?: unknown }).getBoundingClientRect;
-    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+    // Restore the CAPTURED original — restoring the mock value (1000) would
+    // leak into later tests (review round-4 hygiene).
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInner });
   }
 });
 
@@ -473,4 +484,55 @@ test('#10 IME composition does not close or select on Enter/Escape', () => {
   // Composition wins: nothing committed, popover stays open.
   expect(onChange).not.toHaveBeenCalled();
   expect(screen.getByRole('listbox')).toBeInTheDocument();
+});
+
+test('#7 maxDropdownHeight binds when the rows would exceed it', () => {
+  const many = Array.from({ length: 10 }, (_, i) => ({
+    value: `v${i}`,
+    label: `Option ${i}`,
+  }));
+  render(<Combobox options={many} maxDropdownHeight={150} onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  const control = input.parentElement as HTMLElement;
+  Object.defineProperty(control, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ top: 460, bottom: 500, left: 10, width: 200 }) as DOMRect,
+  });
+  const originalInner = window.innerHeight;
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 560 });
+  try {
+    open(input);
+    // 10 rows × 32 = 320 → capped at maxHeight 150, plus 10 chrome = 160 →
+    // flip top = 460 - 160 - 4 = 296 (a regression dropping the cap yields 126).
+    const list = screen.getByRole('listbox');
+    expect(list.style.top).toBe('296px');
+    expect(list.style.maxHeight).toBe('150px');
+  } finally {
+    delete (control as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInner });
+  }
+});
+
+test('#6 Escape outside the widget does not close the popover', () => {
+  render(<Combobox options={options} onChange={() => {}} />);
+  open(screen.getByRole('combobox'));
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  // The global document Escape handler was removed on purpose (review #6):
+  // Escape is scoped to the widget, so a page-level Escape must not close it.
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+});
+
+test('#9 highlight clamps when the option list shrinks while open', () => {
+  const { rerender } = render(<Combobox options={options} onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  fireEvent.keyDown(input, { key: 'ArrowDown' }); // open, h=0
+  fireEvent.keyDown(input, { key: 'ArrowDown' }); // h=1
+  fireEvent.keyDown(input, { key: 'ArrowDown' }); // h=2 (Cherry)
+  const listId = input.getAttribute('aria-controls');
+  expect(input.getAttribute('aria-activedescendant')).toBe(`${listId}-option-2`);
+  rerender(<Combobox options={options.slice(0, 1)} onChange={() => {}} />);
+  // Cherry is gone: the derived clamp pins the highlight to the last live
+  // index — activedescendant must never dangle past the list.
+  expect(input.getAttribute('aria-activedescendant')).toBe(`${listId}-option-0`);
 });

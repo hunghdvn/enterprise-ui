@@ -326,8 +326,9 @@ export function Combobox({
         break;
       }
       case 'Enter': {
-        // Always preventDefault so a <form> never submits on Enter, and select
-        // the highlighted match when one is available (review #2). With NO
+        // preventDefault while open so the widget never submits a <form>;
+        // closed, Enter falls through to normal form behavior. Select the
+        // highlighted match when one is available (review #2). With NO
         // highlight (-1) Enter must stay a no-op: handing -1 to safeIndex
         // wrapped onto the LAST option and silently committed it (review
         // New-A — opening a populated single select and pressing Enter used
