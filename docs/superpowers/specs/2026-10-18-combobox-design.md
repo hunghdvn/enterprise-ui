@@ -8,6 +8,7 @@
 
 - Người dùng cần gõ lọc nhanh trong danh sách dài (searchable) và chọn nhiều mục hiển thị dạng chip/tag (multi-select chips).
 - `Select` native không hỗ trợ UI này → tạo `Combobox` mới, `Select` giữ nguyên.
+- **Update 2026-10-19** (owner): `Select` không còn nhận `multiple` — chọn nhiều là việc của `Combobox`; Ctrl/Cmd-click trên select native bị loại vì UX kém.
 
 ## 2. Goals / Non-goals
 
@@ -53,7 +54,7 @@ export interface ComboboxProps {
 
 ## 4. Decisions
 
-- **D1** Component mới `Combobox` (không sửa `Select`). Export cùng `Select`.
+- **D1** Component mới `Combobox` (không sửa `Select`). Export cùng `Select`. _(superseded 2026-10-19 — `Select` đã bỏ `multiple`, xem §1 update.)_
 - **D2** Filter text nội bộ uncontrolled (không gây re-render cha); chỉ filter hiển thị.
 - **D3** Chips luôn hiển thị cho selected (multi: nhiều; single: 1 chip) — thống nhất logic.
 - **D4** Popover đóng khi: click-away, Escape, scroll (window), Tab mất focus.

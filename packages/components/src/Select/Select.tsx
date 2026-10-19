@@ -1,9 +1,23 @@
 import { useId, type SelectHTMLAttributes } from 'react';
 import styles from './Select.module.css';
 
-export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
+/**
+ * Single-select native wrapper. `multiple` and array `value`/`defaultValue`
+ * are omitted on purpose: the Ctrl/Cmd-click multi-select UX was rejected in
+ * review — chips + search live in `<Combobox multiple>` instead (decision
+ * 2026-10-19). An array value would compile off the inherited type but select
+ * nothing, so the narrowing is enforced, not just documented.
+ */
+export interface SelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'size' | 'multiple' | 'value' | 'defaultValue'
+> {
   size?: 'sm' | 'md';
   error?: string;
+  /** Single value only — arrays belong to `<Combobox multiple>`. */
+  value?: string | number;
+  /** Single value only — arrays belong to `<Combobox multiple>`. */
+  defaultValue?: string | number;
 }
 
 export function Select({
