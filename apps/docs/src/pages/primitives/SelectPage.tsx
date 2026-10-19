@@ -14,8 +14,8 @@ const props: PropDoc[] = [
   },
   {
     name: 'value',
-    type: 'string | number | readonly string[]',
-    description: 'Giá trị điều khiển (controlled).',
+    type: 'string | number',
+    description: 'Giá trị điều khiển (controlled). Chọn nhiều dùng Combobox.',
   },
   {
     name: 'onChange',
@@ -63,8 +63,7 @@ export default function SelectPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Select</h1>
       <p className={styles.subtitle}>
-        Hộp chọn thả xuống dựa trên thẻ select gốc, hỗ trợ chọn nhiều, trạng thái lỗi và vô hiệu
-        hóa.
+        Hộp chọn thả xuống dựa trên thẻ select gốc, trạng thái lỗi và vô hiệu hóa.
       </p>
       <Tabs
         items={[
