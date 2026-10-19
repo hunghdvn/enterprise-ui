@@ -15,18 +15,12 @@ const props: PropDoc[] = [
   {
     name: 'value',
     type: 'string | number | readonly string[]',
-    description: 'Giá trị điều khiển (controlled); dùng mảng khi multiple.',
+    description: 'Giá trị điều khiển (controlled).',
   },
   {
     name: 'onChange',
     type: '(e: ChangeEvent<HTMLSelectElement>) => void',
     description: 'Gọi mỗi khi lựa chọn thay đổi.',
-  },
-  {
-    name: 'multiple',
-    type: 'boolean',
-    default: 'false',
-    description: 'Cho phép chọn nhiều mục cùng lúc.',
   },
   {
     name: 'disabled',
@@ -101,23 +95,11 @@ export default function SelectPage() {
                   </section>
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Chọn nhiều</h2>
-                    <div className={styles.field}>
-                      <Select
-                        multiple
-                        size="md"
-                        defaultValue={['ui', 'api']}
-                        aria-label="Chọn nhiều mục"
-                        className={styles.control}
-                      >
-                        <option value="ui">UI</option>
-                        <option value="api">API</option>
-                        <option value="db">Database</option>
-                        <option value="infra">Hạ tầng</option>
-                      </Select>
-                      <span className={styles.helper}>
-                        Giữ Ctrl (Windows) hoặc Cmd (macOS) để chọn nhiều mục.
-                      </span>
-                    </div>
+                    <p className={styles.helper}>
+                      <code>Select</code> chỉ hỗ trợ chọn một mục. Chọn nhiều (chip + tìm kiếm) hãy
+                      dùng <code>Combobox</code> — Ctrl/Cmd-click trên select native đã bị loại vì
+                      UX kém.
+                    </p>
                   </section>
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Vô hiệu hóa</h2>

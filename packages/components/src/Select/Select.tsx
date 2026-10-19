@@ -1,7 +1,15 @@
 import { useId, type SelectHTMLAttributes } from 'react';
 import styles from './Select.module.css';
 
-export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
+/**
+ * Single-select native wrapper. `multiple` is omitted on purpose: the
+ * Ctrl/Cmd-click multi-select UX was rejected in review — chips + search live
+ * in `<Combobox multiple>` instead (decision 2026-10-19).
+ */
+export interface SelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'size' | 'multiple'
+> {
   size?: 'sm' | 'md';
   error?: string;
 }

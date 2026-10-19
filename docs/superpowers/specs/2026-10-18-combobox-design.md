@@ -8,6 +8,7 @@
 
 - Người dùng cần gõ lọc nhanh trong danh sách dài (searchable) và chọn nhiều mục hiển thị dạng chip/tag (multi-select chips).
 - `Select` native không hỗ trợ UI này → tạo `Combobox` mới, `Select` giữ nguyên.
+- **Update 2026-10-19** (owner): `Select` không còn nhận `multiple` — chọn nhiều là việc của `Combobox`; Ctrl/Cmd-click trên select native bị loại vì UX kém.
 
 ## 2. Goals / Non-goals
 
