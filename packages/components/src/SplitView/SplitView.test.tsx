@@ -26,6 +26,55 @@ function stubMatchMedia(matches: boolean): () => void {
     });
 }
 
+// Flippable variant for hooks that subscribe to media-query changes
+// (useIsMobile): `set(next)` updates `matches` AND fires every registered
+// change listener, so an effect keyed on `isMobile` re-runs for real.
+function stubMatchMediaFlippable(initial: boolean): {
+  set: (next: boolean) => void;
+  restore: () => void;
+} {
+  const original = window.matchMedia;
+  const listeners: Array<(e: { matches: boolean }) => void> = [];
+  const mql = {
+    matches: initial,
+    media: '',
+    onchange: null,
+    addEventListener: (_type: string, cb: (e: { matches: boolean }) => void) => {
+      listeners.push(cb);
+    },
+    removeEventListener: (_type: string, cb: (e: { matches: boolean }) => void) => {
+      const i = listeners.indexOf(cb);
+      if (i >= 0) listeners.splice(i, 1);
+    },
+    addListener: (cb: (e: { matches: boolean }) => void) => {
+      listeners.push(cb);
+    },
+    removeListener: (cb: (e: { matches: boolean }) => void) => {
+      const i = listeners.indexOf(cb);
+      if (i >= 0) listeners.splice(i, 1);
+    },
+    dispatchEvent: () => false,
+  };
+  Object.defineProperty(window, 'matchMedia', {
+    value: () => mql,
+    configurable: true,
+    writable: true,
+  });
+  return {
+    set(next: boolean) {
+      mql.matches = next;
+      for (const cb of [...listeners]) cb({ matches: next });
+    },
+    restore() {
+      Object.defineProperty(window, 'matchMedia', {
+        value: original,
+        configurable: true,
+        writable: true,
+      });
+    },
+  };
+}
+
 const master = <div data-testid="master">Danh sách</div>;
 const detail = (
   <div>
@@ -471,7 +520,7 @@ test('maxSize below minSize falls back to min as the ceiling', () => {
       />,
     );
     const handle = screen.getByRole('separator');
-    fireEvent(handle, pd(100)); // startSize 500
+    fireEvent(handle, pd(100)); // origin = effectiveSize 300 (500 render-clamped)
     fireEvent(window, pm(9999)); // way beyond → clamped to 300 (floor wins)
     expect(onWidthChange).toHaveBeenLastCalledWith(300);
     fireEvent(window, pu());
@@ -577,8 +626,10 @@ test('default maxSize is 0.8x the measured track when laid out', async () => {
       />,
     );
     const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    // Width and height differ so a swapped-axis measure cannot pass (the
+    // vertical twin below pins the height path the same way).
     Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
-    Object.defineProperty(container, 'clientHeight', { value: 500, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 999, configurable: true });
     // The RO callback is what re-measures on layout change.
     await act(async () => {
       roCallback?.([], {} as ResizeObserver);
@@ -680,6 +731,10 @@ test('a second pointerdown cancels the first drag (take-over)', () => {
     fireEvent(window, pm(130, 100, 1, 1));
     expect(onWidthChange.mock.calls.length).toBe(callsBefore);
     fireEvent(window, pu(1));
+    // The NEW pointer must drive the drag after take-over — arming survived
+    // the teardown (p2 origin X=200: 250 - 200 = 50 → 380 + 50 = 430).
+    fireEvent(window, pm(250, 200, 2, 1));
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
     fireEvent(window, pu(2));
   } finally {
     restore();
@@ -756,6 +811,296 @@ test('orientation change mid-drag switches the active axis live', () => {
     expect(onHeightChange).toHaveBeenLastCalledWith(420);
     expect(onWidthChange).toHaveBeenLastCalledWith(400); // unchanged by Y move
     fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+// --- round 3 (M1/M2 + items 3–5): reconcile contract, NaN guards, blind spots ---
+
+test('resizable={false} renders the caller size verbatim (no clamp, no ARIA)', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        resizable={false}
+        masterWidth={150}
+        minSize={280}
+      />,
+    );
+    expect(screen.queryByRole('separator')).toBeNull();
+    // Locked pane: the caller owns the size completely — min/max never
+    // silently rewrite it (review M2; the old head clamped 150 → 280 here).
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('150px');
+  } finally {
+    restore();
+  }
+});
+
+test('out-of-range masterWidth renders clamped: size, ARIA and keyboard origin agree', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={100}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const splitter = screen.getByRole('separator');
+    // The N1 invariant, pinned: reverting `effectiveSize` back to `currentSize`
+    // in any of style/ARIA/drag/keyboard origin fails this test.
+    expect(splitter.getAttribute('aria-valuenow')).toBe('280');
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('280px');
+    // Mount converge report, then the keyboard origin is the CLAMPED value:
+    // 280 + 8 = 288 (a currentSize origin would report 108).
+    expect(onWidthChange).toHaveBeenNthCalledWith(1, 280);
+    fireEvent.keyDown(splitter, { key: 'ArrowRight' });
+    expect(onWidthChange).toHaveBeenNthCalledWith(2, 288);
+  } finally {
+    restore();
+  }
+});
+
+test('a measured cap that clamps the mounted size reports the capped value once', async () => {
+  let roCallback: ResizeObserverCallback | undefined;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(callback: ResizeObserverCallback) {
+        roCallback = callback;
+      }
+    },
+  );
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900} // persisted from a wider window
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    // No track measured yet → no cap → first paint shows 900.
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('900px');
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 900, configurable: true });
+    await act(async () => {
+      roCallback?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    // Cap = 0.8 × 500 = 400 → the pane shrinks AND the parent learns the
+    // capped value exactly once; an ignoring parent never re-triggers it.
+    await waitFor(() =>
+      expect(screen.getByTestId('master').parentElement!.style.width).toBe('400px'),
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    expect(onWidthChange).toHaveBeenCalledWith(400);
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('non-finite minSize/maxSize fall back to defaults instead of poisoning ARIA', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={Number.NaN}
+        maxSize={Number.NaN}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const splitter = screen.getByRole('separator');
+    // NaN minSize → default floor 280; NaN maxSize → measured default (no
+    // track in jsdom → no upper clamp). Nothing renders or reports "NaN".
+    expect(splitter.getAttribute('aria-valuenow')).toBe('380');
+    expect(splitter.getAttribute('aria-valuemin')).toBe('280');
+    expect(splitter.getAttribute('aria-valuemax')).toBeNull();
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
+    fireEvent(splitter, pd(100));
+    fireEvent(window, pm(150));
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('default maxSize on a vertical track measures the height, not the width', async () => {
+  let roCallback: ResizeObserverCallback | undefined;
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(callback: ResizeObserverCallback) {
+        roCallback = callback;
+      }
+    },
+  );
+  const onHeightChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={380}
+        minSize={280}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="vertical"]') as HTMLDivElement;
+    // Width and height differ so a swapped-axis measure cannot pass.
+    Object.defineProperty(container, 'clientWidth', { value: 999, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 500, configurable: true });
+    await act(async () => {
+      roCallback?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    const splitter = screen.getByRole('separator');
+    await waitFor(() => expect(splitter.getAttribute('aria-valuemax')).toBe('400')); // 0.8 × 500 (height)
+    fireEvent(splitter, pd(0, 100));
+    fireEvent(window, pm(0, 9999));
+    expect(onHeightChange).toHaveBeenLastCalledWith(400);
+    fireEvent(window, pu());
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('pointer capture is taken and released on the handle element (N5)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  const proto = Element.prototype as unknown as {
+    setPointerCapture?: (pointerId: number) => void;
+    releasePointerCapture?: (pointerId: number) => void;
+  };
+  const originalSet = proto.setPointerCapture;
+  const originalRelease = proto.releasePointerCapture;
+  const setCapture = vi.fn();
+  const releaseCapture = vi.fn();
+  proto.setPointerCapture = setCapture;
+  proto.releasePointerCapture = releaseCapture;
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        maxSize={800}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    fireEvent(handle, pd(100)); // arm pointer 1
+    expect(setCapture).toHaveBeenCalledTimes(1);
+    expect(setCapture).toHaveBeenCalledWith(1);
+    expect(setCapture.mock.contexts[0]).toBe(handle);
+    fireEvent(window, pm(150)); // 430
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    fireEvent(window, pu(1));
+    // Released via the captured element — a revert to `ev.currentTarget`
+    // inside the window listener would target `window`, not the handle.
+    expect(releaseCapture).toHaveBeenCalledTimes(1);
+    expect(releaseCapture).toHaveBeenCalledWith(1);
+    expect(releaseCapture.mock.contexts[0]).toBe(handle);
+  } finally {
+    if (originalSet) proto.setPointerCapture = originalSet;
+    else delete proto.setPointerCapture;
+    if (originalRelease) proto.releasePointerCapture = originalRelease;
+    else delete proto.releasePointerCapture;
+    restore();
+  }
+});
+
+test('the measure effect re-subscribes when isMobile flips (deps pinned)', async () => {
+  const constructions: ResizeObserverCallback[] = [];
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(callback: ResizeObserverCallback) {
+        constructions.push(callback);
+      }
+    },
+  );
+  const mq = stubMatchMediaFlippable(false);
+  try {
+    render(<SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />);
+    expect(constructions).toHaveLength(1);
+    // Flip to mobile: the desktop container unmounts (no node → no observer).
+    // Flip back: the effect re-runs and subscribes again — only possible
+    // because the effect deps include `isMobile` (N3).
+    await act(async () => {
+      mq.set(true);
+    });
+    await act(async () => {
+      mq.set(false);
+    });
+    expect(constructions).toHaveLength(2);
+  } finally {
+    vi.unstubAllGlobals();
+    mq.restore();
+  }
+});
+
+test('keyboard steps clamp at maxSize (plan: clamped to maxSize)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={400}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const handle = screen.getByRole('separator');
+    handle.focus();
+    // Origin sits at the ceiling: an increasing step must not exceed maxSize.
+    fireEvent.keyDown(handle, { key: 'ArrowRight' }); // 400 + 8 → clamped 400
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+    fireEvent.keyDown(handle, { key: 'ArrowRight', shiftKey: true }); // +32 → still 400
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
   } finally {
     restore();
   }

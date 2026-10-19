@@ -49,30 +49,34 @@ const props: PropDoc[] = [
     name: 'resizable',
     type: 'boolean',
     default: 'true',
-    description: 'Hiện/ẩn tay cầm kéo. false = khoá kích thước master.',
+    description:
+      'Hiện/ẩn tay cầm kéo. false = khoá: pane render đúng size truyền vào (min/max không áp).',
   },
   {
     name: 'minSize',
     type: 'number',
     default: '280',
-    description: 'Giới hạn nhỏ nhất (px) của master khi kéo.',
+    description:
+      'Giới hạn nhỏ nhất (px) của master khi pane resizable (kéo/phím). resizable={false} render đúng size truyền vào.',
   },
   {
     name: 'maxSize',
     type: 'number',
     default: '0.8 × track',
     description:
-      'Giới hạn lớn nhất (px) của master khi kéo. Mặc định tính từ 80% chiều rộng/cao khung.',
+      'Giới hạn lớn nhất (px) của master khi pane resizable. Mặc định tính từ 80% chiều rộng/cao khung.',
   },
   {
     name: 'onMasterWidthChange',
     type: '(size: number) => void',
-    description: 'Báo size mới khi kéo trục ngang (controlled).',
+    description:
+      'Báo size mới khi kéo/phím trục ngang; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled).',
   },
   {
     name: 'onMasterHeightChange',
     type: '(size: number) => void',
-    description: 'Báo size mới khi kéo trục dọc (controlled).',
+    description:
+      'Báo size mới khi kéo/phím trục dọc; cũng báo đúng một lần khi clamp phải sửa giá trị đang truyền vào (controlled).',
   },
   {
     name: 'backLabel',

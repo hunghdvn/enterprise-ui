@@ -7,17 +7,27 @@ import styles from './SplitView.module.css';
 
 const DEFAULT_MASTER_WIDTH = 380;
 const DEFAULT_MASTER_HEIGHT = 280;
+const DEFAULT_MIN_SIZE = 280;
 const KEYBOARD_STEP = 8;
 const MAX_SIZE_RATIO = 0.8;
 
 function clamp(value: number, min: number, max: number): number {
-  // Single source of truth for dragging/keyboard bounds (clean N7). `max` is
-  // always a real number at the call sites — Infinity means "no upper clamp" —
-  // so there is no `undefined` branch to drift out of sync. The floor is always
-  // >= 1 so the master pane can never collapse to a 0px sliver (mirrors
-  // Table's `Math.max(1, minColumnWidth)`).
+  // Single source of truth for the bounds math (N7). `max` is always a real
+  // number at the call sites — `Infinity` means "no upper clamp" — so there is
+  // no `undefined` branch to drift out of sync.
   return Math.max(min, Math.min(value, max));
 }
+
+// Latest props visible to pointer/keyboard handlers that outlive a render
+// (so an orientation/bounds/handler change mid-drag is reflected live).
+type LiveSnapshot = {
+  isVertical: boolean;
+  effectiveSize: number;
+  minFloor: number;
+  effectiveMax: number;
+  onW: ((size: number) => void) | undefined;
+  onH: ((size: number) => void) | undefined;
+};
 
 /**
  * Master-detail 2-pane: side-by-side on desktop, single-pane with back
@@ -29,6 +39,14 @@ function clamp(value: number, min: number, max: number): number {
  * `onMasterWidthChange` / `onMasterHeightChange`. SplitView never stores the
  * size internally (a drag is "live" — it reports deltas immediately, like the
  * Table column resize handle).
+ *
+ * `minSize`/`maxSize` bind wherever the component itself sizes the pane:
+ * while `resizable`, the rendered size, `aria-valuenow` and the drag/keyboard
+ * origin all derive from one clamped value (N1), and a clamp that rewrites
+ * the caller's value is reported back ONCE so the parent's state converges
+ * with the UI (measured-cap shrink must not strand the parent on a stale
+ * size). A locked pane (`resizable={false}`) renders no splitter/ARIA and
+ * shows the caller's size verbatim.
  */
 export function SplitView({
   master,
@@ -39,7 +57,7 @@ export function SplitView({
   masterHeight = DEFAULT_MASTER_HEIGHT,
   orientation = 'horizontal',
   resizable = true,
-  minSize = 280,
+  minSize = DEFAULT_MIN_SIZE,
   maxSize,
   onMasterWidthChange,
   onMasterHeightChange,
@@ -60,14 +78,19 @@ export function SplitView({
   const currentSize = isVertical ? masterHeight : masterWidth;
   const defaultSize = isVertical ? DEFAULT_MASTER_HEIGHT : DEFAULT_MASTER_WIDTH;
 
+  // Non-finite sizes are TS-legal but poison every downstream computation
+  // (style, ARIA, report) — fall back to the prop defaults so nothing can
+  // render or report "NaN" (review item 4: `maxSize={NaN}` used to reach
+  // `aria-valuenow="NaN"` and drop the pane's style entirely).
+  const safeMin = Number.isFinite(minSize) ? minSize : DEFAULT_MIN_SIZE;
   // The hard floor always leaves room for the grip so the master pane can
   // never collapse to a 0px sliver (mirrors Table's `Math.max(1, minColumnWidth)`).
-  const minFloor = Math.max(1, minSize);
+  const minFloor = Math.max(1, safeMin);
 
   // Default ceiling = 0.8× the measured track. Track layout is unavailable
-  // in jsdom/SSR/before first paint → undefined (treated as no clamp by
-  // `clamp`), so behavior in tests/docs is unchanged unless the consumer
-  // passes `maxSize` explicitly.
+  // in jsdom/SSR/before first paint → `undefined`, which `effectiveMax` below
+  // maps to `Infinity` (no upper clamp), so behavior in tests/docs is
+  // unchanged unless the consumer passes `maxSize` explicitly.
   const [trackSize, setTrackSize] = useState(0);
   useEffect(() => {
     const node = containerRef.current;
@@ -83,9 +106,10 @@ export function SplitView({
     return () => ro.disconnect();
   }, [isVertical, isMobile]);
 
+  const safeMax = maxSize !== undefined && Number.isFinite(maxSize) ? maxSize : undefined;
   const defaultMax =
-    maxSize !== undefined
-      ? maxSize
+    safeMax !== undefined
+      ? safeMax
       : trackSize > 0
         ? Math.round(trackSize * MAX_SIZE_RATIO)
         : undefined;
@@ -93,54 +117,39 @@ export function SplitView({
   // [valuemin, valuemax]; an undefined ceiling stays a no-clamp (Infinity).
   const effectiveMax = defaultMax === undefined ? Infinity : Math.max(defaultMax, minFloor);
 
-  // Reconcile the controlled size into the legal range in ONE place: this
-  // clamped value drives the rendered width/height, aria-valuenow and the
-  // drag/keyboard origin, so size, ARIA and the keyboard step can never
-  // disagree (review N1). `Infinity` (no clamp) leaves currentSize untouched.
-  const effectiveSize = clamp(currentSize, minFloor, effectiveMax);
+  // Reconcile the controlled size into the legal range in ONE place — but only
+  // where the component itself sizes the pane. While `resizable` the splitter
+  // (and its ARIA) renders, so this clamped value drives the rendered
+  // width/height, aria-valuenow and the drag/keyboard origin together, and
+  // aria-valuenow can never fall outside [valuemin, valuemax] (review N1).
+  // A locked pane (`resizable={false}`) renders no splitter/ARIA at all and
+  // shows the caller's value VERBATIM: the caller owns a static split
+  // completely, and min/max never silently rewrite it (review M2 — the docs
+  // always said the bounds apply to dragging while the code clamped even the
+  // locked path).
+  const effectiveSize = resizable ? clamp(currentSize, minFloor, effectiveMax) : currentSize;
   const sizeStyle = isVertical ? { height: effectiveSize } : { width: effectiveSize };
 
-  // Latest props visible to pointer/keyboard handlers that outlive a render
-  // (so an orientation/bounds/handler change mid-drag is reflected live).
-  const liveRef = useRef<{
-    isVertical: boolean;
-    currentSize: number;
-    effectiveSize: number;
-    minFloor: number;
-    effectiveMax: number;
-    onW: ((size: number) => void) | undefined;
-    onH: ((size: number) => void) | undefined;
-  }>({
+  // One builder for the handler snapshot: the type, the ref init and the
+  // layout-effect refresh all share it, so a field can never be added to one
+  // copy and forgotten in another (review item 6 — `currentSize` used to live
+  // here as a write-only field after N1 moved every reader to `effectiveSize`).
+  const buildSnapshot = (): LiveSnapshot => ({
     isVertical,
-    currentSize,
     effectiveSize,
     minFloor,
     effectiveMax,
     onW: onMasterWidthChange,
     onH: onMasterHeightChange,
   });
-  // Refs must not be written during render — keep the snapshot current from a
-  // layout effect so handlers attached to `window` (which outlive the render
-  // that created them) see the latest bounds/axis (finding #8).
+  const liveRef = useRef<LiveSnapshot>(buildSnapshot());
+  // Refs must not be written during render — refresh from a layout effect.
+  // No dependency array: it runs after every render, so handlers attached to
+  // `window` (which outlive the render that created them) always see the
+  // latest bounds/axis (finding #8) and a forgotten dep can never stale them.
   useLayoutEffect(() => {
-    liveRef.current = {
-      isVertical,
-      currentSize,
-      effectiveSize,
-      minFloor,
-      effectiveMax,
-      onW: onMasterWidthChange,
-      onH: onMasterHeightChange,
-    };
-  }, [
-    isVertical,
-    currentSize,
-    effectiveSize,
-    minFloor,
-    effectiveMax,
-    onMasterWidthChange,
-    onMasterHeightChange,
-  ]);
+    liveRef.current = buildSnapshot();
+  });
 
   const report = useCallback((next: number) => {
     const l = liveRef.current;
@@ -148,6 +157,37 @@ export function SplitView({
     if (l.isVertical) l.onH?.(clamped);
     else l.onW?.(clamped);
   }, []);
+
+  // Converge the parent's state with the rendered size whenever a clamp had
+  // to rewrite the caller's value (review item 3): a persisted
+  // `masterWidth={900}` from a wider window must not sit at 900 in the parent
+  // while the measured cap renders 400 — the first drag would otherwise jump
+  // ~500px. Strictly one-shot per distinct (value → rendered) pair: a
+  // reflecting parent lands in range and resets the guard; an ignoring
+  // parent never re-triggers it (no loop). Locked panes and inert splitters
+  // (no handler) have nothing to reconcile with.
+  const reconcileKeyRef = useRef('');
+  useEffect(() => {
+    if (!resizable) return;
+    const onChange = isVertical ? onMasterHeightChange : onMasterWidthChange;
+    if (!onChange) return;
+    if (currentSize === effectiveSize) {
+      reconcileKeyRef.current = '';
+      return;
+    }
+    const key = `${currentSize}->${effectiveSize}`;
+    if (reconcileKeyRef.current === key) return;
+    reconcileKeyRef.current = key;
+    report(currentSize);
+  }, [
+    resizable,
+    isVertical,
+    onMasterWidthChange,
+    onMasterHeightChange,
+    currentSize,
+    effectiveSize,
+    report,
+  ]);
 
   // The active drag's teardown. Window listeners belong to the drag, not the
   // component lifetime: a second `pointerdown` (or an unmount before release)
@@ -200,7 +240,7 @@ export function SplitView({
       }
       const live = liveRef.current;
       const delta = live.isVertical ? ev.clientY - startY : ev.clientX - startX;
-      report(startSize + delta); // report() is the single clamp site (cleanup N7)
+      report(startSize + delta); // raw delta — report() clamps (the render reconcile above is the other owner)
     };
     const end = (ev?: PointerEvent) => {
       // A second pointer's release must not end the first pointer's drag.

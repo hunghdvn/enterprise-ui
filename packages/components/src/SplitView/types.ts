@@ -23,9 +23,16 @@ export interface SplitViewProps {
   orientation?: SplitViewOrientation;
   /** Whether the master pane can be resized by dragging the splitter. */
   resizable?: boolean;
-  /** Hard floor for the master pane size (px). Default 280. */
+  /**
+   * Hard floor for the master pane size (px) while the pane is resizable
+   * (drag/keyboard). A locked pane (`resizable={false}`) renders the caller's
+   * size verbatim. Default 280.
+   */
   minSize?: number;
-  /** Hard ceiling for the master pane size (px). Defaults to 80% of the track. */
+  /**
+   * Hard ceiling for the master pane size (px) while the pane is resizable.
+   * Defaults to 80% of the measured track.
+   */
   maxSize?: number;
   /** Resize event — horizontal axis (width). */
   onMasterWidthChange?: (size: number) => void;
