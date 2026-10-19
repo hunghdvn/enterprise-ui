@@ -20,8 +20,8 @@ function clamp(value: number, min: number, max: number): number {
 
 // Non-finite fallback for the size inputs: TS-legal NaN/Infinity (a missed
 // `Number()` parse) must never reach style, ARIA or a report.
-function finiteOr(value: number | undefined, fallback: number): number {
-  return Number.isFinite(value) ? (value as number) : fallback;
+function finiteOr(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
 }
 
 // Latest props visible to pointer/keyboard handlers that outlive a render
@@ -72,11 +72,18 @@ export function SplitView({
   const isMobile = useIsMobile();
   // `isMobile` is two-phase by design (false until the hook's effect
   // confirms) — a real phone's first commit would otherwise paint the desktop
-  // pane and let a stray pointerdown/ArrowRight reach the parent before the
-  // passive effects run (round-4 #3). One live media read settles the render
-  // branch, the reconcile gate and the drag/keyboard handlers alike; the
-  // hook's change listener keeps both in sync from then on.
+  // pane and let a stray pointerdown reach the parent (round-4 #3). One live
+  // media read settles the RENDER BRANCH — which is what makes the
+  // drag/keyboard handlers unreachable on a phone's first commit — plus the
+  // measure effect and the reconcile gate; the hook's change listener keeps
+  // both in sync afterwards. SSR caveat: an SSR hydrate on a phone would
+  // mismatch (server renders desktop, this read renders mobile) — the
+  // package targets Vite CSR; revisit with `useSyncExternalStore` if SSR
+  // lands (round-5 #2).
   const mobileLayout = isMobile || matchesMobileMedia();
+  // Single predicate for "a splitter exists to reconcile with": the desktop
+  // render's splitter conditional and the reconcile gate must never drift.
+  const showSplitter = resizable && !mobileLayout;
   const detailRef = useRef<HTMLDivElement | null>(null);
   const masterRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -109,12 +116,23 @@ export function SplitView({
   // maps to `Infinity` (no upper clamp), so behavior in tests/docs is
   // unchanged unless the consumer passes `maxSize` explicitly.
   const [trackSize, setTrackSize] = useState(0);
+  // Set while a re-measure is in flight: the reconcile effect must not act on
+  // the PREVIOUS track's cap (round-6 #1 — on an orientation flip the stale
+  // cap silently shrank a persisted 900 to the old 480 and nothing restored
+  // it). Cleared by `seenTrackRef` once the fresh measurement has rendered.
+  const measurePendingRef = useRef(false);
+  const seenTrackRef = useRef(0);
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
     const measure = () => {
       const sz = isVertical ? node.clientHeight : node.clientWidth;
-      if (sz > 0) setTrackSize(sz);
+      // Compare against the last CONSUMED measurement (not the state) so a
+      // re-observation of the same size never re-triggers a pending cycle.
+      if (sz > 0 && sz !== seenTrackRef.current) {
+        measurePendingRef.current = true;
+        setTrackSize(sz);
+      }
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -122,6 +140,16 @@ export function SplitView({
     ro.observe(node);
     return () => ro.disconnect();
   }, [isVertical, mobileLayout]);
+  // Runs after every commit where the track changed (declared before the
+  // reconcile effect): the fresh cap is now visible, so episodes may resume.
+  // The seen-value guard keeps the mount run (same 0) from clearing a pending
+  // flag the measure effect just set in the same flush.
+  useEffect(() => {
+    if (seenTrackRef.current !== trackSize) {
+      seenTrackRef.current = trackSize;
+      measurePendingRef.current = false;
+    }
+  }, [trackSize]);
 
   // `maxSize={Infinity}` is an explicit "no ceiling" (a `hasLimit ? l : Infinity`
   // pattern) — honored verbatim: no clamp and no `aria-valuemax`, even after
@@ -197,12 +225,15 @@ export function SplitView({
   // value, so a later episode always reports again.
   const reconcileKeyRef = useRef('');
   useEffect(() => {
-    const onChange =
-      resizable && !mobileLayout
-        ? isVertical
-          ? onMasterHeightChange
-          : onMasterWidthChange
-        : undefined;
+    // A re-measure is in flight: this render's cap is stale (it belongs to
+    // the previous track), so do not report from it — the effect re-runs
+    // once the fresh track has rendered (round-6 #1).
+    if (measurePendingRef.current) return;
+    const onChange = showSplitter
+      ? isVertical
+        ? onMasterHeightChange
+        : onMasterWidthChange
+      : undefined;
     if (!onChange || currentSize === effectiveSize) {
       reconcileKeyRef.current = '';
       return;
@@ -212,10 +243,10 @@ export function SplitView({
     reconcileKeyRef.current = key;
     report(currentSize);
   }, [
-    resizable,
-    mobileLayout,
+    showSplitter,
     isVertical,
     rawSize,
+    trackSize,
     onMasterWidthChange,
     onMasterHeightChange,
     currentSize,
@@ -343,7 +374,7 @@ export function SplitView({
         <div className={styles.master} style={sizeStyle}>
           {master}
         </div>
-        {resizable && (
+        {showSplitter && (
           <div
             role="separator"
             aria-orientation={isVertical ? 'horizontal' : 'vertical'}

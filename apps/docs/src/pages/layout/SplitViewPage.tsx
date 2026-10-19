@@ -52,7 +52,7 @@ const props: PropDoc[] = [
     type: 'boolean',
     default: 'true',
     description:
-      'Hiện/ẩn tay cầm kéo. false = khoá: pane render đúng size truyền vào (min/max không áp).',
+      'Hiện/ẩn tay cầm kéo. false = khoá: pane render đúng size truyền vào (min/max không áp; non-finite vẫn fallback về mặc định).',
   },
   {
     name: 'minSize',

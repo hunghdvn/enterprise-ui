@@ -1493,3 +1493,191 @@ test('#4 non-finite masterWidth={Infinity} falls back to the axis default', () =
     restore();
   }
 });
+
+// --- round 6: reconcile/measure race, render-gate pins, sanitize legs ---
+
+test('#1 a re-measure must not let the stale cap shrink a persisted size', async () => {
+  const ro = stubResizeObserver();
+  const onWidthChange = vi.fn();
+  const onHeightChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={900}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="vertical"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientHeight', { value: 600, configurable: true });
+    Object.defineProperty(container, 'clientWidth', { value: 1280, configurable: true });
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    // Vertical: track 600 → cap 480 → the height episode reports 480.
+    expect(onHeightChange).toHaveBeenCalledTimes(1);
+    expect(onHeightChange).toHaveBeenLastCalledWith(480);
+    // Flip to horizontal: the track re-measures to 1280 (cap 1024). The
+    // STALE vertical cap must not squeeze the width value — 900 is in range
+    // under the fresh cap, so nothing is reported and nothing converges to
+    // the old 480 (round-6 #1).
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    await act(async () => {
+      ro.callbacks[1]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    expect(onWidthChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('900px');
+    expect(screen.getByRole('separator').getAttribute('aria-valuenow')).toBe('900');
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('#3 mobileLayout gates the render branch (no desktop container on mobile)', () => {
+  const ro = stubResizeObserver();
+  const mq = stubMatchMediaFlippable(true); // mobile from the very first commit
+  try {
+    render(<SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />);
+    // The mobile tree mounts no split container → no ResizeObserver is ever
+    // constructed (reverting the render gate to the two-phase `isMobile`
+    // paints a desktop frame first and constructs one — round-6 #3a).
+    expect(ro.callbacks).toHaveLength(0);
+    expect(screen.queryByRole('separator')).toBeNull();
+    expect(screen.getByTestId('master')).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+    mq.restore();
+  }
+});
+
+test('#3 an episode through a mobile round-trip reports again after flip-back', async () => {
+  const onWidthChange = vi.fn();
+  const mq = stubMatchMediaFlippable(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1); // desktop episode
+    // Through the mobile gate and back: the reset at the gate exit must let
+    // the still-out-of-range value report again (a lost reset strands the
+    // parent after the flip — round-6 #3b).
+    await act(async () => {
+      mq.set(true);
+    });
+    await act(async () => {
+      mq.set(false);
+    });
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(2);
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+  } finally {
+    mq.restore();
+  }
+});
+
+test('#2 locked pane sanitizes non-finite sizes too (fallback, not verbatim NaN)', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        resizable={false}
+        masterWidth={Number.NaN}
+      />,
+    );
+    // types.ts promises "non-finite sizes still fall back to their defaults
+    // even when locked" — a verbatim NaNpx render would break that contract
+    // (round-6 #3c).
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
+  } finally {
+    restore();
+  }
+});
+
+test('#4 vertical NaN falls back to the AXIS default, not the floor', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={Number.NaN}
+        minSize={100}
+      />,
+    );
+    // The fallback is defaultSize (280), NOT minFloor — a 100px render would
+    // mean the sanitizer read the wrong fallback (round-6 #3d). minSize sits
+    // BELOW 280 so the floor clamp cannot mask the distinction.
+    expect(screen.getByTestId('master').parentElement!.style.height).toBe('280px');
+  } finally {
+    restore();
+  }
+});
+
+test('#4 non-finite minSize={Infinity} falls back to 280', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={Infinity}
+      />,
+    );
+    // A Number.isNaN-only sanitizer would let Infinity through as the floor
+    // (aria-valuemin="Infinity") — round-6 #3e.
+    expect(screen.getByRole('separator').getAttribute('aria-valuemin')).toBe('280');
+  } finally {
+    restore();
+  }
+});
