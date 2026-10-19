@@ -7,11 +7,27 @@ const DEFAULT_PLACEHOLDER = 'Chọn...';
 const DEFAULT_SEARCH_PLACEHOLDER = 'Tìm kiếm...';
 const GAP_PX = 4;
 const EST_ROW_HEIGHT = 32; // .option padding (6 + 10 + 10) + line height
+const EST_POPOVER_CHROME = 10; // .popover vertical padding (4 + 4) + 1px borders
 
 function searchValueOf(opt: ComboboxOption): string {
   if (typeof opt.searchText === 'string') return opt.searchText;
   if (typeof opt.label === 'string') return opt.label;
   return typeof opt.value === 'string' ? opt.value : String(opt.value);
+}
+
+// Position the popover: one GAP_PX below the control, flipped ABOVE with the
+// FULL estimated height (rows + popover chrome) when it would overflow the
+// viewport bottom. The chrome term is part of the review-#7 fix — the old
+// math dropped the popover's own padding/border and double-counted the gap.
+function computePosition(
+  cr: { bottom: number; top: number; left: number; width: number },
+  rowCount: number,
+  maxHeight: number,
+): { top: number; left: number; width: number } {
+  const ddHeight = Math.min(Math.max(rowCount, 1) * EST_ROW_HEIGHT, maxHeight) + EST_POPOVER_CHROME;
+  const spaceBelow = (window.innerHeight || 0) - cr.bottom - GAP_PX;
+  const top = spaceBelow >= ddHeight ? cr.bottom + GAP_PX : Math.max(0, cr.top - ddHeight - GAP_PX);
+  return { top, left: cr.left, width: cr.width };
 }
 
 function OptionItem({
@@ -34,8 +50,9 @@ function OptionItem({
   useEffect(() => {
     if (highlighted && ref.current) {
       // jsdom has no `scrollIntoView`; the optional call is a no-op there and
-      // runs in real browsers.
-      ref.current.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      // runs in real browsers. Instant on purpose: smooth scrolling disrespects
+      // prefers-reduced-motion and lags behind rapid key-holds (round-3 note).
+      ref.current.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }
   }, [highlighted]);
   return (
@@ -66,7 +83,8 @@ function OptionItem({
  * size is **controlled**: the parent passes `value`/`defaultValue` and owns the
  * state, reporting changes back via `onChange`. Filter text is the only
  * internal state (unreported — spec G5). The popover is positioned once on
- * open and flipped above when it would overflow the viewport bottom (spec D5).
+ * open, re-placed on window resize while open, and flipped above when it would
+ * overflow the viewport bottom (spec D5).
  */
 export function Combobox({
   options,
@@ -82,6 +100,11 @@ export function Combobox({
   disabled = false,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  // Consumer handlers are destructured (not left in `rest`) so they can be
+  // COMPOSED with the widget's own handlers below instead of being silently
+  // clobbered by the explicit props that follow `{...rest}` (review New-B).
+  onFocus: consumerOnFocus,
+  onKeyDown: consumerOnKeyDown,
   className,
   ...rest
 }: ComboboxProps) {
@@ -121,19 +144,24 @@ export function Combobox({
   );
 
   // Surface duplicate / empty option values — they break keying and
-  // single-mode identity (review #14). Dev-only: never shipped to production.
+  // single-mode identity (review #14). Dev-only diagnostics (review New-D):
+  // `import.meta.env.DEV` is true in dev/test and compiled away by the
+  // production lib build, so prod users never see these warns. Labels go
+  // through `searchValueOf` so a ReactNode label never prints as
+  // "[object Object]" — the exact bug the chip fix (#13) removed.
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     const seen = new Set<string>();
     for (const opt of options) {
       if (opt.value === '') {
         console.warn(
           `[Combobox] option with an empty value cannot be toggled in single mode:`,
-          String(opt.label),
+          searchValueOf(opt),
         );
       } else if (seen.has(opt.value)) {
         console.warn(
           `[Combobox] duplicate option value "${opt.value}" — identity is ambiguous:`,
-          String(opt.label),
+          searchValueOf(opt),
         );
       }
       seen.add(opt.value);
@@ -214,16 +242,7 @@ export function Combobox({
     setHighlightedIndex(h);
     setOpen(true);
     const cr = controlRef.current?.getBoundingClientRect();
-    if (cr) {
-      // One gap (4px) only — applied in JS, not in the CSS margin (review #7).
-      const ddHeight = Math.min(Math.max(n, 1) * EST_ROW_HEIGHT, maxDropdownHeight);
-      const spaceBelow = (window.innerHeight || 0) - cr.bottom - GAP_PX;
-      const top =
-        spaceBelow >= ddHeight ? cr.bottom + GAP_PX : Math.max(0, cr.top - ddHeight - GAP_PX);
-      setPosition({ top, left: cr.left, width: cr.width });
-    } else {
-      setPosition(null);
-    }
+    setPosition(cr ? computePosition(cr, n, maxDropdownHeight) : null);
   };
 
   const close = () => {
@@ -266,6 +285,18 @@ export function Combobox({
     };
   }, [open]);
 
+  // Re-place the popover when the window resizes while open (review #7) —
+  // otherwise a rotation or window drag leaves it anchored to a stale rect.
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const cr = controlRef.current?.getBoundingClientRect();
+      if (cr) setPosition(computePosition(cr, filtered.length, maxDropdownHeight));
+    };
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [open, filtered.length, maxDropdownHeight]);
+
   const wrapKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // IME composition: never steal Arrow/Enter/Escape/Delete from the
     // candidate window (review #10).
@@ -296,10 +327,14 @@ export function Combobox({
       }
       case 'Enter': {
         // Always preventDefault so a <form> never submits on Enter, and select
-        // the highlighted match when one is available (review #2).
+        // the highlighted match when one is available (review #2). With NO
+        // highlight (-1) Enter must stay a no-op: handing -1 to safeIndex
+        // wrapped onto the LAST option and silently committed it (review
+        // New-A — opening a populated single select and pressing Enter used
+        // to change the selection).
         if (open) {
           e.preventDefault();
-          if (n > 0) selectOption(clampedHighlight);
+          if (n > 0 && clampedHighlight >= 0) selectOption(clampedHighlight);
         }
         break;
       }
@@ -334,6 +369,11 @@ export function Combobox({
   // input are passed through so a text caret never toggles the list closed.
   const onControlMouseDown = (e: React.MouseEvent<HTMLSpanElement>) => {
     if (disabled || e.button !== 0) return;
+    // A press on a chip's remove button is a chip action, not a popover
+    // toggle: without this guard the press opened the list AND the click then
+    // removed the chip (review New-C). The remove button is the only
+    // <button> inside the control.
+    if (e.target instanceof Element && e.target.closest('button')) return;
     if (inputRef.current?.contains(e.target as Node)) {
       if (!searchable && !open) openAt(selected.length > 0 ? -1 : 0);
       return;
@@ -342,6 +382,18 @@ export function Combobox({
     inputRef.current?.focus();
     if (open) close();
     else openAt(selected.length > 0 ? -1 : 0);
+  };
+
+  // Escape from anywhere inside the control (e.g. a chip-remove button
+  // reached via Shift+Tab) closes the popover (spec D4 / review New-E) —
+  // the input's own handler only covers the input itself. Same IME guard as
+  // the input: a composing Escape must not close the list.
+  const onControlKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      close();
+    }
   };
 
   return (
@@ -358,6 +410,7 @@ export function Combobox({
         data-disabled={disabled || undefined}
         data-open={open || undefined}
         onMouseDown={onControlMouseDown}
+        onKeyDown={onControlKeyDown}
       >
         {selected.map((v) => {
           const opt = byValue.get(v);
@@ -402,11 +455,20 @@ export function Combobox({
           placeholder={selected.length === 0 ? placeholder : searchPlaceholder}
           disabled={disabled}
           onChange={handleInputChange}
-          onFocus={() => {
+          onFocus={(e) => {
+            // Compose with the consumer's handler instead of clobbering it
+            // (review New-B).
+            consumerOnFocus?.(e);
             if (disabled || !searchable) return;
             if (!open) openAt(selected.length > 0 ? -1 : 0);
           }}
-          onKeyDown={wrapKeyDown}
+          onKeyDown={(e) => {
+            // Widget keys run first (they preventDefault), then the consumer
+            // — it can inspect `e.defaultPrevented` to skip handled keys
+            // (review New-B).
+            wrapKeyDown(e);
+            consumerOnKeyDown?.(e);
+          }}
         />
         <span className={styles.chevron} aria-hidden="true">
           <Icon name="chevron-down" size={14} />

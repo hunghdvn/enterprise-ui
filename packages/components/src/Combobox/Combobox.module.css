@@ -17,6 +17,10 @@
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
+  /* Field text must match Input/Select density (13px compact) — without this
+     the typed text inherits the page default while the chips use the token
+     (review #12 leftover). The input picks it up via `font: inherit`. */
+  font-size: var(--font-size);
   padding: 2px 8px;
   transition:
     border-color 0.15s,

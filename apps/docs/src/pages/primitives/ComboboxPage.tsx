@@ -61,7 +61,7 @@ const props: PropDoc[] = [
   {
     name: 'id',
     type: 'string',
-    description: 'Được forward tới <input> để gán nhãnh <label htmlFor>.',
+    description: 'Được forward tới <input> để gắn nhãn với <label htmlFor>.',
   },
   {
     name: 'name',
@@ -75,6 +75,21 @@ const props: PropDoc[] = [
   },
   { name: 'aria-invalid', type: 'boolean', description: 'Đánh dấu lỗi kiểu cho <input>.' },
   { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ widget (.wrap).' },
+  {
+    name: 'defaultValue',
+    type: 'string | string[]',
+    description: 'Giá trị ban đầu cho chế độ uncontrolled (khi không truyền value).',
+  },
+  {
+    name: 'aria-label',
+    type: 'string',
+    description: 'Nhãn a11y cho input (mặc định dùng placeholder).',
+  },
+  {
+    name: 'aria-labelledby',
+    type: 'string',
+    description: 'ID của phần tử làm nhãn cho input.',
+  },
   {
     name: 'minSelectWidth',
     type: 'number',
@@ -104,7 +119,7 @@ export function CountrySelect() {
     <Combobox
       options={options}
       value={value}
-      onChange={setValue}
+      onChange={(v) => setValue(v as string)}
       placeholder="Chọn quốc gia..."
     />
   );

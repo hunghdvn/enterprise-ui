@@ -269,6 +269,11 @@ test('#8 aria-activedescendant tracks the highlight', () => {
   fireEvent.keyDown(input, { key: 'ArrowDown' }); // h=1
   const listId = input.getAttribute('aria-controls');
   expect(input.getAttribute('aria-activedescendant')).toBe(`${listId}-option-1`);
+  // The referenced id must actually exist on the highlighted <li> (round-3
+  // leftover: a dangling activedescendant would announce nothing).
+  const active = document.getElementById(`${listId}-option-1`);
+  expect(active).toHaveAttribute('role', 'option');
+  expect(active).toHaveTextContent('Banana');
 });
 
 test('#8 filtering to no results shows a non-selectable empty state', () => {
@@ -335,4 +340,137 @@ test('#14 warns on empty-string option values', () => {
   render(<Combobox options={[...options, { value: '', label: 'Blank' }]} onChange={() => {}} />);
   expect(warn).toHaveBeenCalledWith(expect.stringContaining('empty value'), 'Blank');
   warn.mockRestore();
+});
+
+// ---- Round-3 (New-A..E + partly-fixed follow-ups) ----
+
+test('#A Enter with no highlight (-1) is a no-op, not a commit of the last option', () => {
+  const onChange = vi.fn();
+  render(<Combobox options={options} value="b" onChange={onChange} />);
+  const input = screen.getByRole('combobox');
+  open(input); // populated single select → openAt(-1), no highlight
+  expect(input.getAttribute('aria-activedescendant')).toBeNull();
+  const notCanceled = fireEvent.keyDown(input, { key: 'Enter' });
+  // preventDefault still runs (no <form> submit) — the REVIEW-#2 half.
+  expect(notCanceled).toBe(false);
+  // safeIndex(-1) used to wrap onto the LAST option and commit it (New-A).
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByRole('listbox')).toBeInTheDocument(); // stays open
+});
+
+test('#B consumer onFocus/onKeyDown compose with the widget handlers', () => {
+  const onConsumerFocus = vi.fn();
+  const onConsumerKeyDown = vi.fn();
+  render(
+    <Combobox
+      options={options}
+      onChange={() => {}}
+      onFocus={onConsumerFocus}
+      onKeyDown={onConsumerKeyDown}
+    />,
+  );
+  const input = screen.getByRole('combobox');
+  fireEvent.focus(input);
+  expect(onConsumerFocus).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('listbox')).toBeInTheDocument(); // widget still opens
+  fireEvent.keyDown(input, { key: 'ArrowDown' });
+  expect(onConsumerKeyDown).toHaveBeenCalledTimes(1);
+  // The widget still processed the key too: highlight moved to Banana.
+  const listId = input.getAttribute('aria-controls');
+  expect(input.getAttribute('aria-activedescendant')).toBe(`${listId}-option-1`);
+});
+
+test('#C pressing a chip remove button does not open the popover', () => {
+  const onChange = vi.fn();
+  render(<Combobox multiple options={options} value={['a']} onChange={onChange} />);
+  const remove = screen.getByRole('button', { name: /Xóa Apple/i });
+  fireEvent.mouseDown(remove);
+  // Pre-fix the mousedown toggled the popover open (focus + openAt).
+  expect(screen.queryByRole('listbox')).toBeNull();
+  fireEvent.click(remove);
+  expect(onChange).toHaveBeenCalledWith([]); // the click still removes the chip
+  expect(screen.queryByRole('listbox')).toBeNull();
+});
+
+test('#E Escape closes the popover from a focused chip-remove button', () => {
+  render(<Combobox multiple options={options} value={['a']} onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  open(input);
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  const remove = screen.getByRole('button', { name: /Xóa Apple/i });
+  remove.focus(); // Shift+Tab lands here in real usage
+  fireEvent.keyDown(remove, { key: 'Escape' });
+  expect(screen.queryByRole('listbox')).toBeNull();
+});
+
+test('#9 ArrowUp from the no-highlight state lands on the last option', () => {
+  render(<Combobox options={options} value="b" onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  open(input); // openAt(-1)
+  expect(input.getAttribute('aria-activedescendant')).toBeNull();
+  fireEvent.keyDown(input, { key: 'ArrowUp' });
+  const listId = input.getAttribute('aria-controls');
+  // The reverted (i-1+n)%n from -1 lands on n-2 (Banana) — the wrap must
+  // reach n-1 (Cherry).
+  expect(input.getAttribute('aria-activedescendant')).toBe(`${listId}-option-2`);
+});
+
+test('#7 popover flips above when it would overflow the viewport', () => {
+  render(<Combobox options={options} onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  const control = input.parentElement as HTMLElement;
+  Object.defineProperty(control, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ top: 460, bottom: 500, left: 10, width: 200 }) as DOMRect,
+  });
+  const originalInner = window.innerHeight;
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 560 });
+  try {
+    open(input);
+    // 3 rows × 32 + 10 chrome = 106; space below = 560 - 500 - 4 = 56 < 106
+    // → flip: top = 460 - 106 - 4 = 350 (above, ONE gap, chrome counted).
+    expect(screen.getByRole('listbox').style.top).toBe('350px');
+  } finally {
+    delete (control as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInner });
+  }
+});
+
+test('#7 popover sits one gap below when it fits, and re-places on resize', () => {
+  render(<Combobox options={options} onChange={() => {}} />);
+  const input = screen.getByRole('combobox');
+  const control = input.parentElement as HTMLElement;
+  Object.defineProperty(control, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ top: 460, bottom: 500, left: 10, width: 200 }) as DOMRect,
+  });
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+  try {
+    open(input);
+    expect(screen.getByRole('listbox').style.top).toBe('504px'); // 500 + 4
+    // Resize while open → re-placed from the fresh rect (review #7).
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 560 });
+    fireEvent(window, new Event('resize'));
+    expect(screen.getByRole('listbox').style.top).toBe('350px'); // now above
+  } finally {
+    delete (control as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 });
+  }
+});
+
+test('#10 IME composition does not close or select on Enter/Escape', () => {
+  const onChange = vi.fn();
+  render(<Combobox options={options} value="b" onChange={onChange} />);
+  const input = screen.getByRole('combobox');
+  open(input); // openAt(-1)
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  const enterEv = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  Object.defineProperty(enterEv, 'isComposing', { value: true });
+  fireEvent(input, enterEv);
+  const escEv = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  Object.defineProperty(escEv, 'isComposing', { value: true });
+  fireEvent(input, escEv);
+  // Composition wins: nothing committed, popover stays open.
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
 });
