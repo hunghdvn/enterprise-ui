@@ -31,13 +31,15 @@ const props: PropDoc[] = [
     name: 'masterWidth',
     type: 'number',
     default: '380',
-    description: 'Chiều rộng pane master (px) trên desktop (trục ngang).',
+    description:
+      'Chiều rộng pane master (px) trên desktop (trục ngang). Giá trị non-finite (NaN/Infinity) fallback về 380.',
   },
   {
     name: 'masterHeight',
     type: 'number',
     default: '280',
-    description: 'Chiều cao pane master (px) khi orientation="vertical".',
+    description:
+      'Chiều cao pane master (px) khi orientation="vertical". Giá trị non-finite fallback về 280.',
   },
   {
     name: 'orientation',
@@ -57,26 +59,26 @@ const props: PropDoc[] = [
     type: 'number',
     default: '280',
     description:
-      'Giới hạn nhỏ nhất (px) của master khi pane resizable (kéo/phím). resizable={false} render đúng size truyền vào.',
+      'Giới hạn nhỏ nhất (px) của master khi pane resizable (kéo/phím). resizable={false} render đúng size truyền vào. Giá trị non-finite fallback về 280.',
   },
   {
     name: 'maxSize',
     type: 'number',
     default: '0.8 × track',
     description:
-      'Giới hạn lớn nhất (px) của master khi pane resizable. Mặc định tính từ 80% chiều rộng/cao khung. Infinity = tắt trần (không clamp, không aria-valuemax).',
+      'Giới hạn lớn nhất (px) của master khi pane resizable. Mặc định tính từ 80% chiều rộng/cao khung. Infinity = tắt trần (không clamp, không aria-valuemax); NaN fallback về trần mặc định.',
   },
   {
     name: 'onMasterWidthChange',
     type: '(size: number) => void',
     description:
-      'Báo size mới khi kéo/phím trục ngang; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled).',
+      'Báo size mới khi kéo/phím trục ngang; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled). Không gọi khi pane khoá hoặc trên mobile.',
   },
   {
     name: 'onMasterHeightChange',
     type: '(size: number) => void',
     description:
-      'Báo size mới khi kéo/phím trục dọc; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled).',
+      'Báo size mới khi kéo/phím trục dọc; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled). Không gọi khi pane khoá hoặc trên mobile.',
   },
   {
     name: 'backLabel',

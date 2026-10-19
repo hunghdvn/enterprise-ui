@@ -18,6 +18,12 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
 }
 
+// Non-finite fallback for the size inputs: TS-legal NaN/Infinity (a missed
+// `Number()` parse) must never reach style, ARIA or a report.
+function finiteOr(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) ? (value as number) : fallback;
+}
+
 // Latest props visible to pointer/keyboard handlers that outlive a render
 // (so an orientation/bounds/handler change mid-drag is reflected live).
 type LiveSnapshot = {
@@ -64,6 +70,13 @@ export function SplitView({
   backLabel = 'Quay lại',
 }: SplitViewProps) {
   const isMobile = useIsMobile();
+  // `isMobile` is two-phase by design (false until the hook's effect
+  // confirms) — a real phone's first commit would otherwise paint the desktop
+  // pane and let a stray pointerdown/ArrowRight reach the parent before the
+  // passive effects run (round-4 #3). One live media read settles the render
+  // branch, the reconcile gate and the drag/keyboard handlers alike; the
+  // hook's change listener keeps both in sync from then on.
+  const mobileLayout = isMobile || matchesMobileMedia();
   const detailRef = useRef<HTMLDivElement | null>(null);
   const masterRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -77,22 +90,18 @@ export function SplitView({
   // Controlled size along the active axis. The parent owns it — SplitView
   // only reflects `masterWidth`/`masterHeight` and reports changes back.
   // Non-finite controlled sizes are TS-legal (e.g. a missed `Number()` parse)
-  // and poison style/ARIA — and because `NaN !== NaN` the reconcile guard
-  // would re-emit NaN every render with zero interaction (round-4 #2). Clamp
-  // them to the axis default so ALL four size inputs (masterWidth/
-  // masterHeight/min/max) are sanitized at the source.
+  // and poison style/ARIA, so they fall back to the axis default — silently,
+  // on locked panes too. The written contract lives in `types.ts` (round-5 #2).
   const rawSize = isVertical ? masterHeight : masterWidth;
-  const currentSize = Number.isFinite(rawSize) ? rawSize : defaultSize;
+  const currentSize = finiteOr(rawSize, defaultSize);
 
-  // minSize joins masterWidth/masterHeight (sanitized above) and maxSize
+  // minSize joins masterWidth/masterHeight (fallback above) and maxSize
   // (below): all four size inputs fall back to their defaults when
   // non-finite, so nothing can render or report "NaN" (round-3 item 4 +
-  // round-4 #2).
-  const safeMin = Number.isFinite(minSize) ? minSize : DEFAULT_MIN_SIZE;
-  // While resizable, the floor always leaves room for the grip so the pane
-  // can never collapse to a 0px sliver (mirrors Table's
-  // `Math.max(1, minColumnWidth)`); a locked pane renders the caller's size
-  // verbatim — 0 included.
+  // round-4 #2). `minFloor` keeps the resizable pane from collapsing to a
+  // 0px sliver (mirrors Table's `Math.max(1, minColumnWidth)`); a locked pane
+  // renders the caller's size verbatim — 0 included.
+  const safeMin = finiteOr(minSize, DEFAULT_MIN_SIZE);
   const minFloor = Math.max(1, safeMin);
 
   // Default ceiling = 0.8× the measured track. Track layout is unavailable
@@ -112,7 +121,7 @@ export function SplitView({
     const ro = new ResizeObserver(() => measure());
     ro.observe(node);
     return () => ro.disconnect();
-  }, [isVertical, isMobile]);
+  }, [isVertical, mobileLayout]);
 
   // `maxSize={Infinity}` is an explicit "no ceiling" (a `hasLimit ? l : Infinity`
   // pattern) — honored verbatim: no clamp and no `aria-valuemax`, even after
@@ -177,39 +186,36 @@ export function SplitView({
   // to rewrite the caller's value (round-3 item 3): a persisted
   // `masterWidth={900}` from a wider window must not sit at 900 in the parent
   // while the measured cap renders 400 — the first drag would otherwise jump
-  // ~500px. One report per out-of-range EPISODE, identified by axis + value
-  // pair: an orientation flip with an equally out-of-range size on the other
-  // axis must report there too (round-4 #1a — a shared key let an ignored
-  // width report swallow the height report). The guard resets on every way an
-  // episode can end — back in range, a different pair, the pane becoming
-  // locked/inert, or mobile (round-4 #1b) — so a later episode always reports
-  // instead of being swallowed. Mobile renders no size at all, so
-  // reconciling there would be a spurious zero-interaction event (round-4 #3).
-  // `isMobile` alone is not enough on a phone's first commit (the hook is
-  // two-phase and still reports `false`), hence the synchronous media check.
+  // ~500px. One report per out-of-range EPISODE. The episode is identified by
+  // the RAW caller input + axis + rendered value: keying on the sanitized
+  // value aliased distinct caller inputs (a NaN mount and a later 380 mount
+  // shared one episode, so the second was never reported — round-5 #1b), and
+  // an axis-blind key let an ignored width report swallow the height report
+  // after an orientation flip (round-4 #1a). One gate, one reset: a locked
+  // pane, an inert splitter (no handler) or a mobile layout renders no
+  // reconcilable size — the episode ends there, and so does an in-range
+  // value, so a later episode always reports again.
   const reconcileKeyRef = useRef('');
   useEffect(() => {
-    if (!resizable || isMobile || matchesMobileMedia()) {
+    const onChange =
+      resizable && !mobileLayout
+        ? isVertical
+          ? onMasterHeightChange
+          : onMasterWidthChange
+        : undefined;
+    if (!onChange || currentSize === effectiveSize) {
       reconcileKeyRef.current = '';
       return;
     }
-    const onChange = isVertical ? onMasterHeightChange : onMasterWidthChange;
-    if (!onChange) {
-      reconcileKeyRef.current = '';
-      return;
-    }
-    if (currentSize === effectiveSize) {
-      reconcileKeyRef.current = '';
-      return;
-    }
-    const key = `${isVertical ? 'h' : 'w'}|${currentSize}|${effectiveSize}`;
+    const key = `${isVertical ? 'h' : 'w'}|${rawSize}|${effectiveSize}`;
     if (reconcileKeyRef.current === key) return;
     reconcileKeyRef.current = key;
     report(currentSize);
   }, [
     resizable,
-    isMobile,
+    mobileLayout,
     isVertical,
+    rawSize,
     onMasterWidthChange,
     onMasterHeightChange,
     currentSize,
@@ -312,7 +318,7 @@ export function SplitView({
   // detail heading over the bare container; moving back returns focus to the
   // master pane so keyboard/SR users don't land on body.
   useEffect(() => {
-    if (!isMobile) {
+    if (!mobileLayout) {
       prevKey.current = selectedKey;
       return;
     }
@@ -329,9 +335,9 @@ export function SplitView({
       masterRef.current?.focus();
     }
     prevKey.current = selectedKey;
-  }, [isMobile, selectedKey]);
+  }, [mobileLayout, selectedKey]);
 
-  if (!isMobile) {
+  if (!mobileLayout) {
     return (
       <div ref={containerRef} className={styles.split} data-orientation={orientation}>
         <div className={styles.master} style={sizeStyle}>

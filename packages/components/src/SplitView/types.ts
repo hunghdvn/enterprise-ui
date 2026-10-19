@@ -11,9 +11,17 @@ export interface SplitViewProps {
   selectedKey: string | null;
   /** Mobile back navigation — caller clears `selectedKey`. */
   onBack: () => void;
-  /** Master pane width in px on desktop (horizontal orientation). */
+  /**
+   * Master pane width in px on desktop (horizontal orientation). Non-finite
+   * values (NaN/Infinity) fall back to the axis default (380) — silently,
+   * including on a locked pane.
+   */
   masterWidth?: number;
-  /** Master pane height in px on desktop (vertical orientation). */
+  /**
+   * Master pane height in px on desktop (vertical orientation). Non-finite
+   * values (NaN/Infinity) fall back to the axis default (280) — silently,
+   * including on a locked pane.
+   */
   masterHeight?: number;
   /**
    * Layout axis. `horizontal` (default) keeps the master on the left and the
@@ -27,12 +35,13 @@ export interface SplitViewProps {
    * drag/keyboard origin, and a clamp that rewrites the caller's value is
    * reported back once (convergence). `false` locks the pane: no splitter or
    * ARIA renders and the caller's size shows verbatim — bounds do not apply.
+   * Non-finite sizes still fall back to their defaults even when locked.
    */
   resizable?: boolean;
   /**
    * Hard floor for the master pane size (px) while the pane is resizable
    * (drag/keyboard). A locked pane (`resizable={false}`) renders the caller's
-   * size verbatim. Default 280.
+   * size verbatim. Default 280. Non-finite values fall back to the default.
    */
   minSize?: number;
   /**

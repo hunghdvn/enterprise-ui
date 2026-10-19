@@ -1313,3 +1313,183 @@ test('#4 maxSize={Infinity} is an explicit no-cap (no clamp, no aria-valuemax)',
     restore();
   }
 });
+
+// --- round 5: episode identity vs dep churn, raw-input keys, NaN-vs-Infinity ---
+
+test('#1 inline-handler churn does not cause a report storm (episode guard)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={(v) => onWidthChange(v)} // inline → new identity
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    // Every rerender passes a FRESH inline handler, so the effect re-runs
+    // each time — only the episode key keeps it from re-reporting 400 on
+    // every render (round-5 #1a; a reverted guard fires 4 times).
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={(v) => onWidthChange(v)}
+      />,
+    );
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={(v) => onWidthChange(v)}
+      />,
+    );
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={(v) => onWidthChange(v)}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+  } finally {
+    restore();
+  }
+});
+
+test('#1 the episode key follows the RAW caller input (NaN mount vs 380 mount)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={Number.NaN}
+        minSize={500}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    // NaN sanitizes to 380, below the 500 floor → report 500 once.
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    expect(onWidthChange).toHaveBeenLastCalledWith(500);
+    // Parent ignores it and passes 380 instead — a DIFFERENT raw input that
+    // renders the same clamped 500, so it is a new episode and must report
+    // again (keying on the sanitized value aliased the two, round-5 #1b).
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={500}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(2);
+    expect(onWidthChange).toHaveBeenLastCalledWith(500);
+  } finally {
+    restore();
+  }
+});
+
+test('#4 maxSize={NaN} falls back to the measured cap (not a no-cap)', async () => {
+  const ro = stubResizeObserver();
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={Number.NaN}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 900, configurable: true });
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    const splitter = screen.getByRole('separator');
+    // NaN is NOT an explicit no-cap: the measured 0.8×track ceiling applies
+    // (a regression conflating `!Number.isFinite` with `=== Infinity` would
+    // leave the pane at 900 with no valuemax).
+    await waitFor(() => expect(splitter.getAttribute('aria-valuemax')).toBe('400'));
+    expect(splitter.getAttribute('aria-valuenow')).toBe('400');
+    expect(onWidthChange).toHaveBeenLastCalledWith(400); // reconcile reported
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('#4 vertical sanitize leg: non-finite masterHeight falls back to 280', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={Number.NaN}
+      />,
+    );
+    expect(screen.getByTestId('master').parentElement!.style.height).toBe('280px');
+  } finally {
+    restore();
+  }
+});
+
+test('#4 non-finite masterWidth={Infinity} falls back to the axis default', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={Infinity}
+        minSize={280}
+      />,
+    );
+    // Size-PROP Infinity is a plain non-finite value (unlike maxSize, where
+    // Infinity means "explicitly no cap"): it falls back to 380.
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
+  } finally {
+    restore();
+  }
+});
