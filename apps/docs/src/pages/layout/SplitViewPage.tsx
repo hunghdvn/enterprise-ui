@@ -64,7 +64,7 @@ const props: PropDoc[] = [
     type: 'number',
     default: '0.8 × track',
     description:
-      'Giới hạn lớn nhất (px) của master khi pane resizable. Mặc định tính từ 80% chiều rộng/cao khung.',
+      'Giới hạn lớn nhất (px) của master khi pane resizable. Mặc định tính từ 80% chiều rộng/cao khung. Infinity = tắt trần (không clamp, không aria-valuemax).',
   },
   {
     name: 'onMasterWidthChange',
@@ -76,7 +76,7 @@ const props: PropDoc[] = [
     name: 'onMasterHeightChange',
     type: '(size: number) => void',
     description:
-      'Báo size mới khi kéo/phím trục dọc; cũng báo đúng một lần khi clamp phải sửa giá trị đang truyền vào (controlled).',
+      'Báo size mới khi kéo/phím trục dọc; cũng báo đúng một lần khi clamp (min/max/track) phải sửa giá trị đang truyền vào (controlled).',
   },
   {
     name: 'backLabel',

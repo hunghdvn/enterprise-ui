@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Button } from '../Button/Button';
-import { useIsMobile } from '../internal/useIsMobile';
+import { matchesMobileMedia, useIsMobile } from '../internal/useIsMobile';
 import type { SplitViewProps } from './types';
 import styles from './SplitView.module.css';
 
@@ -73,18 +73,26 @@ export function SplitView({
   const prevKey = useRef<string | null | undefined>(undefined);
 
   const isVertical = orientation === 'vertical';
+  const defaultSize = isVertical ? DEFAULT_MASTER_HEIGHT : DEFAULT_MASTER_WIDTH;
   // Controlled size along the active axis. The parent owns it — SplitView
   // only reflects `masterWidth`/`masterHeight` and reports changes back.
-  const currentSize = isVertical ? masterHeight : masterWidth;
-  const defaultSize = isVertical ? DEFAULT_MASTER_HEIGHT : DEFAULT_MASTER_WIDTH;
+  // Non-finite controlled sizes are TS-legal (e.g. a missed `Number()` parse)
+  // and poison style/ARIA — and because `NaN !== NaN` the reconcile guard
+  // would re-emit NaN every render with zero interaction (round-4 #2). Clamp
+  // them to the axis default so ALL four size inputs (masterWidth/
+  // masterHeight/min/max) are sanitized at the source.
+  const rawSize = isVertical ? masterHeight : masterWidth;
+  const currentSize = Number.isFinite(rawSize) ? rawSize : defaultSize;
 
-  // Non-finite sizes are TS-legal but poison every downstream computation
-  // (style, ARIA, report) — fall back to the prop defaults so nothing can
-  // render or report "NaN" (review item 4: `maxSize={NaN}` used to reach
-  // `aria-valuenow="NaN"` and drop the pane's style entirely).
+  // minSize joins masterWidth/masterHeight (sanitized above) and maxSize
+  // (below): all four size inputs fall back to their defaults when
+  // non-finite, so nothing can render or report "NaN" (round-3 item 4 +
+  // round-4 #2).
   const safeMin = Number.isFinite(minSize) ? minSize : DEFAULT_MIN_SIZE;
-  // The hard floor always leaves room for the grip so the master pane can
-  // never collapse to a 0px sliver (mirrors Table's `Math.max(1, minColumnWidth)`).
+  // While resizable, the floor always leaves room for the grip so the pane
+  // can never collapse to a 0px sliver (mirrors Table's
+  // `Math.max(1, minColumnWidth)`); a locked pane renders the caller's size
+  // verbatim — 0 included.
   const minFloor = Math.max(1, safeMin);
 
   // Default ceiling = 0.8× the measured track. Track layout is unavailable
@@ -106,9 +114,16 @@ export function SplitView({
     return () => ro.disconnect();
   }, [isVertical, isMobile]);
 
-  const safeMax = maxSize !== undefined && Number.isFinite(maxSize) ? maxSize : undefined;
-  const defaultMax =
-    safeMax !== undefined
+  // `maxSize={Infinity}` is an explicit "no ceiling" (a `hasLimit ? l : Infinity`
+  // pattern) — honored verbatim: no clamp and no `aria-valuemax`, even after
+  // the track is measured. Other non-finite values (NaN from a missed parse)
+  // fall back to the measured default (round-4 #4). `Number.isFinite`
+  // swallows `undefined` too, so no separate undefined check is needed.
+  const explicitNoCap = maxSize === Infinity;
+  const safeMax = Number.isFinite(maxSize) ? maxSize : undefined;
+  const defaultMax = explicitNoCap
+    ? undefined
+    : safeMax !== undefined
       ? safeMax
       : trackSize > 0
         ? Math.round(trackSize * MAX_SIZE_RATIO)
@@ -159,28 +174,41 @@ export function SplitView({
   }, []);
 
   // Converge the parent's state with the rendered size whenever a clamp had
-  // to rewrite the caller's value (review item 3): a persisted
+  // to rewrite the caller's value (round-3 item 3): a persisted
   // `masterWidth={900}` from a wider window must not sit at 900 in the parent
   // while the measured cap renders 400 — the first drag would otherwise jump
-  // ~500px. Strictly one-shot per distinct (value → rendered) pair: a
-  // reflecting parent lands in range and resets the guard; an ignoring
-  // parent never re-triggers it (no loop). Locked panes and inert splitters
-  // (no handler) have nothing to reconcile with.
+  // ~500px. One report per out-of-range EPISODE, identified by axis + value
+  // pair: an orientation flip with an equally out-of-range size on the other
+  // axis must report there too (round-4 #1a — a shared key let an ignored
+  // width report swallow the height report). The guard resets on every way an
+  // episode can end — back in range, a different pair, the pane becoming
+  // locked/inert, or mobile (round-4 #1b) — so a later episode always reports
+  // instead of being swallowed. Mobile renders no size at all, so
+  // reconciling there would be a spurious zero-interaction event (round-4 #3).
+  // `isMobile` alone is not enough on a phone's first commit (the hook is
+  // two-phase and still reports `false`), hence the synchronous media check.
   const reconcileKeyRef = useRef('');
   useEffect(() => {
-    if (!resizable) return;
+    if (!resizable || isMobile || matchesMobileMedia()) {
+      reconcileKeyRef.current = '';
+      return;
+    }
     const onChange = isVertical ? onMasterHeightChange : onMasterWidthChange;
-    if (!onChange) return;
+    if (!onChange) {
+      reconcileKeyRef.current = '';
+      return;
+    }
     if (currentSize === effectiveSize) {
       reconcileKeyRef.current = '';
       return;
     }
-    const key = `${currentSize}->${effectiveSize}`;
+    const key = `${isVertical ? 'h' : 'w'}|${currentSize}|${effectiveSize}`;
     if (reconcileKeyRef.current === key) return;
     reconcileKeyRef.current = key;
     report(currentSize);
   }, [
     resizable,
+    isMobile,
     isVertical,
     onMasterWidthChange,
     onMasterHeightChange,

@@ -21,7 +21,13 @@ export interface SplitViewProps {
    * splitter resizes its height.
    */
   orientation?: SplitViewOrientation;
-  /** Whether the master pane can be resized by dragging the splitter. */
+  /**
+   * Whether the master pane can be resized by dragging the splitter. While
+   * resizable, `minSize`/`maxSize` bound the rendered size, ARIA and the
+   * drag/keyboard origin, and a clamp that rewrites the caller's value is
+   * reported back once (convergence). `false` locks the pane: no splitter or
+   * ARIA renders and the caller's size shows verbatim — bounds do not apply.
+   */
   resizable?: boolean;
   /**
    * Hard floor for the master pane size (px) while the pane is resizable
@@ -31,12 +37,19 @@ export interface SplitViewProps {
   minSize?: number;
   /**
    * Hard ceiling for the master pane size (px) while the pane is resizable.
-   * Defaults to 80% of the measured track.
+   * Defaults to 80% of the measured track. `Infinity` opts out of the ceiling
+   * entirely (explicit no-cap: no clamp, no `aria-valuemax`); other
+   * non-finite values fall back to the measured default.
    */
   maxSize?: number;
-  /** Resize event — horizontal axis (width). */
+  /**
+   * Resize event — horizontal axis (width). Fires for drag/keyboard steps AND
+   * once per out-of-range episode when a clamp has to rewrite the value the
+   * caller passed (a measured-cap shrink included). Not called while the pane
+   * is locked or on mobile (no size is rendered there).
+   */
   onMasterWidthChange?: (size: number) => void;
-  /** Resize event — vertical axis (height). */
+  /** Vertical-axis twin of `onMasterWidthChange` (same fire-on-clamp contract). */
   onMasterHeightChange?: (size: number) => void;
   backLabel?: string;
 }

@@ -75,6 +75,26 @@ function stubMatchMediaFlippable(initial: boolean): {
   };
 }
 
+// Shared RO stub (round-4 #7: the inline class had been copy-pasted per
+// test). Returns the captured constructor callbacks (to drive re-measures)
+// and the observer instances (to assert disconnect cleanup).
+function stubResizeObserver() {
+  const callbacks: ResizeObserverCallback[] = [];
+  const observers: Array<{ disconnect: ReturnType<typeof vi.fn> }> = [];
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      constructor(callback: ResizeObserverCallback) {
+        callbacks.push(callback);
+        observers.push(this as { disconnect: ReturnType<typeof vi.fn> });
+      }
+    },
+  );
+  return { callbacks, observers };
+}
+
 const master = <div data-testid="master">Danh sách</div>;
 const detail = (
   <div>
@@ -600,17 +620,7 @@ test('vertical keyboard resizes height: Arrow ±8, Shift ±32, Delete resets to 
 // laid out, `maxSize` defaults to 0.8x track and a drag past it clamps. Mirrors
 // the ResizeObserver+clientHeight stub technique in Table.test.tsx:891-925.
 test('default maxSize is 0.8x the measured track when laid out', async () => {
-  let roCallback: ResizeObserverCallback | undefined;
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-      constructor(callback: ResizeObserverCallback) {
-        roCallback = callback;
-      }
-    },
-  );
+  const ro = stubResizeObserver();
   const onWidthChange = vi.fn();
   const restore = stubMatchMedia(false);
   try {
@@ -632,7 +642,7 @@ test('default maxSize is 0.8x the measured track when laid out', async () => {
     Object.defineProperty(container, 'clientHeight', { value: 999, configurable: true });
     // The RO callback is what re-measures on layout change.
     await act(async () => {
-      roCallback?.([], {} as ResizeObserver);
+      ro.callbacks[0]?.([], {} as ResizeObserver);
       await Promise.resolve();
     });
     const splitter = screen.getByRole('separator');
@@ -872,17 +882,7 @@ test('out-of-range masterWidth renders clamped: size, ARIA and keyboard origin a
 });
 
 test('a measured cap that clamps the mounted size reports the capped value once', async () => {
-  let roCallback: ResizeObserverCallback | undefined;
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-      constructor(callback: ResizeObserverCallback) {
-        roCallback = callback;
-      }
-    },
-  );
+  const ro = stubResizeObserver();
   const onWidthChange = vi.fn();
   const restore = stubMatchMedia(false);
   try {
@@ -903,7 +903,7 @@ test('a measured cap that clamps the mounted size reports the capped value once'
     Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
     Object.defineProperty(container, 'clientHeight', { value: 900, configurable: true });
     await act(async () => {
-      roCallback?.([], {} as ResizeObserver);
+      ro.callbacks[0]?.([], {} as ResizeObserver);
       await Promise.resolve();
     });
     // Cap = 0.8 × 500 = 400 → the pane shrinks AND the parent learns the
@@ -952,17 +952,7 @@ test('non-finite minSize/maxSize fall back to defaults instead of poisoning ARIA
 });
 
 test('default maxSize on a vertical track measures the height, not the width', async () => {
-  let roCallback: ResizeObserverCallback | undefined;
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-      constructor(callback: ResizeObserverCallback) {
-        roCallback = callback;
-      }
-    },
-  );
+  const ro = stubResizeObserver();
   const onHeightChange = vi.fn();
   const restore = stubMatchMedia(false);
   try {
@@ -983,7 +973,7 @@ test('default maxSize on a vertical track measures the height, not the width', a
     Object.defineProperty(container, 'clientWidth', { value: 999, configurable: true });
     Object.defineProperty(container, 'clientHeight', { value: 500, configurable: true });
     await act(async () => {
-      roCallback?.([], {} as ResizeObserver);
+      ro.callbacks[0]?.([], {} as ResizeObserver);
       await Promise.resolve();
     });
     const splitter = screen.getByRole('separator');
@@ -1047,31 +1037,24 @@ test('pointer capture is taken and released on the handle element (N5)', () => {
 });
 
 test('the measure effect re-subscribes when isMobile flips (deps pinned)', async () => {
-  const constructions: ResizeObserverCallback[] = [];
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe = vi.fn();
-      disconnect = vi.fn();
-      constructor(callback: ResizeObserverCallback) {
-        constructions.push(callback);
-      }
-    },
-  );
+  const ro = stubResizeObserver();
   const mq = stubMatchMediaFlippable(false);
   try {
     render(<SplitView master={master} detail={detail} selectedKey={null} onBack={() => {}} />);
-    expect(constructions).toHaveLength(1);
-    // Flip to mobile: the desktop container unmounts (no node → no observer).
-    // Flip back: the effect re-runs and subscribes again — only possible
-    // because the effect deps include `isMobile` (N3).
+    expect(ro.callbacks).toHaveLength(1);
+    // Flip to mobile: the desktop container unmounts (no node → no observer)
+    // and the previous effect run's cleanup MUST disconnect its observer
+    // (a missing cleanup would leak it — round-4 #5c).
     await act(async () => {
       mq.set(true);
     });
+    expect(ro.observers[0].disconnect).toHaveBeenCalledTimes(1);
+    // Flip back: the effect re-runs and subscribes again — only possible
+    // because the effect deps include `isMobile` (N3).
     await act(async () => {
       mq.set(false);
     });
-    expect(constructions).toHaveLength(2);
+    expect(ro.callbacks).toHaveLength(2);
   } finally {
     vi.unstubAllGlobals();
     mq.restore();
@@ -1102,6 +1085,231 @@ test('keyboard steps clamp at maxSize (plan: clamped to maxSize)', () => {
     fireEvent.keyDown(handle, { key: 'ArrowRight', shiftKey: true }); // +32 → still 400
     expect(onWidthChange).toHaveBeenLastCalledWith(400);
   } finally {
+    restore();
+  }
+});
+
+// --- round 4: reconcile episode identity, NaN size props, mobile gate ---
+
+test('#1 reconcile key is per-axis: an ignored width report does not swallow height', () => {
+  const onWidthChange = vi.fn();
+  const onHeightChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1); // width episode reported
+    // Flip to vertical with an equally out-of-range height: the SHARED key
+    // ("900|400") used to swallow this report (round-4 #1a).
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        orientation="vertical"
+        masterHeight={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+        onMasterHeightChange={onHeightChange}
+      />,
+    );
+    expect(onHeightChange).toHaveBeenCalledTimes(1);
+    expect(onHeightChange).toHaveBeenLastCalledWith(400);
+  } finally {
+    restore();
+  }
+});
+
+test('#5 reconcile re-arms after the parent returns in range (reset branch)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    // Mount: 900 > 400 → report 400 once.
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+    // Ignoring parent keeps 900; an unrelated rerender must not re-report.
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    // Parent converges to 400 → the guard re-arms...
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={400}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(1);
+    // ...so restoring the stale 900 starts a NEW episode and reports again.
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    expect(onWidthChange).toHaveBeenCalledTimes(2);
+    expect(onWidthChange).toHaveBeenLastCalledWith(400);
+  } finally {
+    restore();
+  }
+});
+
+test('#5 locked pane renders above-max verbatim too', () => {
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        resizable={false}
+        masterWidth={900}
+        maxSize={400}
+      />,
+    );
+    expect(screen.queryByRole('separator')).toBeNull();
+    // The floor side was pinned at 150px; the ceiling side must hold equally:
+    // a locked pane shows the caller's size no matter the bounds.
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('900px');
+  } finally {
+    restore();
+  }
+});
+
+test('#2 non-finite masterWidth falls back to the axis default (no NaN anywhere)', () => {
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={Number.NaN}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const splitter = screen.getByRole('separator');
+    expect(splitter.getAttribute('aria-valuenow')).toBe('380'); // axis default
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
+    // The reconcile guard must never emit NaN on mount (NaN !== NaN).
+    expect(onWidthChange).not.toHaveBeenCalled();
+    fireEvent(splitter, pd(100));
+    fireEvent(window, pm(150));
+    expect(onWidthChange).toHaveBeenLastCalledWith(430);
+    fireEvent(window, pu());
+  } finally {
+    restore();
+  }
+});
+
+test('#3 reconcile does not report on mobile (no size is rendered there)', () => {
+  const onWidthChange = vi.fn();
+  const mq = stubMatchMediaFlippable(true); // mobile from the start
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={400}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    // Mobile renders the single-pane layout with no size style — a clamp
+    // report here would be a spurious zero-interaction event (round-4 #3).
+    expect(onWidthChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('separator')).toBeNull();
+  } finally {
+    mq.restore();
+  }
+});
+
+test('#4 maxSize={Infinity} is an explicit no-cap (no clamp, no aria-valuemax)', async () => {
+  const ro = stubResizeObserver();
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        maxSize={Infinity}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 900, configurable: true });
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    const splitter = screen.getByRole('separator');
+    // Even after the track measures, an explicit Infinity must not remap to
+    // the 0.8× measured cap (round-4 #4: `hasLimit ? limit : Infinity`).
+    expect(splitter.getAttribute('aria-valuemax')).toBeNull();
+    expect(splitter.getAttribute('aria-valuenow')).toBe('900');
+    expect(screen.getByTestId('master').parentElement!.style.width).toBe('900px');
+    expect(onWidthChange).not.toHaveBeenCalled(); // nothing was clamped
+  } finally {
+    vi.unstubAllGlobals();
     restore();
   }
 });
