@@ -69,3 +69,5 @@ export { Spin } from './Spin/Spin';
 export type { SpinProps } from './Spin/types';
 export { SavedViews } from './SavedViews/SavedViews';
 export type { SavedView, SavedViewsProps } from './SavedViews/types';
+export { Tree } from './Tree/Tree';
+export type { TreeProps, TreeNode } from './Tree/types';
