@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "docs:snippets": "node scripts/check-docs-snippets.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

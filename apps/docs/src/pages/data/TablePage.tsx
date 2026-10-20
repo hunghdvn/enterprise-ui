@@ -140,6 +140,13 @@ import type { Column, SortEntry } from '@enterprise-ui/components';
 
 type Order = { code: string; customer: string; total: number };
 
+// Dữ liệu mẫu — thay bằng dữ liệu của bạn.
+const ORDERS: Order[] = [
+  { code: 'SO-1026', customer: 'Công ty An Phát', total: 12_400_000 },
+  { code: 'SO-1027', customer: 'Hộ kinh doanh Bình', total: 3_150_000 },
+  { code: 'SO-1028', customer: 'Cty TNHH Hoa Sen', total: 8_900_000 },
+];
+
 const columns: Column<Order>[] = [
   { key: 'code', title: 'Mã đơn', sortable: true },
   { key: 'customer', title: 'Khách hàng' },
@@ -148,13 +155,11 @@ const columns: Column<Order>[] = [
 
 export function OrdersTable() {
   const [sorts, setSorts] = useState<SortEntry[]>([{ key: 'code', dir: 'asc' }]);
-  // ORDERS là dữ liệu mẫu (như demo trực tiếp) — thay bằng dữ liệu của bạn.
-  const [orders] = useState(ORDERS);
 
   return (
     <Table
       columns={columns}
-      data={applySorts(orders, sorts)}
+      data={applySorts(ORDERS, sorts)}
       rowKey={(row) => row.code}
       sorts={sorts}
       onSort={setSorts}
