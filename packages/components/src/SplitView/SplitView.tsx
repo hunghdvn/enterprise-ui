@@ -75,11 +75,10 @@ export function SplitView({
   // pane and let a stray pointerdown reach the parent (round-4 #3). One live
   // media read settles the RENDER BRANCH — which is what makes the
   // drag/keyboard handlers unreachable on a phone's first commit — plus the
-  // measure effect and the reconcile gate; the hook's change listener keeps
-  // both in sync afterwards. SSR caveat: an SSR hydrate on a phone would
-  // mismatch (server renders desktop, this read renders mobile) — the
-  // package targets Vite CSR; revisit with `useSyncExternalStore` if SSR
-  // lands (round-5 #2).
+  // measure effect and the reconcile gate. SSR caveat: see `useIsMobile`'s
+  // JSDoc (the single source for that contract — one live read renders
+  // mobile on a phone's first client render, so an SSR hydrate would
+  // mismatch; Vite CSR today, `useSyncExternalStore` if SSR lands).
   const mobileLayout = isMobile || matchesMobileMedia();
   // Single predicate for "a splitter exists to reconcile with": the desktop
   // render's splitter conditional and the reconcile gate must never drift.
@@ -116,20 +115,31 @@ export function SplitView({
   // maps to `Infinity` (no upper clamp), so behavior in tests/docs is
   // unchanged unless the consumer passes `maxSize` explicitly.
   const [trackSize, setTrackSize] = useState(0);
+  // Mirror of the last measured size, updated at set time. The measure
+  // compares against it, so a same-size re-observation (e.g. the RO's initial
+  // notification right after `observe()`) never re-arms the guard; and a
+  // batched double flip that measures the OLD era's size still re-arms,
+  // because the mirror follows the measurements, not the state (round-6 #1).
+  const trackSizeRef = useRef(0);
   // Set while a re-measure is in flight: the reconcile effect must not act on
   // the PREVIOUS track's cap (round-6 #1 — on an orientation flip the stale
   // cap silently shrank a persisted 900 to the old 480 and nothing restored
-  // it). Cleared by `seenTrackRef` once the fresh measurement has rendered.
+  // it), and `report()` must not clamp a drag/keyboard step against it
+  // (round-6 #3). Cleared by the effect below once the fresh cap has
+  // rendered.
   const measurePendingRef = useRef(false);
-  const seenTrackRef = useRef(0);
-  useEffect(() => {
+  // Layout effect, on purpose: it runs before paint, so a stale-cap frame
+  // never reaches the screen (round-6 #2), and the synchronous re-render it
+  // triggers closes the commit→fresh-track window for pointer/keyboard
+  // events — user events are macrotasks and cannot interleave with the
+  // microtask flush (round-6 #3).
+  useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
     const measure = () => {
       const sz = isVertical ? node.clientHeight : node.clientWidth;
-      // Compare against the last CONSUMED measurement (not the state) so a
-      // re-observation of the same size never re-triggers a pending cycle.
-      if (sz > 0 && sz !== seenTrackRef.current) {
+      if (sz > 0 && sz !== trackSizeRef.current) {
+        trackSizeRef.current = sz;
         measurePendingRef.current = true;
         setTrackSize(sz);
       }
@@ -140,15 +150,12 @@ export function SplitView({
     ro.observe(node);
     return () => ro.disconnect();
   }, [isVertical, mobileLayout]);
-  // Runs after every commit where the track changed (declared before the
-  // reconcile effect): the fresh cap is now visible, so episodes may resume.
-  // The seen-value guard keeps the mount run (same 0) from clearing a pending
-  // flag the measure effect just set in the same flush.
+  // The fresh cap has rendered the moment the state caught up with the
+  // mirror — clear the guard so episodes resume. Declared before the
+  // reconcile effect (execution order within a passive flush); the #1 race
+  // test pins this order.
   useEffect(() => {
-    if (seenTrackRef.current !== trackSize) {
-      seenTrackRef.current = trackSize;
-      measurePendingRef.current = false;
-    }
+    if (trackSizeRef.current === trackSize) measurePendingRef.current = false;
   }, [trackSize]);
 
   // `maxSize={Infinity}` is an explicit "no ceiling" (a `hasLimit ? l : Infinity`
@@ -204,6 +211,11 @@ export function SplitView({
   });
 
   const report = useCallback((next: number) => {
+    // A re-measure is in flight: this snapshot's cap is stale, so a
+    // drag/keyboard step must not clamp against it (round-6 #3 — the
+    // reconcile has its own skip). The next step after the fresh cap lands
+    // reports normally.
+    if (measurePendingRef.current) return;
     const l = liveRef.current;
     const clamped = clamp(next, l.minFloor, l.effectiveMax);
     if (l.isVertical) l.onH?.(clamped);
@@ -229,11 +241,8 @@ export function SplitView({
     // the previous track), so do not report from it — the effect re-runs
     // once the fresh track has rendered (round-6 #1).
     if (measurePendingRef.current) return;
-    const onChange = showSplitter
-      ? isVertical
-        ? onMasterHeightChange
-        : onMasterWidthChange
-      : undefined;
+    const l = liveRef.current;
+    const onChange = showSplitter ? (isVertical ? l.onH : l.onW) : undefined;
     if (!onChange || currentSize === effectiveSize) {
       reconcileKeyRef.current = '';
       return;

@@ -1617,6 +1617,7 @@ test('#3 an episode through a mobile round-trip reports again after flip-back', 
 });
 
 test('#2 locked pane sanitizes non-finite sizes too (fallback, not verbatim NaN)', () => {
+  const onWidthChange = vi.fn();
   const restore = stubMatchMedia(false);
   try {
     render(
@@ -1627,12 +1628,16 @@ test('#2 locked pane sanitizes non-finite sizes too (fallback, not verbatim NaN)
         onBack={() => {}}
         resizable={false}
         masterWidth={Number.NaN}
+        onMasterWidthChange={onWidthChange}
       />,
     );
     // types.ts promises "non-finite sizes still fall back to their defaults
     // even when locked" — a verbatim NaNpx render would break that contract
     // (round-6 #3c).
     expect(screen.getByTestId('master').parentElement!.style.width).toBe('380px');
+    // ...and the fallback is SILENT — no report fires from a locked pane
+    // (round-6 #4c: a revert to report-on-locked must fail here).
+    expect(onWidthChange).not.toHaveBeenCalled();
   } finally {
     restore();
   }
@@ -1679,5 +1684,104 @@ test('#4 non-finite minSize={Infinity} falls back to 280', () => {
     expect(screen.getByRole('separator').getAttribute('aria-valuemin')).toBe('280');
   } finally {
     restore();
+  }
+});
+
+// --- round 6 follow-up: latch safety + gate-exit re-measure ---
+
+test('#4 same-size RO re-observation does not latch the pending guard', async () => {
+  const ro = stubResizeObserver();
+  const onWidthChange = vi.fn();
+  const restore = stubMatchMedia(false);
+  try {
+    const { rerender } = render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={380}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    // The browser re-fires an RO notification with the SAME size (e.g. the
+    // initial observe() notification): the measure must bail without
+    // re-arming the pending guard (round-6 #4a — a stuck guard would drop
+    // the next out-of-range episode below).
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    // Parent later passes an out-of-range 1200 → the episode must report.
+    rerender(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={1200}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    await waitFor(() => expect(onWidthChange).toHaveBeenLastCalledWith(400)); // 0.8 × 500
+  } finally {
+    vi.unstubAllGlobals();
+    restore();
+  }
+});
+
+test('#3 the gate-exit re-measures the remounted container (fresh cap)', async () => {
+  const ro = stubResizeObserver();
+  const onWidthChange = vi.fn();
+  const mq = stubMatchMediaFlippable(false);
+  try {
+    render(
+      <SplitView
+        master={master}
+        detail={detail}
+        selectedKey={null}
+        onBack={() => {}}
+        masterWidth={900}
+        minSize={280}
+        onMasterWidthChange={onWidthChange}
+      />,
+    );
+    const container = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(container, 'clientWidth', { value: 500, configurable: true });
+    await act(async () => {
+      ro.callbacks[0]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    expect(onWidthChange).toHaveBeenLastCalledWith(400); // 0.8 × 500
+    // Through the mobile gate: the desktop container UNMOUNTS, and the
+    // flip-back remounts a NEW node — the measure effect must re-run on it
+    // (its `mobileLayout` dep), or the fresh cap below is never seen.
+    await act(async () => {
+      mq.set(true);
+    });
+    await act(async () => {
+      mq.set(false);
+    });
+    const remounted = document.querySelector('[data-orientation="horizontal"]') as HTMLDivElement;
+    Object.defineProperty(remounted, 'clientWidth', { value: 800, configurable: true });
+    await act(async () => {
+      ro.callbacks[1]?.([], {} as ResizeObserver);
+      await Promise.resolve();
+    });
+    // The still-out-of-range 900 reports against the FRESH 0.8 × 800 cap —
+    // a stale 400 report here means the re-measure never happened
+    // (round-6 #4b).
+    expect(onWidthChange).toHaveBeenLastCalledWith(640);
+  } finally {
+    vi.unstubAllGlobals();
+    mq.restore();
   }
 });

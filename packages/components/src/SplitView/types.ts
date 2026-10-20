@@ -41,7 +41,8 @@ export interface SplitViewProps {
   /**
    * Hard floor for the master pane size (px) while the pane is resizable
    * (drag/keyboard). A locked pane (`resizable={false}`) renders the caller's
-   * size verbatim. Default 280. Non-finite values fall back to the default.
+   * size verbatim — non-finite values excepted, they fall back to the
+   * default. Default 280.
    */
   minSize?: number;
   /**
