@@ -75,12 +75,19 @@
   font-size: var(--font-size);
 }
 
+.row {
+  display: flex;
+  align-items: center;
+}
+
 .option {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
 }
 
 .option[aria-selected='true'] {
