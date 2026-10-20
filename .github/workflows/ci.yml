@@ -25,6 +25,9 @@ jobs:
       - name: Typecheck (all workspaces)
         run: npm --workspaces run typecheck --if-present
 
+      - name: Docs snippets typecheck
+        run: npm run docs:snippets
+
       - name: Lint
         run: npm run lint
 

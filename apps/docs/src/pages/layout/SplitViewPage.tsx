@@ -161,6 +161,11 @@ import { SplitView } from '@enterprise-ui/components';
 export function Orders() {
   const [selected, setSelected] = useState<string | null>(null);
   const [width, setWidth] = useState(320);
+  const orders = [
+    { id: 'SO-1026', name: 'Đơn SO-1026', customer: 'Công ty An Phát' },
+    { id: 'SO-1027', name: 'Đơn SO-1027', customer: 'Hộ kinh doanh Bình' },
+    { id: 'SO-1028', name: 'Đơn SO-1028', customer: 'Cty TNHH Hoa Sen' },
+  ];
 
   return (
     <SplitView
@@ -171,8 +176,26 @@ export function Orders() {
       selectedKey={selected}
       onBack={() => setSelected(null)}
       backLabel="Về danh sách"
-      master={<OrderList onSelect={setSelected} />}
-      detail={<OrderDetail id={selected} />}
+      master={
+        <div>
+          {orders.map((order) => (
+            <button
+              key={order.id}
+              type="button"
+              onClick={() => setSelected(order.id)}
+            >
+              {order.name} — {order.customer}
+            </button>
+          ))}
+        </div>
+      }
+      detail={
+        selected ? (
+          <p>Chi tiết {selected}</p>
+        ) : (
+          <p>Chọn một đơn hàng ở cột bên trái để xem chi tiết.</p>
+        )
+      }
     />
   );
 }`;
