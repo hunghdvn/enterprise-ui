@@ -35,10 +35,84 @@
   outline: none;
 }
 
+.splitter {
+  flex-shrink: 0;
+  width: 8px;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border);
+  border-radius: var(--radius);
+  cursor: col-resize;
+  /* Touch drags must resize, not scroll/pinch-zoom the page. */
+  touch-action: none;
+}
+
+.splitter:focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: -2px;
+}
+
+.splitter:focus-visible .splitterGrip,
+.splitter:focus-visible .splitterGripVertical,
+.splitter:focus-visible .splitterGrip span,
+.splitter:focus-visible .splitterGripVertical span {
+  background: var(--color-blue-600);
+}
+
+.splitterVertical {
+  width: auto;
+  height: 8px;
+  cursor: row-resize;
+}
+
+.splitterGrip,
+.splitterGripVertical {
+  display: flex;
+  gap: 3px;
+}
+
+.splitterGrip {
+  flex-direction: column;
+  width: 2px;
+}
+
+.splitterGripVertical {
+  flex-direction: row;
+  height: 2px;
+}
+
+.splitterGrip span,
+.splitterGripVertical span {
+  background: var(--surface);
+  border-radius: 1px;
+}
+
+.splitterGrip span {
+  width: 2px;
+  height: 6px;
+}
+
+.splitterGripVertical span {
+  width: 6px;
+  height: 2px;
+}
+
 .mobileBar {
   margin-bottom: 8px;
 }
 
 .detailFocus {
   outline: none;
+}
+
+.split[data-orientation='vertical'] {
+  flex-direction: column;
+  height: 100%;
+}
+
+.split[data-orientation='vertical'] .master {
+  width: 100%;
+  height: auto;
 }
