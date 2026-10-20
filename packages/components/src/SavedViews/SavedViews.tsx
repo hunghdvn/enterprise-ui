@@ -114,7 +114,13 @@ export function SavedViews<T>({
     const onFocusOut = (e: FocusEvent) => {
       const related = e.relatedTarget as Node | null;
       if (related && root?.contains(related)) return;
-      if (!related && mouseInsideRoot) return;
+      if (!related && mouseInsideRoot) {
+        // Focus fell to `body` from a chrome click inside the widget — keep
+        // the popover open AND put keyboard focus back on the trigger, or
+        // Escape becomes unreachable (review #23 round-2 #4).
+        triggerRef.current?.focus();
+        return;
+      }
       close();
     };
     const onResize = () => placePopover();
@@ -203,6 +209,11 @@ export function SavedViews<T>({
 
   const triggerLabel = activeView ? activeView.label : label;
 
+  // "Vô hiệu hoá toàn bộ": the popover is HIDDEN while disabled (and
+  // restored if re-enabled) — derived in render, so no setState-in-effect
+  // cascade is needed (review #23 round-2 #5).
+  const popoverOpen = open && !disabled;
+
   return (
     <span
       ref={wrapRef}
@@ -213,27 +224,36 @@ export function SavedViews<T>({
         ref={triggerRef}
         type="button"
         role="combobox"
-        aria-expanded={open}
+        aria-expanded={popoverOpen}
         aria-haspopup="listbox"
-        aria-controls={open ? listboxId : undefined}
+        aria-controls={popoverOpen ? listboxId : undefined}
         aria-activedescendant={
-          open && clampedHighlight >= 0 ? `${listboxId}-option-${clampedHighlight}` : undefined
+          popoverOpen && clampedHighlight >= 0
+            ? `${listboxId}-option-${clampedHighlight}`
+            : undefined
         }
-        aria-label={ariaLabel ?? 'Saved views'}
+        // Name from the VISIBLE label span (which shows the applied view) —
+        // an aria-label default would shadow it and break WCAG 2.5.3
+        // Label-in-Name (review #23 round-2 #2). An explicit `aria-label`
+        // prop still wins per the ARIA precedence.
+        aria-label={ariaLabel}
+        aria-labelledby={`${listboxId}-label`}
         className={styles.trigger}
         data-size={size}
-        data-open={open || undefined}
+        data-open={popoverOpen || undefined}
         disabled={disabled}
         onClick={() => (open ? close() : openAt())}
         onKeyDown={triggerKeyDown}
       >
-        <span className={styles['trigger-label']}>{triggerLabel}</span>
+        <span id={`${listboxId}-label`} className={styles['trigger-label']}>
+          {triggerLabel}
+        </span>
         <span className={styles.chevron} aria-hidden="true">
           <Icon name="chevron-down" size={14} />
         </span>
       </button>
 
-      {open && position && (
+      {popoverOpen && position && (
         <div
           className={styles.popover}
           style={{
@@ -246,49 +266,49 @@ export function SavedViews<T>({
           onKeyDown={popoverKeyDown}
         >
           <div role="listbox" id={listboxId} aria-label={ariaLabel ?? 'Saved views'}>
-            {views.length === 0 ? (
-              <div className={styles.empty}>Chưa có view nào</div>
-            ) : (
-              views.map((view, i) => (
-                // Plain wrapper so the delete button is a SIBLING of the
-                // option, not a descendant — an interactive control inside
-                // role="option" is an ARIA anti-pattern (review #23 #8).
-                <div key={view.id} className={styles.row}>
-                  <div
-                    id={`${listboxId}-option-${i}`}
-                    role="option"
-                    aria-selected={view.id === activeId}
-                    className={[
-                      styles.option,
-                      i === clampedHighlight ? styles['option-highlighted'] : '',
-                    ].join(' ')}
-                    tabIndex={-1}
-                    onPointerEnter={() => setHighlightedIndex(i)}
-                    onClick={() => apply(view.id)}
-                  >
-                    <span className={styles.check} aria-hidden="true">
-                      {view.id === activeId && <Icon name="check" size={14} />}
-                    </span>
-                    <span className={styles['option-label']}>{view.label}</span>
-                  </div>
-                  {onDelete && (
-                    <button
-                      type="button"
-                      className={styles['option-remove']}
-                      aria-label={`Xóa ${view.label}`}
-                      disabled={disabled}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(view.id);
-                      }}
-                    >
-                      <Icon name="x" size={12} />
-                    </button>
-                  )}
+            {/* Only options (and their presentational wrappers) may live in a
+                listbox — the empty state and the save row stay outside
+                (review #23 round-2 #3). */}
+            {views.map((view, i) => (
+              // Plain wrapper so the delete button is a SIBLING of the
+              // option, not a descendant — an interactive control inside
+              // role="option" is an ARIA anti-pattern (review #23 #8).
+              <div key={view.id} role="presentation" className={styles.row}>
+                <div
+                  id={`${listboxId}-option-${i}`}
+                  role="option"
+                  aria-selected={view.id === activeId}
+                  className={[
+                    styles.option,
+                    i === clampedHighlight ? styles['option-highlighted'] : '',
+                  ].join(' ')}
+                  tabIndex={-1}
+                  onPointerEnter={() => setHighlightedIndex(i)}
+                  onClick={() => apply(view.id)}
+                >
+                  <span className={styles.check} aria-hidden="true">
+                    {view.id === activeId && <Icon name="check" size={14} />}
+                  </span>
+                  <span className={styles['option-label']}>{view.label}</span>
                 </div>
-              ))
-            )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    className={styles['option-remove']}
+                    aria-label={`Xóa ${view.label}`}
+                    disabled={disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(view.id);
+                    }}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
+          {views.length === 0 && <div className={styles.empty}>Chưa có view nào</div>}
           {/* Save row lives OUTSIDE the listbox — mixed content inside
               role="listbox" is an ARIA anti-pattern (review #23 #8). */}
           <div className={styles['save-row']}>

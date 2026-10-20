@@ -13,21 +13,19 @@ const views: SavedView<Filters>[] = [
 
 test('renders a closed trigger with the generic label', () => {
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
   expect(trigger).toHaveTextContent('Views');
 });
 
-test('trigger shows the active view label', () => {
+test('trigger shows the active view label (accname follows the visible text)', () => {
   render(<SavedViews views={views} activeId="v2" onApply={() => {}} onSave={() => {}} />);
-  expect(screen.getByRole('combobox', { name: 'Saved views' })).toHaveTextContent(
-    'An Phát tháng 10',
-  );
+  expect(screen.getByRole('combobox', { name: 'An Phát tháng 10' })).toBeInTheDocument();
 });
 
 test('open lists all views and marks the active one', () => {
   render(<SavedViews views={views} activeId="v2" onApply={() => {}} onSave={() => {}} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'An Phát tháng 10' }));
   const options = screen.getAllByRole('option');
   expect(options).toHaveLength(3);
   expect(options[1]).toHaveAttribute('aria-selected', 'true');
@@ -37,7 +35,7 @@ test('open lists all views and marks the active one', () => {
 test('clicking an option applies it and closes', () => {
   const onApply = vi.fn();
   render(<SavedViews views={views} activeId={null} onApply={onApply} onSave={() => {}} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   fireEvent.click(screen.getByText('Giá trị cao'));
   expect(onApply).toHaveBeenCalledWith('v3');
   expect(screen.queryByRole('listbox')).toBeNull();
@@ -46,7 +44,7 @@ test('clicking an option applies it and closes', () => {
 test('save row: typing + Enter reports onSave and closes', () => {
   const onSave = vi.fn();
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={onSave} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   const input = screen.getByPlaceholderText('Tên view...');
   fireEvent.change(input, { target: { value: 'Q4 mới' } });
   fireEvent.keyDown(input, { key: 'Enter' });
@@ -57,7 +55,7 @@ test('save row: typing + Enter reports onSave and closes', () => {
 test('save button disabled while the draft trims empty; click saves', () => {
   const onSave = vi.fn();
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={onSave} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   const saveBtn = screen.getByRole('button', { name: 'Lưu view hiện tại' });
   expect(saveBtn).toBeDisabled();
   fireEvent.change(screen.getByPlaceholderText('Tên view...'), { target: { value: '  ' } });
@@ -80,7 +78,7 @@ test('delete reports onDelete without closing or applying', () => {
       onDelete={onDelete}
     />,
   );
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   fireEvent.click(screen.getByRole('button', { name: 'Xóa An Phát tháng 10' }));
   expect(onDelete).toHaveBeenCalledWith('v2');
   expect(onApply).not.toHaveBeenCalled();
@@ -89,7 +87,7 @@ test('delete reports onDelete without closing or applying', () => {
 
 test('empty views shows a non-selectable empty state', () => {
   render(<SavedViews views={[]} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   expect(screen.queryAllByRole('option')).toHaveLength(0);
   expect(screen.getByText('Chưa có view nào')).toBeInTheDocument();
   expect(screen.getByPlaceholderText('Tên view...')).toBeInTheDocument();
@@ -98,7 +96,7 @@ test('empty views shows a non-selectable empty state', () => {
 test('keyboard: ArrowDown opens + moves highlight, Enter applies, ArrowUp wraps', () => {
   const onApply = vi.fn();
   render(<SavedViews views={views} activeId={null} onApply={onApply} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   expect(trigger).toHaveAttribute('role', 'combobox'); // APG select-only pattern (#4)
   fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // open, h=0
   fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // h=1
@@ -127,7 +125,7 @@ test('#1 deleting the highlighted-last row clamps: Enter is a safe no-op', () =>
     );
   }
   render(<DeleteHarness />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   fireEvent.click(trigger);
   const options = screen.getAllByRole('option');
   fireEvent.pointerEnter(options[2]); // highlight the LAST row (h=2)
@@ -137,6 +135,10 @@ test('#1 deleting the highlighted-last row clamps: Enter is a safe no-op', () =>
   // asserted while the popover is still open.
   const listId = trigger.getAttribute('aria-controls');
   expect(trigger.getAttribute('aria-activedescendant')).toBe(`${listId}-option-1`);
+  // The highlight CLASS follows the clamp too (a revert to the raw index
+  // would style the detached row — round-2 #6c).
+  const clamped = document.getElementById(`${listId}-option-1`);
+  expect(clamped?.className).toMatch(/option-highlighted/);
   // Enter then applies the row now AT the clamped index (v2) and closes the
   // popover (single-apply flow) — a crash here is the regression.
   fireEvent.keyDown(trigger, { key: 'Enter' });
@@ -154,7 +156,7 @@ test('#3 Escape closes from the delete button and the save input too', () => {
       onDelete={() => {}}
     />,
   );
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   fireEvent.click(trigger);
   const remove = screen.getByRole('button', { name: 'Xóa Đơn chờ duyệt' });
   fireEvent.keyDown(remove, { key: 'Escape' }); // focus on a row action
@@ -168,7 +170,7 @@ test('#3 Escape closes from the delete button and the save input too', () => {
 test('#6 clicking non-focusable chrome keeps the popover and the draft', () => {
   const onSave = vi.fn();
   render(<SavedViews views={[]} activeId={null} onApply={() => {}} onSave={onSave} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   const input = screen.getByPlaceholderText('Tên view...');
   fireEvent.change(input, { target: { value: 'Q4' } });
   // Mousedown on the empty-state chrome (non-focusable): focus falls to body,
@@ -182,7 +184,7 @@ test('#6 clicking non-focusable chrome keeps the popover and the draft', () => {
 
 test('#7 a window resize re-places the popover from the fresh rect', () => {
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   Object.defineProperty(trigger, 'getBoundingClientRect', {
     configurable: true,
     value: () => ({ top: 700, bottom: 732, left: 10, width: 120 }) as DOMRect,
@@ -210,11 +212,11 @@ test('#5 the highlighted option is scrolled into view', () => {
   (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView = spy;
   try {
     render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-    const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+    const trigger = screen.getByRole('combobox', { name: 'Views' });
     fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // open, h=0
     fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // h=1
-    expect(spy).toHaveBeenCalled();
-    const call = spy.mock.calls[0][0] as ScrollIntoViewOptions;
+    expect(spy).toHaveBeenCalledTimes(2); // one per highlight move (h=0, h=1)
+    const call = spy.mock.calls[1][0] as ScrollIntoViewOptions;
     expect(call.block).toBe('nearest');
   } finally {
     if (original) {
@@ -231,26 +233,23 @@ test('#9 flipping disabled while open blocks apply and save', () => {
   const { rerender } = render(
     <SavedViews views={views} activeId={null} onApply={onApply} onSave={onSave} />,
   );
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   // Real browsers always precede click with mousedown — fire both so the
   // same-gesture focusout guard sees the press inside the widget.
   fireEvent.mouseDown(trigger);
   fireEvent.click(trigger); // open
-  // Flipping disabled while open keeps the popover mounted (the disable
-  // blur is covered by the same-gesture focusout guard) — but every action
-  // inside is now a no-op (review #23 #9).
+  // "Vô hiệu hoá toàn bộ": the open popover CLOSES when disabled flips
+  // (round-2 #5 — decided behavior, consistent in jsdom and real browsers),
+  // so nothing can be applied or saved afterwards.
   rerender(<SavedViews views={views} activeId={null} onApply={onApply} onSave={onSave} disabled />);
-  fireEvent.click(screen.getByText('Giá trị cao'));
-  fireEvent.change(screen.getByPlaceholderText('Tên view...'), { target: { value: 'x' } });
-  fireEvent.keyDown(screen.getByPlaceholderText('Tên view...'), { key: 'Enter' });
+  expect(screen.queryByRole('listbox')).toBeNull();
   expect(onApply).not.toHaveBeenCalled();
   expect(onSave).not.toHaveBeenCalled();
-  expect(screen.getByRole('listbox')).toBeInTheDocument();
 });
 
 test('Escape closes the popover', () => {
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   fireEvent.click(trigger);
   expect(screen.getByRole('listbox')).toBeInTheDocument();
   fireEvent.keyDown(trigger, { key: 'Escape' });
@@ -259,7 +258,7 @@ test('Escape closes the popover', () => {
 
 test('clicking outside closes the popover', () => {
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   fireEvent.click(trigger);
   expect(screen.getByRole('listbox')).toBeInTheDocument();
   fireEvent.mouseDown(document.body);
@@ -268,7 +267,7 @@ test('clicking outside closes the popover', () => {
 
 test('scrolling inside the popover does not close it', () => {
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} />);
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   fireEvent.click(trigger);
   const list = screen.getByRole('listbox');
   fireEvent.scroll(list);
@@ -278,7 +277,7 @@ test('scrolling inside the popover does not close it', () => {
 test('IME composition does not save or close from the save input', () => {
   const onSave = vi.fn();
   render(<SavedViews views={views} activeId={null} onApply={() => {}} onSave={onSave} />);
-  fireEvent.click(screen.getByRole('combobox', { name: 'Saved views' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Views' }));
   const input = screen.getByPlaceholderText('Tên view...');
   const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
   Object.defineProperty(ev, 'isComposing', { value: true });
@@ -291,7 +290,7 @@ test('disabled: trigger is disabled and never opens', () => {
   render(
     <SavedViews views={views} activeId={null} onApply={() => {}} onSave={() => {}} disabled />,
   );
-  const trigger = screen.getByRole('combobox', { name: 'Saved views' });
+  const trigger = screen.getByRole('combobox', { name: 'Views' });
   expect(trigger).toBeDisabled();
   fireEvent.click(trigger);
   expect(screen.queryByRole('listbox')).toBeNull();

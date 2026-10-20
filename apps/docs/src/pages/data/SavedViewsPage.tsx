@@ -61,6 +61,12 @@ const props: PropDoc[] = [
     default: "'Views'",
     description: 'Nhãn trigger khi chưa có view nào được áp.',
   },
+  {
+    name: 'aria-label',
+    type: 'string',
+    description: 'Đặt tên cố định cho trigger (mặc định đặt tên theo nhãn hiển thị).',
+  },
+  { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ widget.' },
 ];
 
 const code = `import { useState } from 'react';
@@ -139,7 +145,7 @@ export default function SavedViewsPage() {
             content: (
               <DemoPlayground>
                 <div className={styles.demo}>
-                  <section className={styles.section}>
+                  <section className={styles.demo}>
                     <h2 className={styles.sectionTitle}>Views + FilterBar</h2>
                     <div className={styles.row}>
                       <SavedViews<OrderFilters>
@@ -179,7 +185,7 @@ export default function SavedViewsPage() {
                       view chụp lại bộ filter hiện tại.
                     </p>
                   </section>
-                  <section className={styles.section}>
+                  <section className={styles.demo}>
                     <h2 className={styles.sectionTitle}>Vô hiệu hoá</h2>
                     <SavedViews<OrderFilters>
                       views={views}

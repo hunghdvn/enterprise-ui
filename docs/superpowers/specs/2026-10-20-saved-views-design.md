@@ -59,9 +59,10 @@ export interface SavedViewsProps<T> {
   `aria-expanded`.
 - Popover: role="listbox", option role, `aria-selected` theo `activeId`; save-row là input
   riêng (không phải option); nút × là button trong row (stopPropagation).
-- **Update 2026-10-20** (review #23 #8): nút × là **sibling** của option (wrapper div), save-row
-  nằm **ngoài** listbox — interactive control lồng trong `role="option"` là anti-pattern ARIA;
-  trigger mang `role="combobox"` (APG select-only) để `aria-activedescendant` hoạt động.
+- **Update 2026-10-20** (review #23): nút × là **sibling** của option (wrapper div), save-row
+  nằm **ngoài** listbox — interactive control lồng trong `role="option"` là anti-pattern ARIA
+  (#8); trigger mang `role="combobox"` (APG select-only) để `aria-activedescendant` hoạt động
+  (#4).
 - Popover positioning: `position: fixed` tính 1 lần khi mở, flip lên nếu tràn — dựng lại cơ chế
   `openAt` của Combobox (GAP 4px, chrome tính riêng — bài học Combobox #7).
 
