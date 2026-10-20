@@ -20,7 +20,8 @@ npm run build --workspace=@enterprise-ui/showcase
 ```
 
 CI (`.github/workflows/ci.yml`, Node 20) runs in this order: `npm ci` → test →
-typecheck → lint → format check → both builds. Mirror it before pushing.
+typecheck → docs:snippets → lint → format check → both builds. Mirror it
+before pushing.
 
 ## Gotchas
 

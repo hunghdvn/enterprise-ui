@@ -8,8 +8,8 @@
  * the others. Temp output lives under node_modules/.docs-snippets (gitignored,
  * wiped on install) — never inside apps/docs/src.
  *
- * Exit codes: 0 = all snippets compile; 1 = at least one snippet (or the
- * harness itself) failed.
+ * Exit codes: 0 = all snippets compile; 1 = at least one snippet failed, an
+ * extraction guard tripped, or the harness itself failed.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -38,7 +38,10 @@ function pageFiles(dir) {
 /**
  * Extract the body of a top-level `const code = \`...\`` template literal.
  * The established docs pattern is exactly one such const per page; nested
- * backticks do not occur (snippets are plain source samples).
+ * backticks do not occur (snippets are plain source samples). Both bounds
+ * are ENFORCED by the caller — a violation means the checked text is not
+ * what a reader copies, so it must fail loudly instead of silently
+ * shrinking coverage (round-1 review #1).
  */
 function extractSnippet(source) {
   const marker = 'const code = `';
@@ -47,7 +50,12 @@ function extractSnippet(source) {
   const bodyStart = start + marker.length;
   const end = source.indexOf('`;', bodyStart);
   if (end === -1) return null;
-  return source.slice(bodyStart, end);
+  return {
+    body: source.slice(bodyStart, end),
+    // A second marker means a page grew a multi-snippet layout the harness
+    // does not cover yet.
+    markers: source.split(marker).length - 1,
+  };
 }
 
 rmSync(outDir, { recursive: true, force: true });
@@ -55,19 +63,45 @@ mkdirSync(outDir, { recursive: true });
 
 const files = pageFiles(pagesDir);
 let snippets = 0;
+const guardFailures = [];
 
 for (const file of files) {
   const rel = path.relative(pagesDir, file);
   const name = rel.replace(/[/.]/g, '-').replace(/\.tsx$/, '');
-  const snippet = extractSnippet(readFileSync(file, 'utf8'));
-  if (snippet === null) {
+  const found = extractSnippet(readFileSync(file, 'utf8'));
+  if (found === null) {
     console.log(`SKIP  ${rel} (no const code snippet)`);
+    continue;
+  }
+  // Soundness guards: silently checking a fragment (nested backtick) or
+  // skipping a second snippet would keep CI green while the real snippet is
+  // broken — report and fail instead (round-1 review #1).
+  if (found.markers > 1) {
+    guardFailures.push(
+      rel +
+        ': ' +
+        found.markers +
+        " 'const code' snippets found — the harness checks one per page; extend it before adding a second.",
+    );
+    continue;
+  }
+  if (found.body.includes('`')) {
+    guardFailures.push(
+      rel +
+        ': snippet contains a nested backtick — the extractor truncates at the first closing backtick; extend it before teaching template literals.',
+    );
     continue;
   }
   snippets += 1;
   // Re-escape nothing: the snippet body is written verbatim — it must
   // typecheck exactly as a reader would copy it.
-  writeFileSync(path.join(outDir, `${name}.tsx`), snippet);
+  writeFileSync(path.join(outDir, name + '.tsx'), found.body);
+}
+
+if (guardFailures.length > 0) {
+  console.error('\n✖ ' + guardFailures.length + ' extraction guard failure(s):');
+  for (const f of guardFailures) console.error('  ✖ ' + f);
+  process.exit(1);
 }
 
 const tsconfig = {
@@ -75,7 +109,7 @@ const tsconfig = {
   compilerOptions: { noEmit: true },
   include: ['*.tsx'],
 };
-writeFileSync(path.join(outDir, 'tsconfig.json'), `${JSON.stringify(tsconfig, null, 2)}\n`);
+writeFileSync(path.join(outDir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2) + '\n');
 
 let tsc;
 try {
@@ -92,8 +126,8 @@ try {
       .filter(Boolean),
   );
   if (broken.size > 0) {
-    console.error(`\n✖ ${broken.size} snippet(s) failed typecheck:`);
-    for (const f of broken) console.error(`  ✖ ${f}`);
+    console.error('\n✖ ' + broken.size + ' snippet(s) failed typecheck:');
+    for (const f of broken) console.error('  ✖ ' + f);
     console.error('\nFull compiler output:\n');
     console.error(tsc);
     process.exit(1);
@@ -104,4 +138,6 @@ try {
   process.exit(1);
 }
 
-console.log(`docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked)`);
+console.log(
+  'docs snippets ok (' + snippets + ' snippet' + (snippets === 1 ? '' : 's') + ' typechecked)',
+);
