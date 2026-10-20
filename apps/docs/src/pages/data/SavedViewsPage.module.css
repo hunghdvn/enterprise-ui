@@ -1,0 +1,37 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.demo {
+  display: grid;
+  gap: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.helper {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}

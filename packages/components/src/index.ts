@@ -67,3 +67,5 @@ export type { IconProps, IconName } from './Icon/types';
 export { ICONS } from './Icon/icons';
 export { Spin } from './Spin/Spin';
 export type { SpinProps } from './Spin/types';
+export { SavedViews } from './SavedViews/SavedViews';
+export type { SavedView, SavedViewsProps } from './SavedViews/types';
