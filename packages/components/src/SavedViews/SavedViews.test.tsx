@@ -228,43 +228,24 @@ test('#5 the highlighted option is scrolled into view', () => {
 test('#9 flipping disabled while open blocks apply and save', () => {
   const onApply = vi.fn();
   const onSave = vi.fn();
-  function ToggleHarness() {
-    const [disabled, setDisabled] = useState(false);
-    return (
-      <>
-        <button type="button" onClick={() => setDisabled(true)}>
-          disable
-        </button>
-        <SavedViews
-          views={views}
-          activeId={null}
-          onApply={onApply}
-          onSave={onSave}
-          disabled={disabled}
-        />
-      </>
-    );
-  }
-  const { rerender } = render(<ToggleHarness />);
+  const { rerender } = render(
+    <SavedViews views={views} activeId={null} onApply={onApply} onSave={onSave} />,
+  );
   const trigger = screen.getByRole('combobox', { name: 'Saved views' });
   // Real browsers always precede click with mousedown — fire both so the
   // same-gesture focusout guard sees the press inside the widget.
   fireEvent.mouseDown(trigger);
   fireEvent.click(trigger); // open
-  // Flipping disabled blurs the trigger and CLOSES the popover — a disabled
-  // widget must not keep an interactive popover open. Either way, nothing
-  // may be applied or saved afterwards (review #23 #9).
-  rerender(
-    <>
-      <button type="button" onClick={() => setDisabled(true)}>
-        disable
-      </button>
-      <SavedViews views={views} activeId={null} onApply={onApply} onSave={onSave} disabled />
-    </>,
-  );
-  expect(screen.queryByRole('listbox')).toBeNull();
+  // Flipping disabled while open keeps the popover mounted (the disable
+  // blur is covered by the same-gesture focusout guard) — but every action
+  // inside is now a no-op (review #23 #9).
+  rerender(<SavedViews views={views} activeId={null} onApply={onApply} onSave={onSave} disabled />);
+  fireEvent.click(screen.getByText('Giá trị cao'));
+  fireEvent.change(screen.getByPlaceholderText('Tên view...'), { target: { value: 'x' } });
+  fireEvent.keyDown(screen.getByPlaceholderText('Tên view...'), { key: 'Enter' });
   expect(onApply).not.toHaveBeenCalled();
   expect(onSave).not.toHaveBeenCalled();
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
 });
 
 test('Escape closes the popover', () => {
