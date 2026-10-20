@@ -93,7 +93,7 @@ for (const file of files) {
   }
   if (found.body.includes('`')) {
     guardFailures.push(
-      `${rel}: snippet contains a nested backtick — the extractor truncates at the first closing backtick; extend it before teaching template literals.`,
+      `${rel}: snippet contains a nested backtick — the extractor truncates at the first closing backtick-plus-semicolon; extend it before teaching template literals.`,
     );
     continue;
   }

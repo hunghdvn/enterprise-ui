@@ -17,6 +17,7 @@ npm run lint                               # eslint flat config at repo root
 npm run format:check                       # prettier check (CI fails on drift)
 npm run build --workspace=@enterprise-ui/components   # vite lib + .d.ts → dist/
 npm run build --workspace=@enterprise-ui/showcase
+npm run build --workspace=@enterprise-ui/docs
 ```
 
 CI (`.github/workflows/ci.yml`, Node 20) runs in this order: `npm ci` → test →
