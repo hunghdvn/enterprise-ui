@@ -32,6 +32,7 @@ import SavedViewsPage from './pages/data/SavedViewsPage';
 import ModalPage from './pages/feedback/ModalPage';
 import DrawerPage from './pages/feedback/DrawerPage';
 import ToastPage from './pages/feedback/ToastPage';
+import NotificationCenterPage from './pages/feedback/NotificationCenterPage';
 import FormPage from './pages/form/FormPage';
 import TokensPage from './pages/tokens/TokensPage';
 import styles from './App.module.css';
@@ -102,6 +103,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   modal: { label: 'Modal', icon: 'external-link', el: <ModalPage /> },
   drawer: { label: 'Drawer', icon: 'minus', el: <DrawerPage /> },
   toast: { label: 'Toast', icon: 'mail', el: <ToastPage /> },
+  notificationcenter: { label: 'NotificationCenter', icon: 'bell', el: <NotificationCenterPage /> },
   form: { label: 'Form', icon: 'trash', el: <FormPage /> },
   tokens: { label: 'Tokens', icon: 'lock', el: <TokensPage /> },
 };

@@ -69,3 +69,9 @@ export { Spin } from './Spin/Spin';
 export type { SpinProps } from './Spin/types';
 export { SavedViews } from './SavedViews/SavedViews';
 export type { SavedView, SavedViewsProps } from './SavedViews/types';
+export { NotificationCenter } from './NotificationCenter/NotificationCenter';
+export type {
+  NotificationCenterProps,
+  Notification,
+  NotificationKind,
+} from './NotificationCenter/types';
