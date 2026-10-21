@@ -1,5 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import type { TreeProps, TreeNode } from './types';
 import styles from './Tree.module.css';
@@ -37,36 +36,69 @@ export function Tree({
   className,
   'aria-label': ariaLabel,
 }: TreeProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  // The keyboard-active node — roving tabindex anchor. -1 sentinel = first
-  // visible node (adjusted during render below, the React-sanctioned
-  // derived-state pattern).
+  // The keyboard-active node — roving tabindex anchor. -1 sentinel = none
+  // (empty tree); otherwise clamped to the visible range below.
   const [activeIndex, setActiveIndex] = useState(0);
 
   const flat = useMemo(() => flattenVisible(nodes, expandedIds), [nodes, expandedIds]);
 
-  // Clamp the active index when the visible set shrinks (a parent deleting a
-  // node must not strand the keyboard focus past the end — Combobox #9c).
-  const clampedIndex = flat.length === 0 ? -1 : Math.max(0, Math.min(activeIndex, flat.length - 1));
-  if (activeIndex !== clampedIndex) setActiveIndex(clampedIndex);
+  // Derived (Combobox/SavedViews pattern): the clamp never calls setState
+  // during render, so React StrictMode cannot double-fire it (review #4).
+  const clampedIndex = useMemo(
+    () => (flat.length === 0 ? -1 : Math.max(0, Math.min(activeIndex, flat.length - 1))),
+    [activeIndex, flat.length],
+  );
 
+  // Focus retention when the visible set shrinks (a parent deleting the
+  // focused node must not strand keyboard focus on <body>). The effect runs
+  // after the commit, so the focus move happens against the fresh DOM
+  // (review #3).
   const nodeRefs = useRef(new Map<string, HTMLElement>());
+  // Focus retention when the visible set shrinks (a parent deleting the
+  // focused node must not strand keyboard focus on <body>). The effect runs
+  // after the commit, so the focus move happens against the fresh DOM
+  // (review #3). We only act when focus actually fell to <body> — normal
+  // keyboard navigation already moved it via moveActive().
+  useEffect(() => {
+    const currentId = flat[clampedIndex]?.node.id ?? null;
+    const active = document.activeElement as HTMLElement | null;
+    // Focus must land on the clamped node whenever it has fallen out of the
+    // tree (the focused node was removed, or jsdom moved it to <body>).
+    const stillInTree = !!active && Array.from(nodeRefs.current.values()).includes(active);
+    if (!stillInTree && currentId) {
+      nodeRefs.current.get(currentId)?.focus();
+    }
+  }, [flat, clampedIndex]);
+
+  const flatIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    flat.forEach((f, i) => m.set(f.node.id, i));
+    return m;
+  }, [flat]);
 
   const toggleSelect = (node: TreeNode) => {
     if (node.disabled) return;
     onSelect?.(node.id);
   };
 
+  const pendingFocusRef = useRef<string | null>(null);
   const moveActive = (next: FlatNode | undefined, index: number) => {
     if (!next) return;
-    // Commit the roving-tabindex change BEFORE moving DOM focus: focusing
-    // first would let the subsequent re-render strip focusability from the
-    // previously-focused item and drop focus to <body> (classic roving
-    // tabindex pitfall with React's async commit).
-    flushSync(() => setActiveIndex(index));
-    // Roving focus follows the active node so screen readers announce it.
-    nodeRefs.current.get(next.node.id)?.focus();
+    // Defer the DOM focus to the commit that follows: moving focus inside the
+    // event handler would let the re-render strip focusability from the
+    // previously-focused item (classic roving-tabindex pitfall with React's
+    // async commit). The effect below applies it against the fresh DOM.
+    pendingFocusRef.current = next.node.id;
+    setActiveIndex(index);
   };
+  // Apply any pending focus after the commit so the focused node's new
+  // tabindex is already in the DOM (review #5 focus-into-children).
+  useEffect(() => {
+    if (pendingFocusRef.current) {
+      nodeRefs.current.get(pendingFocusRef.current)?.focus();
+      pendingFocusRef.current = null;
+    }
+  });
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
@@ -112,55 +144,66 @@ export function Tree({
     }
   };
 
+  const renderNode = (node: TreeNode, level: number): React.ReactNode => {
+    const hasChildren = !!node.children?.length;
+    const expanded = hasChildren && expandedIds.includes(node.id);
+    const selected = node.id === selectedId;
+    const index = flatIndexById.get(node.id) ?? -1;
+    const focused = index === clampedIndex;
+    return (
+      <Fragment key={node.id}>
+        <div
+          id={node.id}
+          role="treeitem"
+          aria-level={level}
+          aria-expanded={hasChildren ? expanded : undefined}
+          aria-selected={selected}
+          aria-disabled={node.disabled || undefined}
+          tabIndex={focused ? 0 : -1}
+          data-disabled={node.disabled || undefined}
+          data-selected={selected || undefined}
+          className={[
+            styles.item,
+            focused ? styles['item-focused'] : '',
+            node.disabled ? styles['item-disabled'] : '',
+          ].join(' ')}
+          style={{ paddingInlineStart: `calc(${(level - 1) * 16}px + 8px)` }}
+          ref={(el) => {
+            if (el) nodeRefs.current.set(node.id, el);
+            else nodeRefs.current.delete(node.id);
+          }}
+          onClick={() => {
+            setActiveIndex(index);
+            if (hasChildren) onToggleExpand(node.id);
+            toggleSelect(node);
+          }}
+        >
+          <span className={styles.toggle} aria-hidden="true">
+            {hasChildren && (
+              <span className={expanded ? styles['chevron-open'] : styles.chevron}>
+                <Icon name="chevron-down" size={14} />
+              </span>
+            )}
+          </span>
+          <span className={styles['item-label']}>{node.label}</span>
+        </div>
+        {expanded && hasChildren && (
+          <div role="group" aria-labelledby={node.id}>
+            {node.children!.map((child) => renderNode(child, level + 1))}
+          </div>
+        )}
+      </Fragment>
+    );
+  };
+
   return (
     <div
-      ref={listRef}
       role="tree"
       aria-label={ariaLabel}
       className={className ? `${styles.tree} ${className}` : styles.tree}
       onKeyDown={onKeyDown}
     >
-      {flat.map(({ node, level, hasChildren }, index) => {
-        const expanded = hasChildren && expandedIds.includes(node.id);
-        const selected = node.id === selectedId;
-        const focused = index === clampedIndex;
-        return (
-          <div
-            key={node.id}
-            role="treeitem"
-            aria-level={level}
-            aria-selected={selected}
-            aria-expanded={hasChildren ? expanded : undefined}
-            tabIndex={focused ? 0 : -1}
-            data-disabled={node.disabled || undefined}
-            data-selected={selected || undefined}
-            className={[
-              styles.item,
-              focused ? styles['item-focused'] : '',
-              node.disabled ? styles['item-disabled'] : '',
-            ].join(' ')}
-            style={{ paddingInlineStart: `calc(${(level - 1) * 16}px + 8px)` }}
-            ref={(el) => {
-              if (el) nodeRefs.current.set(node.id, el);
-              else nodeRefs.current.delete(node.id);
-            }}
-            onClick={() => {
-              setActiveIndex(index);
-              if (hasChildren) onToggleExpand(node.id);
-              toggleSelect(node);
-            }}
-          >
-            <span className={styles.toggle} aria-hidden="true">
-              {hasChildren && (
-                <span className={expanded ? styles['chevron-open'] : styles.chevron}>
-                  <Icon name="chevron-down" size={14} />
-                </span>
-              )}
-            </span>
-            <span className={styles['item-label']}>{node.label}</span>
-          </div>
-        );
-      })}
+      {nodes.map((node) => renderNode(node, 1))}
       {flat.length === 0 && <div className={styles.empty}>Không có dữ liệu</div>}
     </div>
   );

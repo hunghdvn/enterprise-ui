@@ -147,14 +147,14 @@ test('Enter/Space select the active node; disabled nodes are skipped for select'
     />,
   );
   const locked = screen.getByText('Khoá').closest('[role="treeitem"]') as HTMLElement;
-  expect(locked).toHaveAttribute('data-disabled', 'true');
-  // Navigate to 'Khoá' (active), then Enter — disabled nodes are traversed
-  // but never selected.
-  fireEvent.keyDown(locked, { key: 'ArrowDown' });
-  fireEvent.keyDown(locked, { key: 'Enter' });
+  expect(locked).toHaveAttribute('aria-disabled', 'true');
+  // 'locked' is the first child — navigate there, then Enter must no-op.
+  fireEvent.keyDown(screen.getAllByRole('treeitem')[0], { key: 'ArrowDown' });
+  fireEvent.keyDown(screen.getAllByRole('treeitem')[0], { key: 'Enter' });
   expect(onSelect).not.toHaveBeenCalled();
-  fireEvent.keyDown(locked, { key: 'ArrowDown' }); // active → 'Mở'
-  fireEvent.keyDown(locked, { key: ' ' }); // Space selects
+  // Space on the unlocked sibling selects it.
+  fireEvent.keyDown(screen.getAllByRole('treeitem')[0], { key: 'ArrowDown' });
+  fireEvent.keyDown(screen.getAllByRole('treeitem')[0], { key: ' ' });
   expect(onSelect).toHaveBeenCalledWith('open');
 });
 
@@ -176,4 +176,88 @@ test('empty nodes renders a non-selectable empty state', () => {
   render(<Tree nodes={[]} expandedIds={[]} onToggleExpand={() => {}} selectedId={null} />);
   expect(screen.queryAllByRole('treeitem')).toHaveLength(0);
   expect(screen.getByText('Không có dữ liệu')).toBeInTheDocument();
+});
+
+test('#5 ArrowRight on an expanded parent moves focus into the first child', () => {
+  render(
+    <Tree
+      nodes={nodes}
+      expandedIds={['org', 'tech']}
+      onToggleExpand={() => {}}
+      selectedId={null}
+    />,
+  );
+  const root = screen.getAllByRole('treeitem')[0];
+  root.focus();
+  fireEvent.keyDown(root, { key: 'ArrowDown' }); // active → 'Kỹ thuật'
+  const tech = screen.getAllByRole('treeitem')[1];
+  fireEvent.keyDown(tech, { key: 'ArrowRight' }); // 'Kỹ thuật' expanded → first child
+  expect(screen.getByText('Frontend').closest('[role="treeitem"]')).toHaveFocus();
+});
+
+test('#5 disabled node is traversed by keyboard but never selected', () => {
+  const onSelect = vi.fn();
+  render(
+    <Tree
+      nodes={[
+        {
+          id: 'org',
+          label: 'Công ty',
+          children: [{ id: 'locked', label: 'Khoá', disabled: true }],
+        },
+      ]}
+      expandedIds={['org']}
+      onToggleExpand={() => {}}
+      selectedId={null}
+      onSelect={onSelect}
+    />,
+  );
+  const root = screen.getAllByRole('treeitem')[0];
+  root.focus();
+  // ArrowDown moves the ACTIVE node (and focus) onto the disabled child —
+  // disabled nodes are still traversed, just never selected.
+  fireEvent.keyDown(root, { key: 'ArrowDown' });
+  const locked = screen.getByText('Khoá').closest('[role="treeitem"]') as HTMLElement;
+  expect(locked).toHaveFocus();
+  expect(locked).toHaveAttribute('aria-disabled', 'true');
+  fireEvent.keyDown(root, { key: 'Enter' });
+  expect(onSelect).not.toHaveBeenCalled();
+  fireEvent.keyDown(root, { key: ' ' });
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
+test('#5 focus is retained on the clamped node when the focused node is removed', () => {
+  function DeleteHarness() {
+    const [list, setList] = useState([
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ]);
+    const [selected, setSelected] = useState<string | null>(null);
+    return (
+      <>
+        <button type="button" onClick={() => setList((l) => l.filter((n) => n.id !== 'b'))}>
+          remove B
+        </button>
+        <Tree
+          nodes={list}
+          expandedIds={[]}
+          onToggleExpand={() => {}}
+          selectedId={selected}
+          onSelect={setSelected}
+        />
+      </>
+    );
+  }
+  render(<DeleteHarness />);
+  const items = screen.getAllByRole('treeitem');
+  // Navigate with the keyboard so the roving anchor tracks 'B' (activeIndex=1)
+  // — the way a real user would focus it; a bare .focus() would leave the
+  // anchor stale and strand focus on the wrong row.
+  fireEvent.keyDown(items[0], { key: 'ArrowDown' }); // active → 'B'
+  expect(items[1]).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'remove B' }));
+  // The focused node ('B') is gone — focus must land on the clamped node
+  // ('C'), never on <body> (review #3).
+  expect(screen.getByText('C').closest('[role="treeitem"]')).toHaveFocus();
 });

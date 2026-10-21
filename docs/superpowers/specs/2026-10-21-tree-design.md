@@ -22,7 +22,7 @@ Goals:
   cha, Enter/Space chọn. Focus theo roving tabindex (treeitem focusable — KHÔNG dùng
   activedescendant cho tree vì node con lồng nhau).
 - **G5** Icon chevron xoay theo expanded; disabled node không chọn được nhưng vẫn điều hướng.
-- **G6** Indent theo level (`--tree-indent` inline `paddingInlineStart`).
+- **G6** Indent theo level (`paddingInlineStart: calc((level-1)*16px + 8px)`).
 
 Non-goals:
 
