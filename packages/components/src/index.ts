@@ -71,5 +71,11 @@ export { Steps } from './Steps/Steps';
 export type { StepsProps, Step } from './Steps/types';
 export { SavedViews } from './SavedViews/SavedViews';
 export type { SavedView, SavedViewsProps } from './SavedViews/types';
+export { NotificationCenter } from './NotificationCenter/NotificationCenter';
+export type {
+  NotificationCenterProps,
+  Notification,
+  NotificationKind,
+} from './NotificationCenter/types';
 export { Tree } from './Tree/Tree';
 export type { TreeProps, TreeNode } from './Tree/types';
