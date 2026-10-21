@@ -30,6 +30,7 @@ import KpiCardPage from './pages/data/KpiCardPage';
 import KpiGridPage from './pages/data/KpiGridPage';
 import StepsPage from './pages/data/StepsPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
+import FileUploadPage from './pages/data/FileUploadPage';
 import TreePage from './pages/data/TreePage';
 import ModalPage from './pages/feedback/ModalPage';
 import DrawerPage from './pages/feedback/DrawerPage';
@@ -102,6 +103,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   kpigrid: { label: 'KpiGrid', icon: 'calendar', el: <KpiGridPage /> },
   steps: { label: 'Steps', icon: 'arrow-right', el: <StepsPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
+  fileupload: { label: 'FileUpload', icon: 'upload', el: <FileUploadPage /> },
   tree: { label: 'Tree', icon: 'menu', el: <TreePage /> },
   feedback: { label: 'Feedback', icon: 'bell', el: <div>Feedback</div> },
   modal: { label: 'Modal', icon: 'external-link', el: <ModalPage /> },
