@@ -28,6 +28,7 @@ import TablePage from './pages/data/TablePage';
 import FilterBarPage from './pages/data/FilterBarPage';
 import KpiCardPage from './pages/data/KpiCardPage';
 import KpiGridPage from './pages/data/KpiGridPage';
+import StepsPage from './pages/data/StepsPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
 import ModalPage from './pages/feedback/ModalPage';
 import DrawerPage from './pages/feedback/DrawerPage';
@@ -97,6 +98,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   filterbar: { label: 'FilterBar', icon: 'search', el: <FilterBarPage /> },
   kpicard: { label: 'KpiCard', icon: 'check', el: <KpiCardPage /> },
   kpigrid: { label: 'KpiGrid', icon: 'calendar', el: <KpiGridPage /> },
+  steps: { label: 'Steps', icon: 'arrow-right', el: <StepsPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
   feedback: { label: 'Feedback', icon: 'bell', el: <div>Feedback</div> },
   modal: { label: 'Modal', icon: 'external-link', el: <ModalPage /> },
