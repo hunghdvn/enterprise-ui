@@ -51,6 +51,8 @@ export { Form, FormErrorsContext } from './Form/Form';
 export type { FormProps } from './Form/Form';
 export { Field } from './Form/Field';
 export type { FieldProps } from './Form/Field';
+export { FileUpload } from './FileUpload/FileUpload';
+export type { FileUploadProps, UploadedFile } from './FileUpload/types';
 export { Modal } from './Modal/Modal';
 export type { ModalProps } from './Modal/Modal';
 export { Drawer } from './Drawer/Drawer';
