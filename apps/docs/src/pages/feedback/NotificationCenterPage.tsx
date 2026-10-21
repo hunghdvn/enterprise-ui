@@ -55,6 +55,11 @@ const props: PropDoc[] = [
   { name: 'size', type: "'sm' | 'md'", default: "'sm'", description: 'Kích thước bell trigger.' },
   { name: 'disabled', type: 'boolean', default: 'false', description: 'Vô hiệu hoá toàn bộ.' },
   { name: 'aria-label', type: 'string', description: 'Nhãn a11y cho bell (mặc định “Thông báo”).' },
+  {
+    name: 'icon',
+    type: 'ReactNode',
+    description: 'Tuỳ chọn — icon thay cho kind-icon trên từng thông báo.',
+  },
 ];
 
 const code = `import { useState } from 'react';

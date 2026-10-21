@@ -82,7 +82,23 @@ export function NotificationCenter({
   const close = () => {
     setOpen(false);
     setPosition(null);
+    // Return focus to the bell so Esc/click-away never strand it on <body>
+    // (review #27 #1).
+    triggerRef.current?.focus();
   };
+
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Re-place the panel when the notification list changes while open (review
+  // #27 #3) — a growing/shrinking list otherwise mis-sizes the panel.
+  useEffect(() => {
+    if (open) placePopover();
+  }, [open, notifications.length, placePopover]);
+
+  // Move focus into the panel on open (review #27 #4 — light focus trap).
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
 
   // Click-away, scroll and focus-boundary dismissal — all contained against
   // the widget root (Combobox/SavedViews precedent).
@@ -169,10 +185,12 @@ export function NotificationCenter({
 
       {open && position && (
         <div
+          ref={panelRef}
           id={panelId}
           role="dialog"
           aria-label={triggerLabel}
           className={styles.panel}
+          tabIndex={-1}
           style={{
             position: 'fixed',
             top: position.top,
@@ -208,7 +226,7 @@ export function NotificationCenter({
               {notifications.map((n) => (
                 <li key={n.id} className={styles.item} data-unread={n.unread || undefined}>
                   <span className={styles['item-icon']} aria-hidden="true">
-                    <Icon name={kindIcon(n.kind)} size={16} />
+                    {n.icon ?? <Icon name={kindIcon(n.kind)} size={16} />}
                   </span>
                   <div className={styles['item-body']}>
                     <span className={styles['item-title']}>{n.title}</span>

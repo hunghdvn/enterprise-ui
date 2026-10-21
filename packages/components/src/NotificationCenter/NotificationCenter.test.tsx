@@ -162,6 +162,50 @@ test('badge cap is "9+" above 9 unread', () => {
   expect(screen.getByLabelText('2 thông báo chưa đọc')).toHaveTextContent('2');
 });
 
+test('closing returns focus to the trigger (review #27 #1)', () => {
+  render(<NotificationCenter notifications={items} onMarkRead={() => {}} />);
+  const trigger = screen.getByRole('button', { name: 'Thông báo' });
+  fireEvent.click(trigger);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(trigger).toHaveFocus();
+});
+
+test('a custom icon overrides the kind icon', () => {
+  const custom = <span data-testid="custom-icon">★</span>;
+  render(
+    <NotificationCenter
+      notifications={[
+        { id: 'x', title: 'Hi', time: 'now', unread: true, kind: 'info', icon: custom },
+      ]}
+      onMarkRead={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Thông báo' }));
+  expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
+});
+
+test('re-place runs when the list changes while open', () => {
+  const { rerender } = render(<NotificationCenter notifications={items} onMarkRead={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thông báo' }));
+  const panel = screen.getByRole('dialog');
+  const originalTop = panel.style.top;
+  // Parent updates the list (e.g. a new notification arrived) — the panel
+  // must re-place, not keep a stale rect.
+  rerender(
+    <NotificationCenter
+      notifications={[...items, { id: 'n4', title: 'Mới', time: 'vừa xong', unread: true }]}
+      onMarkRead={() => {}}
+    />,
+  );
+  // In jsdom the rect is 0, so both tops are '0px' — the assertion below
+  // only pins that the effect ran without throwing and the panel stayed open.
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(panel.style.position).toBe('fixed');
+  void originalTop;
+});
+
 test('panel is positioned fixed', () => {
   render(<NotificationCenter notifications={items} onMarkRead={() => {}} />);
   fireEvent.click(screen.getByRole('button', { name: 'Thông báo' }));

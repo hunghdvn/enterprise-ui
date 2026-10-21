@@ -27,11 +27,6 @@
   height: var(--input-h-lg);
 }
 
-.trigger[data-size='md'] {
-  width: var(--input-h-lg);
-  height: var(--input-h-lg);
-}
-
 .trigger:hover {
   background: var(--surface-muted);
 }
