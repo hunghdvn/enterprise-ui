@@ -28,11 +28,14 @@ import TablePage from './pages/data/TablePage';
 import FilterBarPage from './pages/data/FilterBarPage';
 import KpiCardPage from './pages/data/KpiCardPage';
 import KpiGridPage from './pages/data/KpiGridPage';
+import StepsPage from './pages/data/StepsPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
 import FileUploadPage from './pages/data/FileUploadPage';
+import TreePage from './pages/data/TreePage';
 import ModalPage from './pages/feedback/ModalPage';
 import DrawerPage from './pages/feedback/DrawerPage';
 import ToastPage from './pages/feedback/ToastPage';
+import NotificationCenterPage from './pages/feedback/NotificationCenterPage';
 import FormPage from './pages/form/FormPage';
 import TokensPage from './pages/tokens/TokensPage';
 import styles from './App.module.css';
@@ -98,12 +101,15 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   filterbar: { label: 'FilterBar', icon: 'search', el: <FilterBarPage /> },
   kpicard: { label: 'KpiCard', icon: 'check', el: <KpiCardPage /> },
   kpigrid: { label: 'KpiGrid', icon: 'calendar', el: <KpiGridPage /> },
+  steps: { label: 'Steps', icon: 'arrow-right', el: <StepsPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
   fileupload: { label: 'FileUpload', icon: 'upload', el: <FileUploadPage /> },
+  tree: { label: 'Tree', icon: 'menu', el: <TreePage /> },
   feedback: { label: 'Feedback', icon: 'bell', el: <div>Feedback</div> },
   modal: { label: 'Modal', icon: 'external-link', el: <ModalPage /> },
   drawer: { label: 'Drawer', icon: 'minus', el: <DrawerPage /> },
   toast: { label: 'Toast', icon: 'mail', el: <ToastPage /> },
+  notificationcenter: { label: 'NotificationCenter', icon: 'bell', el: <NotificationCenterPage /> },
   form: { label: 'Form', icon: 'trash', el: <FormPage /> },
   tokens: { label: 'Tokens', icon: 'lock', el: <TokensPage /> },
 };
