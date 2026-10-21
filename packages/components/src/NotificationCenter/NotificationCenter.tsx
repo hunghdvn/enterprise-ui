@@ -79,12 +79,14 @@ export function NotificationCenter({
     placePopover();
   };
 
-  const close = () => {
+  // `focusTrigger` is true only on keyboard-initiated closes (Escape): there
+  // the bell must regain focus. On click-away / scroll / focusout the focus
+  // is already moving to the clicked element, so stealing it back would trap
+  // keyboard focus on the bell (review #27 round-2 #1).
+  const close = (focusTrigger = false) => {
     setOpen(false);
     setPosition(null);
-    // Return focus to the bell so Esc/click-away never strand it on <body>
-    // (review #27 #1).
-    triggerRef.current?.focus();
+    if (focusTrigger) triggerRef.current?.focus();
   };
 
   const panelRef = useRef<HTMLDivElement>(null);
@@ -140,7 +142,7 @@ export function NotificationCenter({
       else openAt();
     } else if (e.key === 'Escape' && open) {
       e.preventDefault();
-      close();
+      close(true);
     }
   };
 
@@ -148,7 +150,7 @@ export function NotificationCenter({
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === 'Escape' && open) {
       e.preventDefault();
-      close();
+      close(true);
     }
   };
 
