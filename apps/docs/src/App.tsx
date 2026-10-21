@@ -29,6 +29,7 @@ import FilterBarPage from './pages/data/FilterBarPage';
 import KpiCardPage from './pages/data/KpiCardPage';
 import KpiGridPage from './pages/data/KpiGridPage';
 import StepsPage from './pages/data/StepsPage';
+import DateRangePickerPage from './pages/data/DateRangePickerPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
 import FileUploadPage from './pages/data/FileUploadPage';
 import TreePage from './pages/data/TreePage';
@@ -102,6 +103,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   kpicard: { label: 'KpiCard', icon: 'check', el: <KpiCardPage /> },
   kpigrid: { label: 'KpiGrid', icon: 'calendar', el: <KpiGridPage /> },
   steps: { label: 'Steps', icon: 'arrow-right', el: <StepsPage /> },
+  daterange: { label: 'DateRangePicker', icon: 'calendar', el: <DateRangePickerPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
   fileupload: { label: 'FileUpload', icon: 'upload', el: <FileUploadPage /> },
   tree: { label: 'Tree', icon: 'menu', el: <TreePage /> },
