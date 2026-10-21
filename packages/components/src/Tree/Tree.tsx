@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useId, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import type { TreeProps, TreeNode } from './types';
 import styles from './Tree.module.css';
@@ -36,6 +36,7 @@ export function Tree({
   className,
   'aria-label': ariaLabel,
 }: TreeProps) {
+  const uid = useId();
   // The keyboard-active node — roving tabindex anchor. -1 sentinel = none
   // (empty tree); otherwise clamped to the visible range below.
   const [activeIndex, setActiveIndex] = useState(0);
@@ -61,11 +62,13 @@ export function Tree({
   // keyboard navigation already moved it via moveActive().
   useEffect(() => {
     const currentId = flat[clampedIndex]?.node.id ?? null;
-    const active = document.activeElement as HTMLElement | null;
-    // Focus must land on the clamped node whenever it has fallen out of the
-    // tree (the focused node was removed, or jsdom moved it to <body>).
-    const stillInTree = !!active && Array.from(nodeRefs.current.values()).includes(active);
-    if (!stillInTree && currentId) {
+    // Only steal focus when it has actually fallen to <body>/null (the focused
+    // node was removed or focus left the document). A focus sitting on an
+    // unrelated element (e.g. an outside button) must be left alone — acting
+    // on it made an expand jump focus into the tree (review round-3 #1).
+    const active = document.activeElement;
+    const focusLost = active === document.body || active === null;
+    if (focusLost && currentId) {
       nodeRefs.current.get(currentId)?.focus();
     }
   }, [flat, clampedIndex]);
@@ -153,7 +156,7 @@ export function Tree({
     return (
       <Fragment key={node.id}>
         <div
-          id={node.id}
+          id={`${uid}-${node.id}`}
           role="treeitem"
           aria-level={level}
           aria-expanded={hasChildren ? expanded : undefined}
@@ -188,7 +191,7 @@ export function Tree({
           <span className={styles['item-label']}>{node.label}</span>
         </div>
         {expanded && hasChildren && (
-          <div role="group" aria-labelledby={node.id}>
+          <div role="group" aria-labelledby={`${uid}-${node.id}`}>
             {node.children!.map((child) => renderNode(child, level + 1))}
           </div>
         )}
