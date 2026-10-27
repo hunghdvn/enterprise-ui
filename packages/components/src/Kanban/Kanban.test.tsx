@@ -31,13 +31,12 @@ test('renders columns and cards', () => {
   expect(screen.getByText('Done')).toBeInTheDocument();
   expect(screen.getByText('Task one')).toBeInTheDocument();
   expect(screen.getByText('Task three')).toBeInTheDocument();
-  expect(screen.getAllByText('2')).toHaveLength(1); // todo count
 });
 
 test('column count badge shows number of cards', () => {
   render(<Kanban columns={columns} />);
-  const counts = screen.getAllByText(/^\d+$/);
-  expect(counts.length).toBeGreaterThanOrEqual(2);
+  expect(screen.getByText('To do').parentElement).toHaveTextContent('2');
+  expect(screen.getByText('Done').parentElement).toHaveTextContent('1');
 });
 
 test('onCardClick fires with the card', () => {
@@ -47,6 +46,14 @@ test('onCardClick fires with the card', () => {
   expect(onCardClick).toHaveBeenCalledWith(
     expect.objectContaining({ id: 'c1', title: 'Task one' }),
   );
+});
+
+test('Enter on a card fires onCardClick', () => {
+  const onCardClick = vi.fn();
+  render(<Kanban columns={columns} onCardClick={onCardClick} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  fireEvent.keyDown(card, { key: 'Enter' });
+  expect(onCardClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }));
 });
 
 test('onAddCard fires with column id', () => {
@@ -62,25 +69,64 @@ test('empty column renders drop zone', () => {
   expect(screen.getByText(/Kéo thả thẻ/i)).toBeInTheDocument();
 });
 
-test('dragging a card calls onMove', () => {
+test('dragging a card onto another card calls onMove once', () => {
+  const onMove = vi.fn();
+  render(<Kanban columns={columns} onMove={onMove} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const targetCard = screen.getByText('Task three').closest('article') as HTMLElement;
+  fireEvent.dragStart(card);
+  fireEvent.dragOver(targetCard);
+  fireEvent.drop(targetCard);
+  expect(onMove).toHaveBeenCalledTimes(1);
+  expect(onMove).toHaveBeenCalledWith('c1', 'todo', 'done', 0);
+});
+
+test('dragging a card onto column body appends', () => {
   const onMove = vi.fn();
   render(<Kanban columns={columns} onMove={onMove} />);
   const card = screen.getByText('Task one').closest('article') as HTMLElement;
   const targetCol = screen.getByText('Done').closest('section') as HTMLElement;
-  const body = targetCol.querySelector('[class*="column-body"], .column-body') as HTMLElement;
-  // jsdom: fire dragStart on card, then dragOver + drop on target body
+  const body = targetCol.querySelector('.column-body, [class*="column-body"]') as HTMLElement;
   fireEvent.dragStart(card);
   fireEvent.dragOver(body);
   fireEvent.drop(body);
   expect(onMove).toHaveBeenCalledWith('c1', 'todo', 'done', 1);
 });
 
-test('move buttons move card between columns', () => {
+test('move buttons: right moves to next column', () => {
   const onMove = vi.fn();
   render(<Kanban columns={columns} onMove={onMove} />);
-  // Task one is in todo (first column); move right
   const card = screen.getByText('Task one').closest('article') as HTMLElement;
   const moveRight = card.querySelector('[aria-label="Chuyển sang cột sau"]') as HTMLElement;
   fireEvent.click(moveRight);
   expect(onMove).toHaveBeenCalledWith('c1', 'todo', 'done', 0);
+});
+
+test('move-left disabled in first column', () => {
+  render(<Kanban columns={columns} onMove={() => {}} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const moveLeft = card.querySelector('[aria-label="Chuyển sang cột trước"]') as HTMLButtonElement;
+  expect(moveLeft).toBeDisabled();
+});
+
+test('move-right disabled in last column', () => {
+  render(<Kanban columns={columns} onMove={() => {}} />);
+  const card = screen.getByText('Task three').closest('article') as HTMLElement;
+  const moveRight = card.querySelector('[aria-label="Chuyển sang cột sau"]') as HTMLButtonElement;
+  expect(moveRight).toBeDisabled();
+});
+
+test('move up/down within column', () => {
+  const onMove = vi.fn();
+  render(<Kanban columns={columns} onMove={onMove} />);
+  const card = screen.getByText('Task two').closest('article') as HTMLElement;
+  const moveUp = card.querySelector('[aria-label="Di chuyển lên"]') as HTMLElement;
+  fireEvent.click(moveUp);
+  expect(onMove).toHaveBeenCalledWith('c2', 'todo', 'todo', 0);
+});
+
+test('column color applies border', () => {
+  render(<Kanban columns={[{ id: 'x', title: 'X', cards: [], color: 'red' }]} />);
+  const col = screen.getByText('X').closest('section') as HTMLElement;
+  expect(col.style.borderLeft).toContain('red');
 });

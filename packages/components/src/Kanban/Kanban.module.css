@@ -1,7 +1,3 @@
-.board[data-size='sm'] {
-  gap: 12px;
-}
-
 .board[data-size='md'] {
   gap: 16px;
 }
@@ -12,6 +8,19 @@
   overflow-x: auto;
   padding: 4px;
   font-family: var(--font, inherit);
+}
+
+@media (max-width: 768px) {
+  .board {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .column {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: none;
+  }
 }
 
 .column {
@@ -75,7 +84,7 @@
 }
 
 .drop-active {
-  background: var(--color-blue-50);
+  background: var(--row-hover-bg);
 }
 
 .card {
@@ -143,7 +152,7 @@
 }
 
 .priority-medium {
-  color: var(--color-blue-600);
+  color: var(--action-text);
 }
 
 .priority-high {
@@ -190,12 +199,26 @@
   display: flex;
   gap: 2px;
   opacity: 0;
-  transition: opacity 0.12s;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s,
+    visibility 0.12s;
 }
 
 .card:hover .card-actions,
 .card:focus-within .card-actions {
   opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .card-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
 }
 
 .move-btn {

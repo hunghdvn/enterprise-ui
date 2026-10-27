@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import type { KanbanCard, KanbanProps } from './types';
 import styles from './Kanban.module.css';
@@ -19,42 +19,48 @@ export function Kanban({
 }: KanbanProps) {
   const [dragging, setDragging] = useState<{ cardId: string; fromColumnId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ columnId: string; index: number } | null>(null);
-  const dragCardRef = useRef<KanbanCard | null>(null);
+  const pendingFocusRef = useRef<string | null>(null);
+  const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  const handleDragStart = useCallback((card: KanbanCard, columnId: string) => {
+  useEffect(() => {
+    const id = pendingFocusRef.current;
+    if (!id) return;
+    const el = cardRefs.current.get(id);
+    if (el) {
+      el.focus();
+      pendingFocusRef.current = null;
+    }
+  }, [columns]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, card: KanbanCard, columnId: string) => {
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', card.id);
+      e.dataTransfer.effectAllowed = 'move';
+    }
     setDragging({ cardId: card.id, fromColumnId: columnId });
-    dragCardRef.current = card;
   }, []);
 
   const handleDragEnd = useCallback(() => {
     setDragging(null);
     setDropTarget(null);
-    dragCardRef.current = null;
   }, []);
-
-  const handleDragOverColumn = useCallback(
-    (e: React.DragEvent, columnId: string, index: number) => {
-      e.preventDefault();
-      if (!dragging) return;
-      setDropTarget({ columnId, index });
-    },
-    [dragging],
-  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent, columnId: string, index: number) => {
       e.preventDefault();
+      e.stopPropagation();
       if (!dragging) return;
       const { cardId, fromColumnId } = dragging;
       if (fromColumnId === columnId) {
-        // reorder within same column only if index changed
         const col = columns.find((c) => c.id === columnId);
         const oldIndex = col?.cards.findIndex((c) => c.id === cardId) ?? -1;
         if (oldIndex !== -1 && oldIndex !== index) {
           onMove?.(cardId, fromColumnId, columnId, index);
+          pendingFocusRef.current = cardId;
         }
       } else {
         onMove?.(cardId, fromColumnId, columnId, index);
+        pendingFocusRef.current = cardId;
       }
       handleDragEnd();
     },
@@ -64,14 +70,20 @@ export function Kanban({
   const moveCard = useCallback(
     (card: KanbanCard, fromColumnId: string, toColumnId: string, toIndex: number) => {
       onMove?.(card.id, fromColumnId, toColumnId, toIndex);
+      pendingFocusRef.current = card.id;
     },
     [onMove],
   );
 
   return (
     <div className={className ? `${styles.board} ${className}` : styles.board} data-size={size}>
-      {columns.map((column) => (
-        <section key={column.id} className={styles.column} aria-label={column.title}>
+      {columns.map((column, colIndex) => (
+        <section
+          key={column.id}
+          className={styles.column}
+          aria-label={column.title}
+          style={column.color ? { borderLeft: `3px solid ${column.color}` } : undefined}
+        >
           <header className={styles['column-header']}>
             <span className={styles['column-title']}>{column.title}</span>
             <span className={styles['column-count']}>{column.cards.length}</span>
@@ -101,19 +113,35 @@ export function Kanban({
             {column.cards.map((card, index) => (
               <article
                 key={card.id}
+                ref={(el) => {
+                  if (el) cardRefs.current.set(card.id, el);
+                  else cardRefs.current.delete(card.id);
+                }}
+                data-card-id={card.id}
                 className={
                   dragging?.cardId === card.id
                     ? `${styles.card} ${styles['card-dragging']}`
                     : styles.card
                 }
                 draggable
-                onDragStart={() => handleDragStart(card, column.id)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOverColumn(e, column.id, index)}
-                onDrop={(e) => handleDrop(e, column.id, index)}
-                onClick={() => onCardClick?.(card)}
+                role="button"
                 tabIndex={0}
                 aria-label={card.title}
+                onDragStart={(e) => handleDragStart(e, card, column.id)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragging) setDropTarget({ columnId: column.id, index });
+                }}
+                onDrop={(e) => handleDrop(e, column.id, index)}
+                onClick={() => onCardClick?.(card)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onCardClick?.(card);
+                  }
+                }}
               >
                 {card.tags && card.tags.length > 0 && (
                   <div className={styles['card-tags']}>
@@ -153,10 +181,10 @@ export function Kanban({
                         type="button"
                         className={styles['move-btn']}
                         aria-label="Chuyển sang cột trước"
+                        disabled={colIndex === 0}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const idx = columns.findIndex((c) => c.id === column.id);
-                          if (idx > 0) moveCard(card, column.id, columns[idx - 1].id, 0);
+                          if (colIndex > 0) moveCard(card, column.id, columns[colIndex - 1].id, 0);
                         }}
                       >
                         <Icon name="chevron-left" size={12} />
@@ -165,11 +193,11 @@ export function Kanban({
                         type="button"
                         className={styles['move-btn']}
                         aria-label="Chuyển sang cột sau"
+                        disabled={colIndex === columns.length - 1}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const idx = columns.findIndex((c) => c.id === column.id);
-                          if (idx < columns.length - 1)
-                            moveCard(card, column.id, columns[idx + 1].id, 0);
+                          if (colIndex < columns.length - 1)
+                            moveCard(card, column.id, columns[colIndex + 1].id, 0);
                         }}
                       >
                         <Icon name="chevron-right" size={12} />

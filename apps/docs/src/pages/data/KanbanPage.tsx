@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Kanban } from '@enterprise-ui/components';
+import type { KanbanColumn } from '@enterprise-ui/components';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
 import type { PropDoc } from '../../components/PropsTable';
-const columns = [
+
+const initial: KanbanColumn[] = [
   {
     id: 'todo',
     title: 'To do',
@@ -12,7 +15,7 @@ const columns = [
         id: 'c1',
         title: 'Thiết kế Kanban',
         tags: ['ui'],
-        priority: 'high' as const,
+        priority: 'high',
         assignee: { name: 'An' },
       },
       { id: 'c2', title: 'Viết test', tags: ['qa'] },
@@ -35,7 +38,7 @@ const props: PropDoc[] = [
   {
     name: 'onMove',
     type: '(cardId, fromColumnId, toColumnId, toIndex) => void',
-    description: 'Báo khi thẻ được kéo sang cột/khác vị trí.',
+    description: 'Báo khi thẻ được kéo sang cột/vị trí khác.',
   },
   { name: 'onCardClick', type: '(card) => void', description: 'Báo khi bấm vào thẻ.' },
   {
@@ -43,7 +46,12 @@ const props: PropDoc[] = [
     type: '(columnId) => void',
     description: 'Hiện nút "+" trên header cột và báo khi bấm.',
   },
-  { name: 'size', type: "'sm' | 'md'", default: "'sm'", description: 'Kích thước thẻ.' },
+  {
+    name: 'size',
+    type: "'sm' | 'md'",
+    default: "'sm'",
+    description: 'Khoảng cách cột (gap) — sm 12px, md 16px.',
+  },
   { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ.' },
 ];
 
@@ -64,9 +72,12 @@ export function Board() {
       onMove={(cardId, from, to, toIndex) => {
         setCols((prev) => {
           const next = prev.map((c) => ({ ...c, cards: [...c.cards] }));
-          const fromCol = next.find((c) => c.id === from)!;
-          const toCol = next.find((c) => c.id === to)!;
-          const card = fromCol.cards.splice(fromCol.cards.findIndex((c) => c.id === cardId), 1)[0];
+          const fromCol = next.find((c) => c.id === from);
+          const toCol = next.find((c) => c.id === to);
+          if (!fromCol || !toCol) return prev;
+          const idx = fromCol.cards.findIndex((c) => c.id === cardId);
+          if (idx === -1) return prev;
+          const [card] = fromCol.cards.splice(idx, 1);
           toCol.cards.splice(toIndex, 0, card);
           return next;
         });
@@ -76,12 +87,41 @@ export function Board() {
 }`;
 
 export default function KanbanPage() {
+  const [cols, setCols] = useState(initial);
   return (
     <div>
       <h1>Kanban</h1>
       <p>Bảng Kanban với kéo-thả native, presentational-only.</p>
       <DemoPlayground>
-        <Kanban columns={columns} />
+        <Kanban
+          columns={cols}
+          onMove={(cardId, from, to, toIndex) => {
+            setCols((prev) => {
+              const next = prev.map((c) => ({ ...c, cards: [...c.cards] }));
+              const fromCol = next.find((c) => c.id === from);
+              const toCol = next.find((c) => c.id === to);
+              if (!fromCol || !toCol) return prev;
+              const idx = fromCol.cards.findIndex((c) => c.id === cardId);
+              if (idx === -1) return prev;
+              const [card] = fromCol.cards.splice(idx, 1);
+              toCol.cards.splice(toIndex, 0, card);
+              return next;
+            });
+          }}
+          onCardClick={(card) => {
+            // eslint-disable-next-line no-console
+            console.log('card', card.id);
+          }}
+          onAddCard={(colId) => {
+            setCols((prev) =>
+              prev.map((c) =>
+                c.id === colId
+                  ? { ...c, cards: [...c.cards, { id: `new-${Date.now()}`, title: 'Thẻ mới' }] }
+                  : c,
+              ),
+            );
+          }}
+        />
       </DemoPlayground>
       <h2>Code</h2>
       <CodeBlock code={code} />
