@@ -25,8 +25,11 @@ export function Kanban({
   useEffect(() => {
     const id = pendingFocusRef.current;
     if (id) {
-      const el = cardRefs.current.get(id);
-      if (el) el.focus();
+      const present = columns.some((c) => c.cards.some((card) => card.id === id));
+      if (present) {
+        const el = cardRefs.current.get(id);
+        if (el) el.focus();
+      }
     }
     pendingFocusRef.current = null;
   }, [columns]);
@@ -128,11 +131,13 @@ export function Kanban({
                 onDragEnd={handleDragEnd}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
-                  if (dragging) setDropTarget({ columnId: column.id, index });
+                  if (dragging) {
+                    e.stopPropagation();
+                    setDropTarget({ columnId: column.id, index });
+                  }
                 }}
                 onDrop={(e) => {
-                  e.stopPropagation();
+                  if (dragging) e.stopPropagation();
                   handleDrop(e, column.id, index);
                 }}
                 onClick={() => onCardClick?.(card)}

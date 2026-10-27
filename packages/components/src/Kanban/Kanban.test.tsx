@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { Kanban } from './Kanban';
 import type { KanbanColumn } from './types';
 
@@ -167,4 +168,32 @@ test('Enter on move button moves and does not trigger card click', () => {
   fireEvent.click(moveRight);
   expect(onMove).toHaveBeenCalled();
   expect(onCardClick).not.toHaveBeenCalled();
+});
+
+test('focus restores to moved card after controlled update', () => {
+  function Harness() {
+    const [cols, setCols] = useState(columns);
+    return (
+      <Kanban
+        columns={cols}
+        onMove={(cardId, from, to, toIndex) => {
+          setCols((prev) => {
+            const next = prev.map((c) => ({ ...c, cards: [...c.cards] }));
+            const fromCol = next.find((c) => c.id === from)!;
+            const toCol = next.find((c) => c.id === to)!;
+            const idx = fromCol.cards.findIndex((c) => c.id === cardId);
+            const [card] = fromCol.cards.splice(idx, 1);
+            toCol.cards.splice(toIndex, 0, card);
+            return next;
+          });
+        }}
+      />
+    );
+  }
+  render(<Harness />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const moveRight = card.querySelector('[aria-label="Chuyển sang cột sau"]') as HTMLElement;
+  fireEvent.click(moveRight);
+  const moved = screen.getByText('Task one').closest('article') as HTMLElement;
+  expect(document.activeElement).toBe(moved);
 });
