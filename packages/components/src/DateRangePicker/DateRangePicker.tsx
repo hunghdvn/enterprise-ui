@@ -33,7 +33,6 @@ function daysInMonth(year: number, month: number): number {
 }
 
 function firstDayOffset(year: number, month: number): number {
-  // Monday-first: 0=Mon .. 6=Sun
   const dow = new Date(year, month, 1).getDay();
   return (dow + 6) % 7;
 }
@@ -45,19 +44,22 @@ function formatRange(value: DateRange, placeholder: string): string {
   return `${f} → ${t}`;
 }
 
-// Computed on demand in the click handler (event, not render) so the
-// `new Date()` reads do not trip the react-hooks/purity rule. Kept at
-// module scope so the lint rule does not see impure calls in the component.
 function presetRange(label: string): DateRange {
   const now = new Date();
   const today = startOfDay(now);
   switch (label) {
     case 'Hôm nay':
       return { from: today, to: today };
-    case '7 ngày qua':
-      return { from: startOfDay(new Date(Date.now() - 6 * 86400000)), to: today };
-    case '30 ngày qua':
-      return { from: startOfDay(new Date(Date.now() - 29 * 86400000)), to: today };
+    case '7 ngày qua': {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 6);
+      return { from: startOfDay(d), to: today };
+    }
+    case '30 ngày qua': {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 29);
+      return { from: startOfDay(d), to: today };
+    }
     case 'Tháng này':
       return {
         from: startOfDay(new Date(now.getFullYear(), now.getMonth(), 1)),
@@ -67,6 +69,8 @@ function presetRange(label: string): DateRange {
       return { from: null, to: null };
   }
 }
+
+type Cell = { date: Date; out: boolean };
 
 export function DateRangePicker({
   value,
@@ -79,8 +83,11 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const uid = useId();
   const dialogId = `date-range-${uid.replace(/:/g, '')}`;
+  const monthLabelId = `date-range-month-${uid.replace(/:/g, '')}`;
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const mouseInsideRoot = useRef(false);
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => (value.from ? new Date(value.from) : new Date()));
@@ -92,6 +99,7 @@ export function DateRangePicker({
   const to = value.to ? startOfDay(value.to) : null;
 
   const openAt = () => {
+    if (disabled) return;
     setOpen(true);
     setView(value.from ? new Date(value.from) : new Date());
     const cr = triggerRef.current?.getBoundingClientRect();
@@ -99,34 +107,54 @@ export function DateRangePicker({
       const height = 260 + EST_CHROME;
       const spaceBelow = (window.innerHeight || 0) - cr.bottom - GAP_PX;
       const top = spaceBelow >= height ? cr.bottom + GAP_PX : Math.max(0, cr.top - height - GAP_PX);
-      setPosition({ top, left: cr.left, width: Math.max(cr.width, 280) });
+      const width = Math.max(cr.width, 280);
+      const left = Math.max(8, Math.min(cr.left, (window.innerWidth || 0) - width - 8));
+      setPosition({ top, left, width });
     } else {
       setPosition(null);
     }
   };
 
-  const close = () => {
+  const close = (focusTrigger = false) => {
     setOpen(false);
     setPosition(null);
+    if (focusTrigger) triggerRef.current?.focus();
   };
 
-  // Click-away, scroll and focus-boundary dismissal (Combobox/SavedViews).
+  // Focus the panel on open (light focus trap).
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+
+  // Click-away, scroll and focus-boundary dismissal.
   useEffect(() => {
     if (!open) return;
     const root = wrapRef.current;
     const onDocMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
-      if (e.target instanceof Node && root && !root.contains(e.target)) close();
+      if (e.target instanceof Node && root && root.contains(e.target)) {
+        mouseInsideRoot.current = true;
+      } else {
+        mouseInsideRoot.current = false;
+        if (e.target instanceof Node && root && !root.contains(e.target)) close(false);
+      }
+    };
+    const onMouseUp = () => {
+      // reset after the interaction completes
+      setTimeout(() => {
+        mouseInsideRoot.current = false;
+      }, 0);
     };
     const onScroll = (e: Event) => {
       const target = e.target;
       if (target instanceof Node && root?.contains(target)) return;
-      close();
+      close(false);
     };
     const onFocusOut = (e: FocusEvent) => {
       const related = e.relatedTarget as Node | null;
       if (related && root?.contains(related)) return;
-      close();
+      if (!related && mouseInsideRoot.current) return;
+      close(false);
     };
     const onResize = () => {
       const cr = triggerRef.current?.getBoundingClientRect();
@@ -135,15 +163,19 @@ export function DateRangePicker({
         const spaceBelow = (window.innerHeight || 0) - cr.bottom - GAP_PX;
         const top =
           spaceBelow >= height ? cr.bottom + GAP_PX : Math.max(0, cr.top - height - GAP_PX);
-        setPosition({ top, left: cr.left, width: Math.max(cr.width, 280) });
+        const width = Math.max(cr.width, 280);
+        const left = Math.max(8, Math.min(cr.left, (window.innerWidth || 0) - width - 8));
+        setPosition({ top, left, width });
       }
     };
     document.addEventListener('mousedown', onDocMouseDown, true);
+    document.addEventListener('mouseup', onMouseUp, true);
     window.addEventListener('scroll', onScroll, true);
     document.addEventListener('focusout', onFocusOut, true);
     window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('mousedown', onDocMouseDown, true);
+      document.removeEventListener('mouseup', onMouseUp, true);
       window.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('focusout', onFocusOut, true);
       window.removeEventListener('resize', onResize);
@@ -151,12 +183,11 @@ export function DateRangePicker({
   }, [open]);
 
   const pickDay = (d: Date) => {
+    if (disabled) return;
     const day = startOfDay(d);
     if (!from || (from && to)) {
-      // Start a new range.
       onChange({ from: day, to: null });
     } else if (day.getTime() < from.getTime()) {
-      // Clicked before the start → swap so from <= to.
       onChange({ from: day, to: from });
     } else {
       onChange({ from, to: day });
@@ -167,13 +198,43 @@ export function DateRangePicker({
   const month = view.getMonth();
   const offset = firstDayOffset(year, month);
   const totalDays = daysInMonth(year, month);
-  const cells: (Date | null)[] = [];
-  for (let i = 0; i < offset; i++) cells.push(null);
-  for (let d = 1; d <= totalDays; d++) cells.push(new Date(year, month, d));
-  // pad to complete the last week
-  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Build cells including adjacent-month pads (spec D4).
+  const cells: Cell[] = [];
+  for (let i = 0; i < offset; i++) {
+    cells.push({ date: new Date(year, month, 1 - offset + i), out: true });
+  }
+  for (let d = 1; d <= totalDays; d++) {
+    cells.push({ date: new Date(year, month, d), out: false });
+  }
+  const next = new Date(year, month, totalDays + 1);
+  while (cells.length % 7 !== 0) {
+    cells.push({ date: new Date(next), out: true });
+    next.setDate(next.getDate() + 1);
+  }
 
   const triggerLabel = formatRange(value, placeholder);
+  const popoverOpen = open && !disabled && !!position;
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (open) close(false);
+      else openAt();
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      close(true);
+    }
+  };
+
+  const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close(true);
+    }
+  };
 
   return (
     <div
@@ -186,94 +247,103 @@ export function DateRangePicker({
         type="button"
         className={styles.trigger}
         data-size={size}
-        aria-label={ariaLabel ?? 'Chọn khoảng ngày'}
+        aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}
         disabled={disabled}
-        onClick={() => (open ? close() : openAt())}
+        onClick={() => (open ? close(false) : openAt())}
+        onKeyDown={handleTriggerKeyDown}
       >
-        <span className={styles.triggerIcon} aria-hidden="true">
+        <span className={styles['trigger-icon']} aria-hidden="true">
           <Icon name="calendar" size={14} />
         </span>
-        <span className={styles.triggerLabel}>{triggerLabel}</span>
+        <span className={styles['trigger-label']}>{triggerLabel}</span>
         <span className={styles.chevron} aria-hidden="true">
           <Icon name="chevron-down" size={14} />
         </span>
       </button>
 
-      {open && position && (
+      {popoverOpen && position && (
         <div
+          ref={panelRef}
           id={dialogId}
           role="dialog"
           aria-label={ariaLabel ?? 'Chọn khoảng ngày'}
+          aria-labelledby={monthLabelId}
           className={styles.panel}
+          tabIndex={-1}
           style={{
             position: 'fixed',
             top: position.top,
             left: position.left,
             width: position.width,
           }}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              close();
-            }
-          }}
+          onKeyDown={handlePanelKeyDown}
         >
-          <div className={styles.panelHeader}>
+          <div className={styles['panel-header']}>
             <button
               type="button"
-              className={styles.navBtn}
+              className={styles['nav-btn']}
               onClick={() => setView(new Date(year, month - 1, 1))}
               aria-label="Tháng trước"
             >
               <Icon name="chevron-left" size={14} />
             </button>
-            <span className={styles.monthLabel}>
+            <span id={monthLabelId} className={styles['month-label']} aria-live="polite">
               {view.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
             </span>
             <button
               type="button"
-              className={styles.navBtn}
+              className={styles['nav-btn']}
               onClick={() => setView(new Date(year, month + 1, 1))}
               aria-label="Tháng sau"
             >
               <Icon name="chevron-right" size={14} />
             </button>
           </div>
-          <div className={styles.weekdays}>
+          <div className={styles.weekdays} role="row">
             {WEEKDAYS.map((w) => (
-              <span key={w} className={styles.weekday}>
+              <span key={w} className={styles.weekday} role="columnheader">
                 {w}
               </span>
             ))}
           </div>
-          <div className={styles.grid} role="grid">
-            {cells.map((d, i) => {
-              if (!d) return <span key={`blank-${i}`} className={styles.blank} />;
-              const isStart = sameDay(d, from);
-              const isEnd = sameDay(d, to);
-              const inside = inRange(d, from, to);
-              return (
-                <button
-                  key={d.getTime()}
-                  type="button"
-                  role="gridcell"
-                  aria-selected={isStart || isEnd}
-                  className={[
-                    styles.day,
-                    isStart ? styles['day-start'] : '',
-                    isEnd ? styles['day-end'] : '',
-                    inside && !isStart && !isEnd ? styles['day-in'] : '',
-                  ].join(' ')}
-                  onClick={() => pickDay(d)}
-                >
-                  {d.getDate()}
-                </button>
-              );
-            })}
+          <div className={styles.grid} role="grid" aria-labelledby={monthLabelId}>
+            {(() => {
+              const rows: Cell[][] = [];
+              for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+              return rows.map((row, ri) => (
+                <div key={ri} role="row" className={styles.row} style={{ display: 'contents' }}>
+                  {row.map((cell) => {
+                    const d = cell.date;
+                    const isStart = sameDay(d, from);
+                    const isEnd = sameDay(d, to);
+                    const inside = inRange(d, from, to);
+                    return (
+                      <button
+                        key={d.getTime()}
+                        type="button"
+                        role="gridcell"
+                        aria-selected={isStart || isEnd}
+                        className={[
+                          styles.day,
+                          cell.out ? styles['day-out'] : '',
+                          isStart ? styles['day-start'] : '',
+                          isEnd ? styles['day-end'] : '',
+                          inside && !isStart && !isEnd ? styles['day-in'] : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => pickDay(d)}
+                      >
+                        {d.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
           </div>
           <div className={styles.presets}>
             {['Hôm nay', '7 ngày qua', '30 ngày qua', 'Tháng này'].map((label) => (
@@ -282,8 +352,9 @@ export function DateRangePicker({
                 type="button"
                 className={styles.preset}
                 onClick={() => {
+                  if (disabled) return;
                   onChange(presetRange(label));
-                  close();
+                  close(true);
                 }}
               >
                 {label}

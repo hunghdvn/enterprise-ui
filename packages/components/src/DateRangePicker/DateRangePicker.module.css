@@ -135,8 +135,13 @@
   transition: background 0.12s;
 }
 
-.day:hover {
+.day:hover:not(.day-start):not(.day-end) {
   background: var(--surface-muted);
+}
+
+.day-out {
+  color: var(--text-muted);
+  opacity: 0.45;
 }
 
 .day-start,
