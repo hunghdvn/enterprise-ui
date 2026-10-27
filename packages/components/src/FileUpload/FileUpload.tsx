@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import type { FileUploadProps, UploadedFile } from './types';
 import styles from './FileUpload.module.css';
@@ -23,7 +23,7 @@ export function FileUpload({
   className,
   'aria-label': ariaLabel,
 }: FileUploadProps) {
-  const files: UploadedFile[] = filesProp ?? [];
+  const files: UploadedFile[] = useMemo(() => filesProp ?? [], [filesProp]);
   const label = dragLabel || DEFAULT_LABEL;
   const uid = useId();
   const inputId = `file-upload-${uid.replace(/:/g, '')}`;

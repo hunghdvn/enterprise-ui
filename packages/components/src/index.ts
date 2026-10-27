@@ -12,6 +12,8 @@ export { Select } from './Select/Select';
 export type { SelectProps } from './Select/Select';
 export { Combobox } from './Combobox/Combobox';
 export type { ComboboxProps, ComboboxOption } from './Combobox/types';
+export { DateRangePicker } from './DateRangePicker/DateRangePicker';
+export type { DateRangePickerProps, DateRange } from './DateRangePicker/types';
 export { Checkbox } from './Checkbox/Checkbox';
 export type { CheckboxProps } from './Checkbox/Checkbox';
 export { AppShell } from './AppShell/AppShell';
