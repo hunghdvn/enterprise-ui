@@ -49,7 +49,7 @@ function presetRange(label: string): DateRange {
   const today = startOfDay(now);
   switch (label) {
     case 'Hôm nay':
-      return { from: today, to: today };
+      return { from: today, to: new Date(today) };
     case '7 ngày qua': {
       const d = new Date(today);
       d.setDate(d.getDate() - 6);
@@ -270,7 +270,6 @@ export function DateRangePicker({
           id={dialogId}
           role="dialog"
           aria-label={ariaLabel ?? 'Chọn khoảng ngày'}
-          aria-labelledby={monthLabelId}
           className={styles.panel}
           tabIndex={-1}
           style={{
