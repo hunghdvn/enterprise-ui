@@ -19,19 +19,22 @@ export function Kanban({
 }: KanbanProps) {
   const [dragging, setDragging] = useState<{ cardId: string; fromColumnId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ columnId: string; index: number } | null>(null);
-  const pendingFocusRef = useRef<string | null>(null);
+  const pendingFocusRef = useRef<{ cardId: string; toColumnId: string; toIndex: number } | null>(
+    null,
+  );
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   useEffect(() => {
-    const id = pendingFocusRef.current;
-    if (id) {
-      const present = columns.some((c) => c.cards.some((card) => card.id === id));
-      if (present) {
-        const el = cardRefs.current.get(id);
+    const pending = pendingFocusRef.current;
+    if (pending) {
+      const targetCol = columns.find((c) => c.id === pending.toColumnId);
+      const atTarget = targetCol?.cards[pending.toIndex]?.id === pending.cardId;
+      if (atTarget) {
+        const el = cardRefs.current.get(pending.cardId);
         if (el) el.focus();
+        pendingFocusRef.current = null;
       }
     }
-    pendingFocusRef.current = null;
   }, [columns]);
 
   const handleDragStart = useCallback((e: React.DragEvent, card: KanbanCard, columnId: string) => {
@@ -58,19 +61,13 @@ export function Kanban({
         if (oldIndex !== -1 && oldIndex !== index) {
           onMove?.(cardId, fromColumnId, columnId, index);
           if (onMove) {
-            pendingFocusRef.current = cardId;
-            window.setTimeout(() => {
-              pendingFocusRef.current = null;
-            }, 0);
+            pendingFocusRef.current = { cardId, toColumnId: columnId, toIndex: index };
           }
         }
       } else {
         onMove?.(cardId, fromColumnId, columnId, index);
         if (onMove) {
-          pendingFocusRef.current = cardId;
-          window.setTimeout(() => {
-            pendingFocusRef.current = null;
-          }, 0);
+          pendingFocusRef.current = { cardId, toColumnId: columnId, toIndex: index };
         }
       }
       handleDragEnd();
@@ -82,10 +79,7 @@ export function Kanban({
     (card: KanbanCard, fromColumnId: string, toColumnId: string, toIndex: number) => {
       onMove?.(card.id, fromColumnId, toColumnId, toIndex);
       if (onMove) {
-        pendingFocusRef.current = card.id;
-        window.setTimeout(() => {
-          pendingFocusRef.current = null;
-        }, 0);
+        pendingFocusRef.current = { cardId: card.id, toColumnId, toIndex };
       }
     },
     [onMove],
