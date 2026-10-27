@@ -57,11 +57,21 @@ export function Kanban({
         const oldIndex = col?.cards.findIndex((c) => c.id === cardId) ?? -1;
         if (oldIndex !== -1 && oldIndex !== index) {
           onMove?.(cardId, fromColumnId, columnId, index);
-          if (onMove) pendingFocusRef.current = cardId;
+          if (onMove) {
+            pendingFocusRef.current = cardId;
+            window.setTimeout(() => {
+              pendingFocusRef.current = null;
+            }, 0);
+          }
         }
       } else {
         onMove?.(cardId, fromColumnId, columnId, index);
-        if (onMove) pendingFocusRef.current = cardId;
+        if (onMove) {
+          pendingFocusRef.current = cardId;
+          window.setTimeout(() => {
+            pendingFocusRef.current = null;
+          }, 0);
+        }
       }
       handleDragEnd();
     },
@@ -71,7 +81,12 @@ export function Kanban({
   const moveCard = useCallback(
     (card: KanbanCard, fromColumnId: string, toColumnId: string, toIndex: number) => {
       onMove?.(card.id, fromColumnId, toColumnId, toIndex);
-      if (onMove) pendingFocusRef.current = card.id;
+      if (onMove) {
+        pendingFocusRef.current = card.id;
+        window.setTimeout(() => {
+          pendingFocusRef.current = null;
+        }, 0);
+      }
     },
     [onMove],
   );

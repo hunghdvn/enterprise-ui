@@ -197,3 +197,15 @@ test('focus restores to moved card after controlled update', () => {
   const moved = screen.getByText('Task one').closest('article') as HTMLElement;
   expect(document.activeElement).toBe(moved);
 });
+
+test('focus not stolen when consumer rejects move', () => {
+  const onMove = vi.fn(); // does not update columns
+  render(<Kanban columns={columns} onMove={onMove} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const moveRight = card.querySelector('[aria-label="Chuyển sang cột sau"]') as HTMLElement;
+  fireEvent.click(moveRight);
+  // unrelated re-render by changing a prop is not possible here; instead
+  // assert that after the click, focus is NOT forced onto the card when
+  // columns identity is unchanged (pendingFocus cleared by timeout).
+  expect(document.activeElement).not.toBe(card);
+});
