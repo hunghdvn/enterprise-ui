@@ -109,7 +109,6 @@ export default function KanbanPage() {
             });
           }}
           onCardClick={(card) => {
-            // eslint-disable-next-line no-console
             console.log('card', card.id);
           }}
           onAddCard={(colId) => {

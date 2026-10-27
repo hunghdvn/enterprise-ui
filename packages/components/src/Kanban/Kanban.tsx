@@ -24,12 +24,11 @@ export function Kanban({
 
   useEffect(() => {
     const id = pendingFocusRef.current;
-    if (!id) return;
-    const el = cardRefs.current.get(id);
-    if (el) {
-      el.focus();
-      pendingFocusRef.current = null;
+    if (id) {
+      const el = cardRefs.current.get(id);
+      if (el) el.focus();
     }
+    pendingFocusRef.current = null;
   }, [columns]);
 
   const handleDragStart = useCallback((e: React.DragEvent, card: KanbanCard, columnId: string) => {
@@ -48,7 +47,6 @@ export function Kanban({
   const handleDrop = useCallback(
     (e: React.DragEvent, columnId: string, index: number) => {
       e.preventDefault();
-      e.stopPropagation();
       if (!dragging) return;
       const { cardId, fromColumnId } = dragging;
       if (fromColumnId === columnId) {
@@ -56,11 +54,11 @@ export function Kanban({
         const oldIndex = col?.cards.findIndex((c) => c.id === cardId) ?? -1;
         if (oldIndex !== -1 && oldIndex !== index) {
           onMove?.(cardId, fromColumnId, columnId, index);
-          pendingFocusRef.current = cardId;
+          if (onMove) pendingFocusRef.current = cardId;
         }
       } else {
         onMove?.(cardId, fromColumnId, columnId, index);
-        pendingFocusRef.current = cardId;
+        if (onMove) pendingFocusRef.current = cardId;
       }
       handleDragEnd();
     },
@@ -70,7 +68,7 @@ export function Kanban({
   const moveCard = useCallback(
     (card: KanbanCard, fromColumnId: string, toColumnId: string, toIndex: number) => {
       onMove?.(card.id, fromColumnId, toColumnId, toIndex);
-      pendingFocusRef.current = card.id;
+      if (onMove) pendingFocusRef.current = card.id;
     },
     [onMove],
   );
@@ -117,14 +115,13 @@ export function Kanban({
                   if (el) cardRefs.current.set(card.id, el);
                   else cardRefs.current.delete(card.id);
                 }}
-                data-card-id={card.id}
                 className={
                   dragging?.cardId === card.id
                     ? `${styles.card} ${styles['card-dragging']}`
                     : styles.card
                 }
                 draggable
-                role="button"
+                role="group"
                 tabIndex={0}
                 aria-label={card.title}
                 onDragStart={(e) => handleDragStart(e, card, column.id)}
@@ -134,9 +131,13 @@ export function Kanban({
                   e.stopPropagation();
                   if (dragging) setDropTarget({ columnId: column.id, index });
                 }}
-                onDrop={(e) => handleDrop(e, column.id, index)}
+                onDrop={(e) => {
+                  e.stopPropagation();
+                  handleDrop(e, column.id, index);
+                }}
                 onClick={() => onCardClick?.(card)}
                 onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     onCardClick?.(card);

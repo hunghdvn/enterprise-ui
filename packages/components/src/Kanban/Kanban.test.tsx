@@ -130,3 +130,41 @@ test('column color applies border', () => {
   const col = screen.getByText('X').closest('section') as HTMLElement;
   expect(col.style.borderLeft).toContain('red');
 });
+
+test('dragstart sets dataTransfer data', () => {
+  render(<Kanban columns={columns} onMove={() => {}} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const dt = { setData: vi.fn(), effectAllowed: '' };
+  fireEvent.dragStart(card, { dataTransfer: dt });
+  expect(dt.setData).toHaveBeenCalledWith('text/plain', 'c1');
+  expect(dt.effectAllowed).toBe('move');
+});
+
+test('Space on a card fires onCardClick', () => {
+  const onCardClick = vi.fn();
+  render(<Kanban columns={columns} onCardClick={onCardClick} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  fireEvent.keyDown(card, { key: ' ' });
+  expect(onCardClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }));
+});
+
+test('move-down within column', () => {
+  const onMove = vi.fn();
+  render(<Kanban columns={columns} onMove={onMove} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const moveDown = card.querySelector('[aria-label="Di chuyển xuống"]') as HTMLElement;
+  fireEvent.click(moveDown);
+  expect(onMove).toHaveBeenCalledWith('c1', 'todo', 'todo', 1);
+});
+
+test('Enter on move button moves and does not trigger card click', () => {
+  const onMove = vi.fn();
+  const onCardClick = vi.fn();
+  render(<Kanban columns={columns} onMove={onMove} onCardClick={onCardClick} />);
+  const card = screen.getByText('Task one').closest('article') as HTMLElement;
+  const moveRight = card.querySelector('[aria-label="Chuyển sang cột sau"]') as HTMLElement;
+  fireEvent.keyDown(moveRight, { key: 'Enter' });
+  fireEvent.click(moveRight);
+  expect(onMove).toHaveBeenCalled();
+  expect(onCardClick).not.toHaveBeenCalled();
+});

@@ -14,19 +14,6 @@
   font-family: var(--font, inherit);
 }
 
-@media (max-width: 768px) {
-  .board {
-    flex-direction: column;
-    overflow-x: visible;
-  }
-
-  .column {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-height: none;
-  }
-}
-
 .column {
   flex: 0 0 280px;
   min-width: 260px;
@@ -247,9 +234,22 @@
 
 .empty-column {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 12px;
   padding: 16px 8px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
+}
+
+@media (max-width: 768px) {
+  .board {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .column {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: none;
+  }
 }
