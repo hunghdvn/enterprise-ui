@@ -133,6 +133,13 @@ export const ICONS: Record<IconName, ReactNode> = {
       <line x1="12" y1="16" x2="12.01" y2="16" />
     </>
   ),
+  'circle-alert': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </>
+  ),
   'alert-triangle': (
     <>
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -141,6 +148,13 @@ export const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   'help-circle': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </>
+  ),
+  'circle-help': (
     <>
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -208,6 +222,14 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
 
   // Navigation & direction
+  ellipsis: (
+    <>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </>
+  ),
+
   'arrow-up': (
     <>
       <path d="m5 12 7-7 7 7" />
@@ -307,15 +329,13 @@ export const ICONS: Record<IconName, ReactNode> = {
   columns: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M9 3v18" />
-      <path d="M15 3v18" />
+      <path d="M12 3v18" />
     </>
   ),
   rows: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M21 9H3" />
-      <path d="M21 15H3" />
+      <path d="M3 12h18" />
     </>
   ),
   'panel-left': (
@@ -479,10 +499,9 @@ export const ICONS: Record<IconName, ReactNode> = {
   // Charts & analytics
   'bar-chart': (
     <>
-      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-      <path d="M18 17V9" />
-      <path d="M13 17V5" />
-      <path d="M8 17v-3" />
+      <path d="M5 21v-6" />
+      <path d="M12 21V9" />
+      <path d="M19 21V3" />
     </>
   ),
   'line-chart': (
@@ -550,13 +569,26 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
     </>
   ),
+  'circle-user': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+    </>
+  ),
   building: (
     <>
-      <path d="M10 12h4" />
-      <path d="M10 8h4" />
-      <path d="M14 21v-3a2 2 0 0 0-4 0v3" />
-      <path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" />
-      <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" />
+      <path d="M12 10h.01" />
+      <path d="M12 14h.01" />
+      <path d="M12 6h.01" />
+      <path d="M16 10h.01" />
+      <path d="M16 14h.01" />
+      <path d="M16 6h.01" />
+      <path d="M8 10h.01" />
+      <path d="M8 14h.01" />
+      <path d="M8 6h.01" />
+      <path d="M9 22v-3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+      <rect x="4" y="2" width="16" height="20" rx="2" />
     </>
   ),
   briefcase: (
@@ -648,11 +680,9 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
   share: (
     <>
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
-      <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
+      <path d="M12 2v13" />
+      <path d="m16 6-4-4-4 4" />
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
     </>
   ),
   megaphone: (
@@ -801,11 +831,7 @@ export const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   volume: (
-    <>
-      <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
-      <path d="M16 9a5 5 0 0 1 0 6" />
-      <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
-    </>
+    <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
   ),
   'volume-x': (
     <>
@@ -996,14 +1022,14 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
   undo: (
     <>
-      <path d="M9 14 4 9l5-5" />
-      <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
     </>
   ),
   redo: (
     <>
-      <path d="m15 14 5-5-5-5" />
-      <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
     </>
   ),
   'sliders-horizontal': (
@@ -1103,14 +1129,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m5 8 3-3 5.5 3-2.36 3.5" />
       <path d="M4.24 14.5a5 5 0 0 0 6.88 6" />
       <path d="M13.76 17.5a5 5 0 0 0-6.88-6" />
-    </>
-  ),
-  'air-vent': (
-    <>
-      <path d="M18 17.5a2.5 2.5 0 1 1-4 2.03V12" />
-      <path d="M6 12H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <path d="M6 8h12" />
-      <path d="M6.6 15.572A2 2 0 1 0 10 17v-5" />
     </>
   ),
   airplay: (
@@ -1677,14 +1695,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m9 15 1.5-1.5" />
     </>
   ),
-  baby: (
-    <>
-      <path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5" />
-      <path d="M15 12h.01" />
-      <path d="M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1" />
-      <path d="M9 12h.01" />
-    </>
-  ),
   badge: (
     <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
   ),
@@ -1809,15 +1819,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
       <line x1="15" x2="9" y1="9" y2="15" />
       <line x1="9" x2="15" y1="9" y2="15" />
-    </>
-  ),
-  'baggage-claim': (
-    <>
-      <path d="M22 18H6a2 2 0 0 1-2-2V7a2 2 0 0 0-2-2" />
-      <path d="M17 14V4a2 2 0 0 0-2-2h-1a2 2 0 0 0-2 2v10" />
-      <rect width="13" height="8" x="8" y="6" rx="1" />
-      <circle cx="18" cy="20" r="2" />
-      <circle cx="9" cy="20" r="2" />
     </>
   ),
   ban: (
@@ -2011,14 +2012,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect width="7" height="13" x="14" y="8" rx="1" />
     </>
   ),
-  bike: (
-    <>
-      <circle cx="18.5" cy="17.5" r="3.5" />
-      <circle cx="5.5" cy="17.5" r="3.5" />
-      <circle cx="15" cy="5" r="1" />
-      <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
-    </>
-  ),
   binary: (
     <>
       <rect x="14" y="14" width="4" height="6" rx="2" />
@@ -2036,17 +2029,6 @@ export const ICONS: Record<IconName, ReactNode> = {
     <>
       <circle cx="9" cy="9" r="7" />
       <circle cx="15" cy="15" r="7" />
-    </>
-  ),
-  blinds: (
-    <>
-      <path d="M3 3h18" />
-      <path d="M20 7H8" />
-      <path d="M20 11H8" />
-      <path d="M10 19h10" />
-      <path d="M8 15h12" />
-      <path d="M4 3v14" />
-      <circle cx="4" cy="19" r="2" />
     </>
   ),
   blocks: (
@@ -2106,14 +2088,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
     </>
   ),
-  'book-audio': (
-    <>
-      <path d="M12 6v7" />
-      <path d="M16 8v3" />
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
-      <path d="M8 8v3" />
-    </>
-  ),
   'book-check': (
     <>
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
@@ -2147,14 +2121,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M12 13V7" />
       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
       <path d="m9 10 3 3 3-3" />
-    </>
-  ),
-  'book-headphones': (
-    <>
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
-      <path d="M8 12v-2a4 4 0 0 1 8 0v2" />
-      <circle cx="15" cy="12" r="1" />
-      <circle cx="9" cy="12" r="1" />
     </>
   ),
   'book-heart': (
@@ -2289,17 +2255,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z" />
       <path d="m14.5 7.5-5 5" />
       <path d="m9.5 7.5 5 5" />
-    </>
-  ),
-  'boom-box': (
-    <>
-      <path d="M4 9V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" />
-      <path d="M8 8v1" />
-      <path d="M12 8v1" />
-      <path d="M16 8v1" />
-      <rect width="20" height="12" x="2" y="9" rx="2" />
-      <circle cx="8" cy="15" r="2" />
-      <circle cx="16" cy="15" r="2" />
     </>
   ),
   bot: (
@@ -2507,30 +2462,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M9 7.13V6a3 3 0 1 1 6 0v1.13" />
     </>
   ),
-  bus: (
-    <>
-      <path d="M8 6v6" />
-      <path d="M15 6v6" />
-      <path d="M2 12h19.6" />
-      <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" />
-      <circle cx="7" cy="18" r="2" />
-      <path d="M9 18h5" />
-      <circle cx="16" cy="18" r="2" />
-    </>
-  ),
-  'bus-front': (
-    <>
-      <path d="M4 6 2 7" />
-      <path d="M10 6h4" />
-      <path d="m22 7-2-1" />
-      <rect width="16" height="16" x="4" y="3" rx="2" />
-      <path d="M4 11h16" />
-      <path d="M8 15h.01" />
-      <path d="M16 15h.01" />
-      <path d="M6 19v2" />
-      <path d="M18 21v-2" />
-    </>
-  ),
   cable: (
     <>
       <path d="M17 19a1 1 0 0 1-1-1v-2a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a1 1 0 0 1-1 1z" />
@@ -2540,18 +2471,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M3 5V3" />
       <path d="M4 10a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2a2 2 0 0 1-2 2z" />
       <path d="M7 5V3" />
-    </>
-  ),
-  'cable-car': (
-    <>
-      <path d="M10 3h.01" />
-      <path d="M14 2h.01" />
-      <path d="m2 9 20-5" />
-      <path d="M12 12V6.5" />
-      <rect width="16" height="10" x="4" y="12" rx="3" />
-      <path d="M9 12v5" />
-      <path d="M15 12v5" />
-      <path d="M4 17h16" />
     </>
   ),
   calculator: (
@@ -2753,35 +2672,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M7 15h2.5" />
     </>
   ),
-  car: (
-    <>
-      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-      <circle cx="7" cy="17" r="2" />
-      <path d="M9 17h6" />
-      <circle cx="17" cy="17" r="2" />
-    </>
-  ),
-  'car-front': (
-    <>
-      <path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" />
-      <path d="M7 14h.01" />
-      <path d="M17 14h.01" />
-      <rect width="18" height="8" x="3" y="10" rx="2" />
-      <path d="M5 18v2" />
-      <path d="M19 18v2" />
-    </>
-  ),
-  'car-taxi-front': (
-    <>
-      <path d="M10 2h4" />
-      <path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" />
-      <path d="M7 14h.01" />
-      <path d="M17 14h.01" />
-      <rect width="18" height="8" x="3" y="10" rx="2" />
-      <path d="M5 18v2" />
-      <path d="M19 18v2" />
-    </>
-  ),
   'card-sim': (
     <>
       <path d="M12 14v4" />
@@ -2811,15 +2701,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M15 11h4.5a1 1 0 0 1 0 5h-4a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h3a1 1 0 0 1 0 5" />
       <path d="m2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16" />
       <path d="M3.304 13h6.392" />
-    </>
-  ),
-  'cassette-tape': (
-    <>
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <circle cx="8" cy="10" r="2" />
-      <path d="M8 12h8" />
-      <circle cx="16" cy="10" r="2" />
-      <path d="m6 20 .7-2.9A1.4 1.4 0 0 1 8.1 16h7.8a1.4 1.4 0 0 1 1.4 1l.7 3" />
     </>
   ),
   cast: (
@@ -2961,13 +2842,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M19 21v-6" />
     </>
   ),
-  'chart-no-axes-column-increasing': (
-    <>
-      <path d="M5 21v-6" />
-      <path d="M12 21V9" />
-      <path d="M19 21V3" />
-    </>
-  ),
   'chart-no-axes-combined': (
     <>
       <path d="M12 16v5" />
@@ -3057,15 +2931,6 @@ export const ICONS: Record<IconName, ReactNode> = {
     <>
       <path d="m7 15 5 5 5-5" />
       <path d="m7 9 5-5 5 5" />
-    </>
-  ),
-  chrome: (
-    <>
-      <path d="M10.88 21.94 15.46 14" />
-      <path d="M21.17 8H12" />
-      <path d="M3.95 6.06 8.54 14" />
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="12" r="4" />
     </>
   ),
   church: (
@@ -3329,7 +3194,7 @@ export const ICONS: Record<IconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </>
   ),
   'circle-slash': (
@@ -3378,14 +3243,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <circle cx="9" cy="9" r="2" />
       <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
       <circle cx="15" cy="15" r="2" />
-    </>
-  ),
-  clapperboard: (
-    <>
-      <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />
-      <path d="m6.2 5.3 3.1 3.9" />
-      <path d="m12.4 3.4 3.1 4" />
-      <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
     </>
   ),
   clipboard: (
@@ -3581,25 +3438,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m18 16 4-4-4-4" />
       <path d="m6 8-4 4 4 4" />
       <path d="m14.5 4-5 16" />
-    </>
-  ),
-  codepen: (
-    <>
-      <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-      <line x1="12" x2="12" y1="22" y2="15.5" />
-      <polyline points="22 8.5 12 15.5 2 8.5" />
-      <polyline points="2 15.5 12 8.5 22 15.5" />
-      <line x1="12" x2="12" y1="2" y2="8.5" />
-    </>
-  ),
-  codesandbox: (
-    <>
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
-      <polyline points="7.5 19.79 7.5 14.6 3 12" />
-      <polyline points="21 12 16.5 14.6 16.5 19.79" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" x2="12" y1="22.08" y2="12" />
     </>
   ),
   cog: (
@@ -3964,13 +3802,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M5 21h14" />
     </>
   ),
-  'disc-album': (
-    <>
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <circle cx="12" cy="12" r="5" />
-      <path d="M12 12h.01" />
-    </>
-  ),
   divide: (
     <>
       <circle cx="12" cy="6" r="1" />
@@ -4018,26 +3849,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m21 21-2.16-3.84" />
       <path d="m3 21 8.02-14.26" />
       <circle cx="12" cy="5" r="2" />
-    </>
-  ),
-  drama: (
-    <>
-      <path d="M10 11h.01" />
-      <path d="M14 6h.01" />
-      <path d="M18 6h.01" />
-      <path d="M6.5 13.1h.01" />
-      <path d="M22 5c0 9-4 12-6 12s-6-3-6-12c0-2 2-3 6-3s6 1 6 3" />
-      <path d="M17.4 9.9c-.8.8-2 .8-2.8 0" />
-      <path d="M10.1 7.1C9 7.2 7.7 7.7 6 8.6c-3.5 2-4.7 3.9-3.7 5.6 4.5 7.8 9.5 8.4 11.2 7.4.9-.5 1.9-2.1 1.9-4.7" />
-      <path d="M9.1 16.5c.3-1.1 1.4-1.7 2.4-1.4" />
-    </>
-  ),
-  dribbble: (
-    <>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M19.13 5.09C15.22 9.14 10 10.44 2.25 10.94" />
-      <path d="M21.75 12.84c-6.62-1.41-12.14 1-16.38 6.32" />
-      <path d="M8.56 2.75c4.37 6 6 9.42 8 17.72" />
     </>
   ),
   drill: (
@@ -4147,7 +3958,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m9 18 .722-3.25" />
     </>
   ),
-  facebook: <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />,
   factory: (
     <>
       <path d="M12 16h.01" />
@@ -4171,28 +3981,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M14 8h4" />
       <path d="M14 18h4" />
       <path d="m20 3-2 2v15c0 .6.4 1 1 1h2c.6 0 1-.4 1-1V5Z" />
-    </>
-  ),
-  'ferris-wheel': (
-    <>
-      <circle cx="12" cy="12" r="2" />
-      <path d="M12 2v4" />
-      <path d="m6.8 15-3.5 2" />
-      <path d="m20.7 7-3.5 2" />
-      <path d="M6.8 9 3.3 7" />
-      <path d="m20.7 17-3.5-2" />
-      <path d="m9 22 3-8 3 8" />
-      <path d="M8 22h8" />
-      <path d="M18 18.7a9 9 0 1 0-12 0" />
-    </>
-  ),
-  figma: (
-    <>
-      <path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5z" />
-      <path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2z" />
-      <path d="M12 12.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 1 1-7 0z" />
-      <path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0z" />
-      <path d="M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5z" />
     </>
   ),
   'file-archive': (
@@ -4379,14 +4167,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M9 15h6" />
     </>
   ),
-  'file-music': (
-    <>
-      <path d="M10.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v8.4" />
-      <path d="M8 18v-7.7L16 9v7" />
-      <circle cx="14" cy="16" r="2" />
-      <circle cx="6" cy="18" r="2" />
-    </>
-  ),
   'file-output': (
     <>
       <path d="M14 2v4a2 2 0 0 0 2 2h4" />
@@ -4545,18 +4325,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M15 2a2 2 0 0 1 1.414.586l4 4A2 2 0 0 1 21 8v7a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
       <path d="M15 2v4a2 2 0 0 0 2 2h4" />
       <path d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1" />
-    </>
-  ),
-  film: (
-    <>
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M7 3v18" />
-      <path d="M3 7.5h4" />
-      <path d="M3 12h18" />
-      <path d="M3 16.5h4" />
-      <path d="M17 3v18" />
-      <path d="M17 7.5h4" />
-      <path d="M17 16.5h4" />
     </>
   ),
   fingerprint: (
@@ -4881,7 +4649,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <line x1="18" x2="18" y1="2" y2="22" />
     </>
   ),
-  framer: <path d="M5 16V9h14V2H5l14 14h-7m-7 0 7 7v-7m-7 0h7" />,
   fuel: (
     <>
       <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0v-6.998a2 2 0 0 0-.59-1.42L18 5" />
@@ -4899,9 +4666,7 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect width="10" height="8" x="7" y="8" rx="1" />
     </>
   ),
-  funnel: (
-    <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z" />
-  ),
+  funnel: <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />,
   'funnel-plus': (
     <>
       <path d="M13.354 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14v6a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341l1.218-1.348" />
@@ -5099,15 +4864,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M18 11v-1" />
       <line x1="6" x2="6" y1="9" y2="21" />
     </>
-  ),
-  github: (
-    <>
-      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-      <path d="M9 18c-4.51 2-5-2-7-2" />
-    </>
-  ),
-  gitlab: (
-    <path d="m22 13.29-3.33-10a.42.42 0 0 0-.14-.18.38.38 0 0 0-.22-.11.39.39 0 0 0-.23.07.42.42 0 0 0-.14.18l-2.26 6.67H8.32L6.1 3.26a.42.42 0 0 0-.1-.18.38.38 0 0 0-.26-.08.39.39 0 0 0-.23.07.42.42 0 0 0-.14.18L2 13.29a.74.74 0 0 0 .27.83L12 21l9.69-6.88a.71.71 0 0 0 .31-.83Z" />
   ),
   glasses: (
     <>
@@ -5400,8 +5156,8 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
   house: (
     <>
-      <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
-      <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9,22 9,12 15,12 15,22" />
     </>
   ),
   'house-plug': (
@@ -5526,13 +5282,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M17 17h.01" />
     </>
   ),
-  instagram: (
-    <>
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-    </>
-  ),
   'iteration-ccw': (
     <>
       <path d="m16 14 4 4-4 4" />
@@ -5557,14 +5306,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M5 3v14" />
       <path d="M12 3v8" />
       <path d="M19 3v18" />
-    </>
-  ),
-  kayak: (
-    <>
-      <path d="M18 17a1 1 0 0 0-1 1v1a2 2 0 1 0 2-2z" />
-      <path d="M20.97 3.61a.45.45 0 0 0-.58-.58C10.2 6.6 6.6 10.2 3.03 20.39a.45.45 0 0 0 .58.58C13.8 17.4 17.4 13.8 20.97 3.61" />
-      <path d="m6.707 6.707 10.586 10.586" />
-      <path d="M7 5a2 2 0 1 0-2 2h1a1 1 0 0 0 1-1z" />
     </>
   ),
   'key-round': (
@@ -5593,19 +5334,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect width="20" height="16" x="2" y="4" rx="2" />
     </>
   ),
-  'keyboard-music': (
-    <>
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <path d="M6 8h4" />
-      <path d="M14 8h.01" />
-      <path d="M18 8h.01" />
-      <path d="M2 12h20" />
-      <path d="M6 12v4" />
-      <path d="M10 12v4" />
-      <path d="M14 12v4" />
-      <path d="M18 12v4" />
-    </>
-  ),
   'keyboard-off': (
     <>
       <path d="M 20 4 A2 2 0 0 1 22 6" />
@@ -5618,27 +5346,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2" />
       <path d="M6 8h.01" />
       <path d="M8 12h.01" />
-    </>
-  ),
-  'lamp-ceiling': (
-    <>
-      <path d="M12 2v5" />
-      <path d="M14.829 15.998a3 3 0 1 1-5.658 0" />
-      <path d="M20.92 14.606A1 1 0 0 1 20 16H4a1 1 0 0 1-.92-1.394l3-7A1 1 0 0 1 7 7h10a1 1 0 0 1 .92.606z" />
-    </>
-  ),
-  'lamp-wall-down': (
-    <>
-      <path d="M19.929 18.629A1 1 0 0 1 19 20H9a1 1 0 0 1-.928-1.371l2-5A1 1 0 0 1 11 13h6a1 1 0 0 1 .928.629z" />
-      <path d="M6 3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
-      <path d="M8 6h4a2 2 0 0 1 2 2v5" />
-    </>
-  ),
-  'lamp-wall-up': (
-    <>
-      <path d="M19.929 9.629A1 1 0 0 1 19 11H9a1 1 0 0 1-.928-1.371l2-5A1 1 0 0 1 11 4h6a1 1 0 0 1 .928.629z" />
-      <path d="M6 15a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z" />
-      <path d="M8 18h4a2 2 0 0 0 2-2v-5" />
     </>
   ),
   'land-plot': (
@@ -5795,13 +5502,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <line x1="2" x2="22" y1="2" y2="22" />
     </>
   ),
-  linkedin: (
-    <>
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect width="4" height="12" x="2" y="9" />
-      <circle cx="4" cy="4" r="2" />
-    </>
-  ),
   list: (
     <>
       <path d="M3 5h.01" />
@@ -5903,15 +5603,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M11 12H3" />
       <path d="M16 19H3" />
       <path d="M21 12h-6" />
-    </>
-  ),
-  'list-music': (
-    <>
-      <path d="M16 5H3" />
-      <path d="M11 12H3" />
-      <path d="M11 19H3" />
-      <path d="M21 16V5" />
-      <circle cx="18" cy="16" r="3" />
     </>
   ),
   'list-ordered': (
@@ -6613,15 +6304,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect width="20" height="14" x="2" y="3" rx="2" />
       <path d="M12 17v4" />
       <path d="M8 21h8" />
-    </>
-  ),
-  motorbike: (
-    <>
-      <path d="m18 14-1-3" />
-      <path d="m3 9 6 2a2 2 0 0 1 2-2h2a2 2 0 0 1 1.99 1.81" />
-      <path d="M8 17h3a1 1 0 0 0 1-1 6 6 0 0 1 6-6 1 1 0 0 0 1-1v-.75A5 5 0 0 0 17 5" />
-      <circle cx="19" cy="17" r="3" />
-      <circle cx="5" cy="17" r="3" />
     </>
   ),
   mouse: (
@@ -7753,33 +7435,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M22 6a2 2 0 0 0-3.414-1.414l-6 6a2 2 0 0 0 0 2.828l6 6A2 2 0 0 0 22 18z" />
     </>
   ),
-  rocket: (
-    <>
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-    </>
-  ),
-  'rocking-chair': (
-    <>
-      <polyline points="3.5 2 6.5 12.5 18 12.5" />
-      <line x1="9.5" x2="5.5" y1="12.5" y2="20" />
-      <line x1="15" x2="18.5" y1="12.5" y2="20" />
-      <path d="M2.75 18a13 13 0 0 0 18.5 0" />
-    </>
-  ),
-  'roller-coaster': (
-    <>
-      <path d="M6 19V5" />
-      <path d="M10 19V6.8" />
-      <path d="M14 19v-7.8" />
-      <path d="M18 5v4" />
-      <path d="M18 19v-6" />
-      <path d="M22 19V9" />
-      <path d="M2 19V9a4 4 0 0 1 4-4c2 0 4 1.33 6 4s4 4 6 4a4 4 0 1 0-3-6.65" />
-    </>
-  ),
   'rotate-3d': (
     <>
       <path d="M16.466 7.5C15.643 4.237 13.952 2 12 2 9.239 2 7 6.477 7 12s2.239 10 5 10c.342 0 .677-.069 1-.2" />
@@ -7881,13 +7536,6 @@ export const ICONS: Record<IconName, ReactNode> = {
     <>
       <path d="M6 11h8a4 4 0 0 0 0-8H9v18" />
       <path d="M6 15h8" />
-    </>
-  ),
-  sailboat: (
-    <>
-      <path d="M10 2v15" />
-      <path d="M7 22a4 4 0 0 1-4-4 1 1 0 0 1 1-1h16a1 1 0 0 1 1 1 4 4 0 0 1-4 4z" />
-      <path d="M9.159 2.46a1 1 0 0 1 1.521-.193l9.977 8.98A1 1 0 0 1 20 13H4a1 1 0 0 1-.824-1.567z" />
     </>
   ),
   'satellite-dish': (
@@ -8270,20 +7918,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
     </>
   ),
-  'ship-wheel': (
-    <>
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 2v7.5" />
-      <path d="m19 5-5.23 5.23" />
-      <path d="M22 12h-7.5" />
-      <path d="m19 19-5.23-5.23" />
-      <path d="M12 14.5V22" />
-      <path d="M10.23 13.77 5 19" />
-      <path d="M9.5 12H2" />
-      <path d="M10.23 10.23 5 5" />
-      <circle cx="12" cy="12" r="2.5" />
-    </>
-  ),
   shirt: (
     <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
   ),
@@ -8296,20 +7930,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M4.5 15.5h15" />
       <path d="m5 11 4-7" />
       <path d="m9 11 1 9" />
-    </>
-  ),
-  'shower-head': (
-    <>
-      <path d="m4 4 2.5 2.5" />
-      <path d="M13.5 6.5a4.95 4.95 0 0 0-7 7" />
-      <path d="M15 5 5 15" />
-      <path d="M14 17v.01" />
-      <path d="M10 16v.01" />
-      <path d="M13 13v.01" />
-      <path d="M16 10v.01" />
-      <path d="M11 20v.01" />
-      <path d="M17 14v.01" />
-      <path d="M20 11v.01" />
     </>
   ),
   shredder: (
@@ -8408,18 +8028,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" />
     </>
   ),
-  slack: (
-    <>
-      <rect width="3" height="8" x="13" y="2" rx="1.5" />
-      <path d="M19 8.5V10h1.5A1.5 1.5 0 1 0 19 8.5" />
-      <rect width="3" height="8" x="8" y="14" rx="1.5" />
-      <path d="M5 15.5V14H3.5A1.5 1.5 0 1 0 5 15.5" />
-      <rect width="8" height="3" x="14" y="13" rx="1.5" />
-      <path d="M15.5 19H14v1.5a1.5 1.5 0 1 0 1.5-1.5" />
-      <rect width="8" height="3" x="2" y="8" rx="1.5" />
-      <path d="M8.5 5H10V3.5A1.5 1.5 0 1 0 8.5 5" />
-    </>
-  ),
   slash: <path d="M22 2 2 22" />,
   slice: (
     <path d="M11 16.586V19a1 1 0 0 1-1 1H2L18.37 3.63a1 1 0 1 1 3 3l-9.663 9.663a1 1 0 0 1-1.414 0L8 14" />
@@ -8449,14 +8057,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M13 8.32a7.43 7.43 0 0 1 0 7.36" />
       <path d="M16.46 6.21a11.76 11.76 0 0 1 0 11.58" />
       <path d="M19.91 4.1a15.91 15.91 0 0 1 .01 15.8" />
-    </>
-  ),
-  'soap-dispenser-droplet': (
-    <>
-      <path d="M10.5 2v4" />
-      <path d="M14 2H7a2 2 0 0 0-2 2" />
-      <path d="M19.29 14.76A6.67 6.67 0 0 1 17 11a6.6 6.6 0 0 1-2.29 3.76c-1.15.92-1.71 2.04-1.71 3.19 0 2.22 1.8 4.05 4 4.05s4-1.83 4-4.05c0-1.16-.57-2.26-1.71-3.19" />
-      <path d="M9.607 21H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h7V7a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
     </>
   ),
   space: <path d="M22 17v1c0 .5-.5 1-1 1H3c-.5 0-1-.5-1-1v-1" />,
@@ -9311,19 +8911,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M3 5h18" />
     </>
   ),
-  theater: (
-    <>
-      <path d="M2 10s3-3 3-8" />
-      <path d="M22 10s-3-3-3-8" />
-      <path d="M10 2c0 4.4-3.6 8-8 8" />
-      <path d="M14 2c0 4.4 3.6 8 8 8" />
-      <path d="M2 10s2 2 2 5" />
-      <path d="M22 10s-2 2-2 5" />
-      <path d="M8 15h8" />
-      <path d="M2 22v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1" />
-      <path d="M14 22v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1" />
-    </>
-  ),
   ticket: (
     <>
       <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
@@ -9381,17 +8968,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect x="2" y="8" width="20" height="13" rx="2" />
     </>
   ),
-  'tickets-plane': (
-    <>
-      <path d="M10.5 17h1.227a2 2 0 0 0 1.345-.52L18 12" />
-      <path d="m12 13.5 3.75.5" />
-      <path d="m4.5 8 10.58-5.06a1 1 0 0 1 1.342.488L18.5 8" />
-      <path d="M6 10V8" />
-      <path d="M6 14v1" />
-      <path d="M6 19v2" />
-      <rect x="2" y="8" width="20" height="13" rx="2" />
-    </>
-  ),
   'timer-off': (
     <>
       <path d="M10 2h4" />
@@ -9421,12 +8997,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect width="20" height="14" x="2" y="5" rx="7" />
     </>
   ),
-  toilet: (
-    <>
-      <path d="M7 12h13a1 1 0 0 1 1 1 5 5 0 0 1-5 5h-.598a.5.5 0 0 0-.424.765l1.544 2.47a.5.5 0 0 1-.424.765H5.402a.5.5 0 0 1-.424-.765L7 18" />
-      <path d="M8 18a5 5 0 0 1-5-5V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8" />
-    </>
-  ),
   'tool-case': (
     <>
       <path d="M10 15h4" />
@@ -9450,17 +9020,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m2 2 20 20" />
       <path d="M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2" />
       <path d="M9.656 4H20a2 2 0 0 1 2 2v10.344" />
-    </>
-  ),
-  'tower-control': (
-    <>
-      <path d="M18.2 12.27 20 6H4l1.8 6.27a1 1 0 0 0 .95.73h10.5a1 1 0 0 0 .96-.73Z" />
-      <path d="M8 13v9" />
-      <path d="M16 22v-9" />
-      <path d="m9 6 1 7" />
-      <path d="m15 6-1 7" />
-      <path d="M12 6V2" />
-      <path d="M13 2h-2" />
     </>
   ),
   'traffic-cone': (
@@ -9503,24 +9062,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M7 22 22 7" />
     </>
   ),
-  'tram-front': (
-    <>
-      <rect width="16" height="16" x="4" y="3" rx="2" />
-      <path d="M4 11h16" />
-      <path d="M12 3v8" />
-      <path d="m8 19-2 3" />
-      <path d="m18 22-2-3" />
-      <path d="M8 15h.01" />
-      <path d="M16 15h.01" />
-    </>
-  ),
-  trello: (
-    <>
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-      <rect width="3" height="9" x="7" y="7" />
-      <rect width="3" height="5" x="14" y="7" />
-    </>
-  ),
   'trending-up-down': (
     <>
       <path d="M14.828 14.828 21 21" />
@@ -9532,9 +9073,9 @@ export const ICONS: Record<IconName, ReactNode> = {
   triangle: <path d="M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />,
   'triangle-alert': (
     <>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </>
   ),
   'triangle-dashed': (
@@ -9571,14 +9112,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M18 12a9 9 0 0 1-9 9V3" />
     </>
   ),
-  turntable: (
-    <>
-      <path d="M10 12.01h.01" />
-      <path d="M18 8v4a8 8 0 0 1-1.07 4" />
-      <circle cx="10" cy="12" r="4" />
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-    </>
-  ),
   tv: (
     <>
       <path d="m17 2-5 5-5-5" />
@@ -9597,10 +9130,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M7 21h10" />
       <rect width="20" height="14" x="2" y="3" rx="2" />
     </>
-  ),
-  twitch: <path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7" />,
-  twitter: (
-    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
   ),
   'type-outline': (
     <path d="M14 16.5a.5.5 0 0 0 .5.5h.5a2 2 0 0 1 0 4H9a2 2 0 0 1 0-4h.5a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5V8a2 2 0 0 1-4 0V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-4 0v-.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5Z" />
@@ -9875,15 +9404,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="m2 2 20 20" />
     </>
   ),
-  videotape: (
-    <>
-      <rect width="20" height="16" x="2" y="4" rx="2" />
-      <path d="M2 8h20" />
-      <circle cx="8" cy="14" r="2" />
-      <path d="M8 12h8" />
-      <circle cx="16" cy="14" r="2" />
-    </>
-  ),
   view: (
     <>
       <path d="M21 17v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2" />
@@ -9943,15 +9463,6 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 1.132-1.803l7.95-3.974a2 2 0 0 1 1.837 0l7.948 3.974A2 2 0 0 1 22 8z" />
       <path d="M6 13h12" />
       <path d="M6 17h12" />
-    </>
-  ),
-  'washing-machine': (
-    <>
-      <path d="M3 6h3" />
-      <path d="M17 6h.01" />
-      <rect width="18" height="20" x="3" y="2" rx="2" />
-      <circle cx="12" cy="13" r="5" />
-      <path d="M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5" />
     </>
   ),
   watch: (
@@ -10090,12 +9601,6 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
   wrench: (
     <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" />
-  ),
-  youtube: (
-    <>
-      <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
-      <path d="m10 15 5-3-5-3z" />
-    </>
   ),
   'zoom-in': (
     <>

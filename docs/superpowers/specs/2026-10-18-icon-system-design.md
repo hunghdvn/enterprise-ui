@@ -10,7 +10,7 @@ The library has no icon system — `Empty` hand-draws a box SVG, `Toast` uses th
 
 ## 2. Goals
 
-- `Icon` component: `<Icon name="check" size={16} />` renders an inline SVG from a curated registry (~30-35 icons).
+- `Icon` component: `<Icon name="check" size={16} />` renders an inline SVG from a curated ERP registry (1,200+ icons).
 - Zero runtime deps (inline SVG only, no icon library).
 - Accessible by default: `aria-hidden="true"`; optional `label` → `role="img"` + `<title>`.
 - Color via `currentColor` (inherits from parent).
@@ -22,7 +22,7 @@ The library has no icon system — `Empty` hand-draws a box SVG, `Toast` uses th
 - No icon font, no sprite sheet, no external icon library dependency.
 - No `icon` prop on `Button` (follow-up; keep scope tight).
 - No animated icons.
-- No icon picker / search UI in docs (just a grid of all icons).
+- No full icon picker. The docs grid has a name filter and incremental rendering so a large catalog stays usable.
 
 ## 4. Constraints
 
@@ -30,7 +30,7 @@ The library has no icon system — `Empty` hand-draws a box SVG, `Toast` uses th
 - CSS Modules only, `var(--…)` tokens, no hardcoded hex.
 - TS strict, no `any`, Vitest globals on.
 - Icon SVGs: 24×24 viewBox, stroke-based (2px, round caps/joins) for visual consistency with `Empty`'s existing box icon.
-- Bundle target: components <150KB gzip (icons add ~5-8KB).
+- Bundle target: components <150KB gzip. The ERP registry is the dominant cost (~90KB gzip at 1,200+ icons); a build-time size check enforces the budget.
 
 ## 5. API
 
@@ -49,12 +49,18 @@ export interface IconProps {
 - Color always `currentColor`.
 - `label` makes it accessible (`role="img"`, `aria-label`, `<title>`); otherwise `aria-hidden="true"`.
 
-## 6. Icon Set (~33 icons)
+## 6. Icon Set (1,200+ icons)
 
-Navigation/UI: chevron-down, chevron-up, chevron-left, chevron-right, arrow-left, arrow-right, x (close), menu, more-horizontal, search, filter, settings, user, bell, mail, home
-Actions: plus, minus, edit (pencil), trash, download, upload, copy, check, check-circle, refresh
-Status: info, alert-circle, alert-triangle, help-circle
-Misc: calendar, clock, eye, eye-off, external-link, inbox, lock
+Start from the original 30-35 UI/status icons and extend with an ERP-focused
+catalog: finance/accounting, orders, inventory and logistics, charts/KPIs,
+documents, HR, communication, security, infrastructure/IT, navigation, time and
+text formatting. Off-domain icons (food, animals, gaming, music, nature, sports,
+emoji, weather, medical, science, home/lifestyle, brands) are excluded.
+
+The complete list and glyphs are pinned by `src/Icon/icons.manifest.json` and
+verified against `lucide-static@0.545.0` by `scripts/check-icon-provenance.mjs`.
+Deprecated numbered names are not registered; current-name aliases share the
+canonical glyph of their concept.
 
 ## 7. File Structure
 
@@ -62,10 +68,17 @@ Misc: calendar, clock, eye, eye-off, external-link, inbox, lock
 packages/components/src/Icon/
   Icon.tsx          // component
   Icon.module.css   // .icon (display: inline-block, vertical-align)
-  types.ts          // IconProps, IconName
-  icons.ts          // ICONS registry: Record<IconName, ReactNode>
+  types.ts          // IconProps, generated IconName union
+  icons.tsx         // ICONS registry: Record<IconName, ReactNode>
+  icons.manifest.json // checked-in name -> geometry hash allowlist
   index.ts          // re-exports
   Icon.test.tsx     // tests
+
+packages/components/scripts/
+  gen-icon-types.mjs        // regenerate IconName from icons.tsx
+  gen-icon-manifest.ts      // regenerate the geometry manifest
+  check-icon-provenance.mjs // verify Lucide-derived glyphs against 0.545.0
+  check-bundle-size.mjs     // enforce the 150KB gzip budget
 ```
 
 ## 8. Refactors
@@ -88,7 +101,7 @@ packages/components/src/Icon/
 ## 10. Definition of Done
 
 1. `Icon` component passes tests (render by name, size, accessibility, className).
-2. All ~33 icons render without errors.
+2. Every catalog icon renders without errors and matches the checked-in geometry manifest.
 3. Empty/Toast/Modal refactored and their tests still pass.
 4. IconPage in docs shows grid of all icons with names.
 5. Showcase IconDemoPage.

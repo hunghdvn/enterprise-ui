@@ -1,7 +1,20 @@
 import { render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { ICONS } from './icons';
+import manifest from './icons.manifest.json';
 import { Icon } from './Icon';
 import type { IconName } from './types';
+
+// Keep this in sync with the same helper in scripts/gen-icon-manifest.ts.
+const geometryHash = (name: IconName) => {
+  const markup = renderToStaticMarkup(ICONS[name]).replace(/\s+/g, ' ').trim();
+  let hash = 0xcbf29ce484222325n;
+  for (let index = 0; index < markup.length; index += 1) {
+    hash ^= BigInt(markup.charCodeAt(index));
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return hash.toString(16).padStart(16, '0');
+};
 
 test('renders an svg for a valid name', () => {
   render(<Icon name="check" />);
@@ -39,7 +52,9 @@ test('all registered icons render without error', () => {
 
 test('settings icon includes the center hub circle', () => {
   const { container } = render(<Icon name="settings" />);
-  expect(container.querySelector('circle[cx="12"][cy="12"]')).not.toBeNull();
+  const hub = container.querySelector('circle[cx="12"][cy="12"]');
+  expect(hub).not.toBeNull();
+  expect(hub).toHaveAttribute('r', '3');
 });
 
 const EXPANDED_ICON_NAMES = [
@@ -175,25 +190,34 @@ test.each(EXPANDED_ICON_NAMES)('registers the expanded icon %s', (name) => {
   expect(ICONS[name as IconName]).toBeDefined();
 });
 
-test('does not register numbered aliases', () => {
-  expect(ICONS).not.toHaveProperty('building-2');
-  expect(ICONS).not.toHaveProperty('share-2');
-  expect(ICONS).not.toHaveProperty('undo-2');
-  expect(ICONS).not.toHaveProperty('redo-2');
-  expect(ICONS).not.toHaveProperty('bar-chart-3');
-  expect(ICONS).not.toHaveProperty('columns-3');
-  expect(ICONS).not.toHaveProperty('rows-3');
-  expect(ICONS).not.toHaveProperty('volume-2');
+test('does not register deprecated numbered aliases', () => {
+  const deprecated = [
+    'building-2',
+    'share-2',
+    'undo-2',
+    'redo-2',
+    'bar-chart-3',
+    'columns-3',
+    'rows-3',
+    'volume-2',
+  ];
+  for (const name of deprecated) {
+    expect(ICONS).not.toHaveProperty(name);
+  }
 });
 
-test('ships a focused ERP catalog of 1000-1400 unnumbered icons', () => {
-  const names = Object.keys(ICONS);
-  expect(names.length).toBeGreaterThanOrEqual(1000);
-  expect(names.length).toBeLessThanOrEqual(1400);
-  expect(names.filter((name) => /-\d+$/.test(name))).toEqual([]);
+test('catalog matches the checked-in manifest', () => {
+  const names = Object.keys(ICONS).sort();
+  expect(names).toHaveLength(1249);
+  expect(names).toEqual(Object.keys(manifest.icons).sort());
+  for (const name of names) {
+    expect(geometryHash(name as IconName), `${name} geometry changed`).toBe(
+      (manifest.icons as Record<string, string>)[name],
+    );
+  }
 });
 
-test('excludes icons unrelated to ERP work', () => {
+test('keeps the original ERP-focused catalog free of unrelated icons', () => {
   const unrelated = [
     'pizza',
     'cat',
@@ -207,11 +231,107 @@ test('excludes icons unrelated to ERP work', () => {
     'music',
     'dumbbell',
     'sofa',
+    'ferris-wheel',
+    'kayak',
+    'baby',
+    'car',
+    'rocket',
+    'theater',
+    'roller-coaster',
+    'disc-album',
+    'drama',
+    'turntable',
+    'rocking-chair',
+    'youtube',
+    'facebook',
+    'twitter',
+    'instagram',
   ];
   for (const name of unrelated) {
     expect(ICONS).not.toHaveProperty(name);
   }
 });
+
+const ALIASES = {
+  house: 'home',
+  'triangle-alert': 'alert-triangle',
+  'circle-question-mark': 'help-circle',
+  funnel: 'filter',
+  ellipsis: 'more-horizontal',
+  'circle-alert': 'alert-circle',
+  'circle-help': 'help-circle',
+  'circle-user': 'user-circle',
+} as const;
+
+test.each(Object.entries(ALIASES))('%s shares the canonical %s geometry', (alias, canonical) => {
+  expect(geometryHash(alias as IconName)).toBe(geometryHash(canonical as IconName));
+});
+
+const CANONICAL_GLYPHS = {
+  columns: (
+    <>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M12 3v18" />
+    </>
+  ),
+  rows: (
+    <>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 12h18" />
+    </>
+  ),
+  share: (
+    <>
+      <path d="M12 2v13" />
+      <path d="m16 6-4-4-4 4" />
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    </>
+  ),
+  building: (
+    <>
+      <path d="M12 10h.01" />
+      <path d="M12 14h.01" />
+      <path d="M12 6h.01" />
+      <path d="M16 10h.01" />
+      <path d="M16 14h.01" />
+      <path d="M16 6h.01" />
+      <path d="M8 10h.01" />
+      <path d="M8 14h.01" />
+      <path d="M8 6h.01" />
+      <path d="M9 22v-3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+    </>
+  ),
+  volume: (
+    <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  ),
+  undo: (
+    <>
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+    </>
+  ),
+  redo: (
+    <>
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+    </>
+  ),
+  'bar-chart': (
+    <>
+      <path d="M5 21v-6" />
+      <path d="M12 21V9" />
+      <path d="M19 21V3" />
+    </>
+  ),
+};
+
+test.each(Object.entries(CANONICAL_GLYPHS))(
+  '%s uses the canonical Lucide 0.545.0 glyph',
+  (name, glyph) => {
+    expect(renderToStaticMarkup(ICONS[name as IconName])).toBe(renderToStaticMarkup(glyph));
+  },
+);
 
 test('every registered icon draws at least one shape', () => {
   for (const name of Object.keys(ICONS)) {
