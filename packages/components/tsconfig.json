@@ -4,5 +4,11 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src", "vitest.config.ts", "vitest.setup.ts", "vite.config.ts"]
+  "include": [
+    "src",
+    "scripts/geometry-hash.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "vite.config.ts"
+  ]
 }

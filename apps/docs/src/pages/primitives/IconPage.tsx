@@ -1,9 +1,9 @@
 import { Icon, ICONS, Tabs } from '@enterprise-ui/components';
+import { IconGallery } from '@enterprise-ui/demo-shared';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
 import type { PropDoc } from '../../components/PropsTable';
-import { IconGallery } from '../../../../shared/IconGallery';
 import styles from './IconPage.module.css';
 
 const props: PropDoc[] = [

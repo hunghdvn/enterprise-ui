@@ -1,5 +1,5 @@
 import { Icon, ICONS } from '@enterprise-ui/components';
-import { IconGallery } from '../../../shared/IconGallery';
+import { IconGallery } from '@enterprise-ui/demo-shared';
 import styles from './IconDemoPage.module.css';
 
 const names = Object.keys(ICONS) as (keyof typeof ICONS)[];

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ICONS } from '../src/Icon/icons';
-import { iconGeometryHash } from './geometry-hash.ts';
+import { GEOMETRY_HASH_ALGORITHM, iconGeometryHash } from './geometry-hash.ts';
 
 const names = Object.keys(ICONS).sort();
 const icons = Object.fromEntries(
@@ -10,7 +10,7 @@ const icons = Object.fromEntries(
 
 const manifest = {
   count: names.length,
-  algorithm: 'fnv1a-64',
+  algorithm: GEOMETRY_HASH_ALGORITHM,
   icons,
 };
 const serialized = `${JSON.stringify(manifest, null, 2)}\n`;

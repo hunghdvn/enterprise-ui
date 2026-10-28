@@ -1,13 +1,30 @@
 import { render, screen } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { iconGeometryHash } from '../../scripts/geometry-hash';
+import { GEOMETRY_HASH_ALGORITHM, iconGeometryHash } from '../../scripts/geometry-hash';
 import { ICONS } from './icons';
 import manifest from './icons.manifest.json';
 import removed from './icons.removed.json';
 import { Icon } from './Icon';
 import type { IconName } from './types';
 
-const geometryHash = (name: IconName) => iconGeometryHash(renderToStaticMarkup(ICONS[name]));
+const hashIconName = (name: IconName) => iconGeometryHash(renderToStaticMarkup(ICONS[name]));
+
+test('geometry hash matches the documented FNV-1a-64 vectors', () => {
+  expect(iconGeometryHash('')).toBe('cbf29ce484222325');
+  expect(iconGeometryHash('a')).toBe('af63dc4c8601ec8c');
+  expect(iconGeometryHash('foobar')).toBe('85944171f73967e8');
+});
+
+test('icon geometry hashing ignores insignificant whitespace', () => {
+  const compact = '<path d="M20 6 9 17l-5-5" />';
+  const spaced = '  <path\n    d="M20 6 9 17l-5-5"\n  />  ';
+  expect(iconGeometryHash(spaced)).toBe(iconGeometryHash(compact));
+});
+
+test('manifest algorithm matches the shared helper', () => {
+  expect(GEOMETRY_HASH_ALGORITHM).toBe('fnv1a-64');
+  expect(manifest.algorithm).toBe(GEOMETRY_HASH_ALGORITHM);
+});
 
 test('renders an svg for a valid name', () => {
   render(<Icon name="check" />);
@@ -190,12 +207,12 @@ test('uses clean names without numeric suffixes', () => {
 
 test('catalog matches the checked-in manifest', () => {
   const names = Object.keys(ICONS).sort();
-  expect(manifest.algorithm).toBe('fnv1a-64');
+  expect(manifest.algorithm).toBe(GEOMETRY_HASH_ALGORITHM);
   expect(manifest.count).toBe(Object.keys(manifest.icons).length);
   expect(names).toHaveLength(manifest.count);
   expect(names).toEqual(Object.keys(manifest.icons).sort());
   for (const name of names) {
-    expect(geometryHash(name as IconName), `${name} geometry changed`).toBe(
+    expect(hashIconName(name as IconName), `${name} geometry changed`).toBe(
       (manifest.icons as Record<string, string>)[name],
     );
   }
@@ -239,9 +256,9 @@ const ALIASES = {
 test.each(Object.entries(ALIASES))('%s shares the canonical %s geometry', (alias, canonical) => {
   expect(ICONS[alias as IconName], `${alias} must be registered`).toBeDefined();
   expect(ICONS[canonical as IconName], `${canonical} must be registered`).toBeDefined();
-  const aliasHash = geometryHash(alias as IconName);
+  const aliasHash = hashIconName(alias as IconName);
   expect(aliasHash, `${alias} must draw geometry`).not.toBe('');
-  expect(aliasHash).toBe(geometryHash(canonical as IconName));
+  expect(aliasHash).toBe(hashIconName(canonical as IconName));
 });
 
 const CANONICAL_GLYPHS = {

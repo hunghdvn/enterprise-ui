@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vite/client", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@enterprise-ui/components": ["../../packages/components/src/index.ts"]
+    }
+  },
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts"]
+}

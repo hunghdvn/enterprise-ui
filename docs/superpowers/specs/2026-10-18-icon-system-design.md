@@ -94,9 +94,13 @@ packages/components/scripts/
   check-icon-provenance.mjs // verify every glyph against Lucide 0.545.0
   check-bundle-size.mjs     // enforce the 150 KiB gzip budget (JS + CSS)
 
-apps/shared/
-  IconGallery.tsx           // searchable/paginated gallery used by both apps
-  IconGallery.module.css
+apps/shared/                    // private @enterprise-ui/demo-shared workspace
+  src/IconGallery.tsx           // searchable/paginated gallery used by both apps
+  src/IconGallery.module.css
+  src/IconGallery.test.tsx      // filter, empty state, aria-disabled/focus
+
+apps/docs/src/pages/primitives/IconPage.tsx // docs consumer
+apps/showcase/src/pages/IconDemoPage.tsx    // showcase consumer
 ```
 
 ## 8. Refactors
@@ -113,7 +117,7 @@ apps/shared/
 4. Export from `src/index.ts`
 5. Refactor Empty/Toast/Modal
 6. Update their tests if needed (Toast test checks close button? Modal test?)
-7. `apps/shared/IconGallery` (name filter, 240 icons initially, “Hiện thêm” pagination, live region, `aria-disabled` end state), consumed by docs `IconPage` + showcase `IconDemoPage`
+7. `apps/shared` (`@enterprise-ui/demo-shared`): name filter, 240 icons initially, “Hiện thêm” pagination, live region, `aria-disabled` end state, plus a Vitest suite; consumed by docs `IconPage` + showcase `IconDemoPage`
 8. Build + verify
 
 ## 10. Definition of Done
