@@ -186,10 +186,31 @@ test('does not register numbered aliases', () => {
   expect(ICONS).not.toHaveProperty('volume-2');
 });
 
-test('ships at least 1000 icons with unnumbered names', () => {
+test('ships a focused ERP catalog of 1000-1400 unnumbered icons', () => {
   const names = Object.keys(ICONS);
   expect(names.length).toBeGreaterThanOrEqual(1000);
+  expect(names.length).toBeLessThanOrEqual(1400);
   expect(names.filter((name) => /-\d+$/.test(name))).toEqual([]);
+});
+
+test('excludes icons unrelated to ERP work', () => {
+  const unrelated = [
+    'pizza',
+    'cat',
+    'gamepad',
+    'guitar',
+    'trophy',
+    'snowflake',
+    'stethoscope',
+    'atom',
+    'party-popper',
+    'music',
+    'dumbbell',
+    'sofa',
+  ];
+  for (const name of unrelated) {
+    expect(ICONS).not.toHaveProperty(name);
+  }
 });
 
 test('every registered icon draws at least one shape', () => {
