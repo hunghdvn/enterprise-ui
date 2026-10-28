@@ -186,6 +186,12 @@ test('does not register numbered aliases', () => {
   expect(ICONS).not.toHaveProperty('volume-2');
 });
 
+test('ships at least 1000 icons with unnumbered names', () => {
+  const names = Object.keys(ICONS);
+  expect(names.length).toBeGreaterThanOrEqual(1000);
+  expect(names.filter((name) => /-\d+$/.test(name))).toEqual([]);
+});
+
 test('every registered icon draws at least one shape', () => {
   for (const name of Object.keys(ICONS)) {
     const { container, unmount } = render(<Icon name={name as IconName} />);
