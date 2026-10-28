@@ -56,8 +56,8 @@ const EXPANDED_ICON_NAMES = [
   'layout-grid',
   'layout-list',
   'table',
-  'columns-3',
-  'rows-3',
+  'columns',
+  'rows',
   'panel-left',
   'panel-right',
   'app-window',
@@ -81,7 +81,7 @@ const EXPANDED_ICON_NAMES = [
   'cloud',
   'image',
   'package',
-  'bar-chart-3',
+  'bar-chart',
   'line-chart',
   'pie-chart',
   'trending-up',
@@ -108,7 +108,7 @@ const EXPANDED_ICON_NAMES = [
   'phone',
   'video',
   'at-sign',
-  'share-2',
+  'share',
   'megaphone',
   'shopping-cart',
   'shopping-bag',
@@ -132,7 +132,7 @@ const EXPANDED_ICON_NAMES = [
   'hourglass',
   'play',
   'pause',
-  'volume-2',
+  'volume',
   'volume-x',
   'mic',
   'mic-off',
@@ -158,8 +158,8 @@ const EXPANDED_ICON_NAMES = [
   'cpu',
   'layers',
   'scissors',
-  'undo-2',
-  'redo-2',
+  'undo',
+  'redo',
   'sliders-horizontal',
   'type',
   'bold',
@@ -175,8 +175,15 @@ test.each(EXPANDED_ICON_NAMES)('registers the expanded icon %s', (name) => {
   expect(ICONS[name as IconName]).toBeDefined();
 });
 
-test('does not register the numbered building-2 alias', () => {
+test('does not register numbered aliases', () => {
   expect(ICONS).not.toHaveProperty('building-2');
+  expect(ICONS).not.toHaveProperty('share-2');
+  expect(ICONS).not.toHaveProperty('undo-2');
+  expect(ICONS).not.toHaveProperty('redo-2');
+  expect(ICONS).not.toHaveProperty('bar-chart-3');
+  expect(ICONS).not.toHaveProperty('columns-3');
+  expect(ICONS).not.toHaveProperty('rows-3');
+  expect(ICONS).not.toHaveProperty('volume-2');
 });
 
 test('every registered icon draws at least one shape', () => {

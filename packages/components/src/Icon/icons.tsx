@@ -303,14 +303,14 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M3 15h18" />
     </>
   ),
-  'columns-3': (
+  columns: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
       <path d="M9 3v18" />
       <path d="M15 3v18" />
     </>
   ),
-  'rows-3': (
+  rows: (
     <>
       <rect width="18" height="18" x="3" y="3" rx="2" />
       <path d="M21 9H3" />
@@ -476,7 +476,7 @@ export const ICONS: Record<IconName, ReactNode> = {
   ),
 
   // Charts & analytics
-  'bar-chart-3': (
+  'bar-chart': (
     <>
       <path d="M3 3v16a2 2 0 0 0 2 2h16" />
       <path d="M18 17V9" />
@@ -645,7 +645,7 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
     </>
   ),
-  'share-2': (
+  share: (
     <>
       <circle cx="18" cy="5" r="3" />
       <circle cx="6" cy="12" r="3" />
@@ -799,7 +799,7 @@ export const ICONS: Record<IconName, ReactNode> = {
       <rect x="5" y="3" width="5" height="18" rx="1" />
     </>
   ),
-  'volume-2': (
+  volume: (
     <>
       <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
       <path d="M16 9a5 5 0 0 1 0 6" />
@@ -993,13 +993,13 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M14.8 14.8 20 20" />
     </>
   ),
-  'undo-2': (
+  undo: (
     <>
       <path d="M9 14 4 9l5-5" />
       <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
     </>
   ),
-  'redo-2': (
+  redo: (
     <>
       <path d="m15 14 5-5-5-5" />
       <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
