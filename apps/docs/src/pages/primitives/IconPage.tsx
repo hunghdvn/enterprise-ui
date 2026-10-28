@@ -9,7 +9,7 @@ const props: PropDoc[] = [
   {
     name: 'name',
     type: 'IconName',
-    description: 'Tên icon trong registry (~37 icon).',
+    description: 'Tên icon trong registry.',
   },
   {
     name: 'size',
