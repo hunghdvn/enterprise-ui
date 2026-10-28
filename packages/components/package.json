@@ -12,7 +12,8 @@
     "./style.css": "./dist/style.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "peerDependencies": {
     "react": "^18.3.0",

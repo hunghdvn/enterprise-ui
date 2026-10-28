@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import type { IconName } from './types';
 
-// Icon geometry adapted from Feather (MIT) and Lucide 0.545.0 (ISC) — https://lucide.dev.
+// Icon geometry adapted from Feather (MIT) and Lucide 0.545.0 (ISC).
+// See THIRD_PARTY_NOTICES.md for the full license texts.
 
 export const ICONS: Record<IconName, ReactNode> = {
   check: <path d="M20 6L9 17l-5-5" />,
