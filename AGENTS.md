@@ -50,6 +50,9 @@ before pushing.
   light + compact, persisted to localStorage). Design tokens: primary blue
   `#1E47C4`, accent orange `#F97316` used sparingly (~10%), white sidebar that
   shares the page background.
+- **Demo-only shared UI lives in `apps/shared/`** (currently the icon gallery).
+  Docs and showcase import it directly; it is not an npm workspace, so it is
+  typechecked through each app's import graph.
 - **Component folder layout** (follow it for new components):
   `X.tsx` + `X.module.css` + `types.ts` + `index.ts` + `X.test.tsx`, re-exported
   from `src/index.ts` (components **and** public types — consumers must not

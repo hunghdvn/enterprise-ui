@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 
 const root = new URL('../src/Icon/', import.meta.url);
-const lucideDir = new URL('../../../node_modules/lucide-static/icons/', import.meta.url);
+const require = createRequire(import.meta.url);
+const lucideDir = join(dirname(require.resolve('lucide-static/package.json')), 'icons');
 
 /**
  * Names that are not Lucide icon names but deliberately reuse the geometry of
@@ -49,7 +52,7 @@ for (const [name, geometry] of icons) {
   const sourceName = LUCIDE_ALIASES[name] ?? name;
   let svg;
   try {
-    svg = await readFile(new URL(`${sourceName}.svg`, lucideDir), 'utf8');
+    svg = await readFile(join(lucideDir, `${sourceName}.svg`), 'utf8');
   } catch {
     mismatches.push(`${name}: missing from lucide-static 0.545.0`);
     continue;

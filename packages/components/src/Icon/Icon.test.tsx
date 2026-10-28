@@ -6,7 +6,7 @@ import removed from './icons.removed.json';
 import { Icon } from './Icon';
 import type { IconName } from './types';
 
-// Keep this in sync with the same helper in scripts/gen-icon-manifest.ts.
+// Keep this in sync with the same helper in scripts/gen-icon-manifest.mjs.
 const geometryHash = (name: IconName) => {
   const markup = renderToStaticMarkup(ICONS[name]).replace(/\s+/g, ' ').trim();
   let hash = 0xcbf29ce484222325n;

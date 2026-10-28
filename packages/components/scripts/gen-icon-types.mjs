@@ -4,7 +4,8 @@ const root = new URL('../src/Icon/', import.meta.url);
 const iconsPath = new URL('icons.tsx', root);
 const typesPath = new URL('types.ts', root);
 
-const source = await readFile(iconsPath, 'utf8');
+// Normalize CRLF so `--check` works on Windows checkouts with autocrlf.
+const source = (await readFile(iconsPath, 'utf8')).replace(/\r\n/g, '\n');
 const start = source.indexOf('export const ICONS: Record<IconName, ReactNode> = {');
 if (start === -1) throw new Error('ICONS registry not found');
 const end = source.indexOf('\n};', start);
@@ -15,7 +16,7 @@ for (const match of body.matchAll(/^ {2}'?([a-z0-9-]+)'?:/gm)) {
   if (!names.includes(match[1])) names.push(match[1]);
 }
 
-const current = await readFile(typesPath, 'utf8');
+const current = (await readFile(typesPath, 'utf8')).replace(/\r\n/g, '\n');
 const typeStart = current.indexOf('export type IconName =');
 const typeEnd = current.indexOf(';', typeStart);
 if (typeStart === -1 || typeEnd === -1) throw new Error('IconName type not found');

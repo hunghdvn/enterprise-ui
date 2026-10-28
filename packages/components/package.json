@@ -45,10 +45,10 @@
     "vitest": "^2.0.0"
   },
   "scripts": {
-    "test": "node scripts/gen-icon-types.mjs --check && node scripts/check-icon-provenance.mjs && vitest run",
+    "test": "node scripts/gen-icon-types.mjs --check && node scripts/check-icon-provenance.mjs && vite-node scripts/gen-icon-manifest.mjs --check && vitest run",
     "typecheck": "tsc --noEmit",
     "gen:icon-types": "node scripts/gen-icon-types.mjs",
-    "gen:icon-manifest": "vite-node scripts/gen-icon-manifest.ts",
+    "gen:icon-manifest": "vite-node scripts/gen-icon-manifest.mjs",
     "build": "vite build && tsc -p tsconfig.build.json && node scripts/check-bundle-size.mjs"
   }
 }

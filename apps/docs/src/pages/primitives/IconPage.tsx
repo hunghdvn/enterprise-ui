@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
 import { Icon, ICONS, Tabs } from '@enterprise-ui/components';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
 import type { PropDoc } from '../../components/PropsTable';
+import { IconGallery } from '../../../../shared/IconGallery';
 import styles from './IconPage.module.css';
 
 const props: PropDoc[] = [
@@ -47,17 +47,8 @@ export function Actions() {
 }`;
 
 const names = Object.keys(ICONS) as (keyof typeof ICONS)[];
-const PAGE_SIZE = 240;
 
 export default function IconPage() {
-  const [query, setQuery] = useState('');
-  const [visible, setVisible] = useState(PAGE_SIZE);
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return needle ? names.filter((name) => name.includes(needle)) : names;
-  }, [query]);
-  const shown = filtered.slice(0, visible);
-
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Icon</h1>
@@ -73,56 +64,7 @@ export default function IconPage() {
             content: (
               <DemoPlayground>
                 <div className={styles.demo}>
-                  <section className={styles.section}>
-                    <h2 className={styles.sectionTitle}>Tất cả icon</h2>
-                    <div className={styles.toolbar}>
-                      <input
-                        type="search"
-                        value={query}
-                        onChange={(event) => {
-                          setQuery(event.target.value);
-                          setVisible(PAGE_SIZE);
-                        }}
-                        placeholder="Tìm icon…"
-                        aria-label="Tìm icon"
-                        className={styles.search}
-                      />
-                      <span
-                        className={styles.count}
-                        role="status"
-                        aria-live="polite"
-                        aria-atomic="true"
-                      >
-                        {filtered.length} / {names.length} icon
-                      </span>
-                    </div>
-                    <div className={styles.grid} id="icon-gallery">
-                      {shown.map((name) => (
-                        <div key={name} className={styles.cell}>
-                          <Icon name={name} size={20} />
-                          <span className={styles.name}>{name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {filtered.length === 0 && (
-                      <p className={styles.empty} role="status" aria-live="polite">
-                        Không tìm thấy icon phù hợp.
-                      </p>
-                    )}
-                    {filtered.length > PAGE_SIZE && (
-                      <button
-                        type="button"
-                        className={styles.more}
-                        onClick={() => setVisible((value) => value + PAGE_SIZE)}
-                        disabled={shown.length >= filtered.length}
-                        aria-controls="icon-gallery"
-                      >
-                        {shown.length < filtered.length
-                          ? `Hiện thêm ${Math.min(PAGE_SIZE, filtered.length - shown.length)} icon`
-                          : `Đã hiển thị tất cả ${filtered.length} icon`}
-                      </button>
-                    )}
-                  </section>
+                  <IconGallery headingLevel={2} />
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Kích thước & màu</h2>
                     <div className={styles.row}>

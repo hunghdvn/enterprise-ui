@@ -56,9 +56,9 @@ catalog: finance/accounting, orders, inventory and logistics, charts/KPIs,
 documents, HR, communication, security, infrastructure/IT, navigation, time and
 text formatting. Most off-domain categories are excluded (food, animals, gaming,
 music, nature, sports, emoji, weather, medical, science, furniture, brand/logo
-icons). A few general-purpose glyphs stay because they serve ERP UI: `heart`
-(favourites), `sun`/`moon` (theme), `tv` (display/monitoring), `shirt` (apparel
-inventory), `brain` (AI).
+icons). A few general-purpose glyphs stay because they serve ERP UI: `heart` and
+`star` (favourites/ratings), `sun`/`moon` (theme), `tv` (display/monitoring),
+`shirt` (apparel inventory), `brain` (AI).
 
 Naming policy: icon names must not end in a numeric suffix. This intentionally
 omits current Lucide variants that use digits (`columns-3/4`, `rows-3/4`,
@@ -89,7 +89,7 @@ packages/components/src/Icon/
 
 packages/components/scripts/
   gen-icon-types.mjs        // regenerate IconName from icons.tsx
-  gen-icon-manifest.ts      // regenerate the geometry manifest
+  gen-icon-manifest.mjs     // regenerate/check the geometry manifest
   check-icon-provenance.mjs // verify every glyph against Lucide 0.545.0
   check-bundle-size.mjs     // enforce the 150 KiB gzip budget (JS + CSS)
 ```
