@@ -41,11 +41,21 @@ export default function CalendarDemoPage() {
       <header className={styles.header}>
         <h1>Calendar — demo (spike)</h1>
         <div className={styles.nav}>
-          <Button size="sm" variant="secondary" onClick={() => setView(new Date(y, m - 1, 1))}>
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-label="Tháng trước"
+            onClick={() => setView(new Date(y, m - 1, 1))}
+          >
             <Icon name="chevron-left" size={14} />
           </Button>
           <span className={styles.month}>{monthLabel}</span>
-          <Button size="sm" variant="secondary" onClick={() => setView(new Date(y, m + 1, 1))}>
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-label="Tháng sau"
+            onClick={() => setView(new Date(y, m + 1, 1))}
+          >
             <Icon name="chevron-right" size={14} />
           </Button>
         </div>
@@ -66,7 +76,8 @@ export default function CalendarDemoPage() {
             selected.getFullYear() === y &&
             selected.getMonth() === m &&
             selected.getDate() === d;
-          const isToday = y === 2026 && m === 9 && d === 22;
+          const now = new Date();
+          const isToday = y === now.getFullYear() && m === now.getMonth() && d === now.getDate();
           return (
             <button
               key={d}
@@ -92,13 +103,15 @@ export default function CalendarDemoPage() {
         <p>{selected ? selected.toLocaleDateString('vi-VN') : '—'}</p>
         <h3>Sự kiện tháng này</h3>
         <ul>
-          {Object.entries(EVENTS).map(([k, evs]) =>
-            evs.map((e, i) => (
-              <li key={k + i}>
-                {k}: {e.title}
-              </li>
-            )),
-          )}
+          {Object.entries(EVENTS)
+            .filter(([k]) => k.startsWith(`${y}-${String(m + 1).padStart(2, '0')}`))
+            .map(([k, evs]) =>
+              evs.map((e, i) => (
+                <li key={k + i}>
+                  {k}: {e.title}
+                </li>
+              )),
+            )}
         </ul>
       </aside>
     </div>

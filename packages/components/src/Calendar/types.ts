@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
 
-export type CalendarView = 'month';
-
 export interface CalendarProps {
   /** Selected date (controlled). */
   value?: Date | null;

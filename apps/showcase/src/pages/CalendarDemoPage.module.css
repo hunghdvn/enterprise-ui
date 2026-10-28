@@ -96,7 +96,7 @@
   font-size: 10px;
   padding: 1px 4px;
   border-radius: 4px;
-  color: #fff;
+  color: var(--on-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -106,10 +106,10 @@
   background: var(--color-blue-600);
 }
 .event.green {
-  background: #16a34a;
+  background: var(--success, #16a34a);
 }
 .event.orange {
-  background: var(--color-orange-500, #f97316);
+  background: var(--color-orange-500);
 }
 
 .side {

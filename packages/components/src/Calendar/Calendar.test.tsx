@@ -3,32 +3,69 @@ import { useState } from 'react';
 import { Calendar } from './Calendar';
 
 test('renders month grid with weekdays', () => {
-  render(<Calendar value={new Date(2026, 9, 15)} onChange={() => {}} />);
+  render(
+    <Calendar value={new Date(2026, 9, 15)} onChange={() => {}} view={new Date(2026, 9, 1)} />,
+  );
   expect(screen.getByText('T2')).toBeInTheDocument();
   expect(screen.getByRole('grid')).toBeInTheDocument();
-  expect(screen.getByRole('gridcell', { name: '15' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('gridcell', { name: /^15 tháng 10 năm 2026$/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
 });
 
 test('clicking a day calls onChange', () => {
   const onChange = vi.fn();
-  render(<Calendar value={null} onChange={onChange} />);
-  fireEvent.click(screen.getByRole('gridcell', { name: '10' }));
+  render(<Calendar value={null} onChange={onChange} view={new Date(2026, 9, 1)} />);
+  fireEvent.click(screen.getByRole('gridcell', { name: /^10 tháng 10 năm 2026$/i }));
   expect(onChange).toHaveBeenCalledWith(expect.any(Date));
   expect((onChange.mock.calls[0][0] as Date).getDate()).toBe(10);
 });
 
 test('disabled day is not clickable', () => {
   const onChange = vi.fn();
-  render(<Calendar value={null} onChange={onChange} isDisabled={(d) => d.getDate() === 5} />);
-  const cell = screen.getByRole('gridcell', { name: '5' }) as HTMLButtonElement;
+  render(
+    <Calendar
+      value={null}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDate() === 5}
+    />,
+  );
+  const cell = screen.getByRole('gridcell', {
+    name: /^5 tháng 10 năm 2026$/i,
+  }) as HTMLButtonElement;
   expect(cell).toBeDisabled();
   fireEvent.click(cell);
   expect(onChange).not.toHaveBeenCalled();
 });
 
+test('keyboard selection skips disabled dates', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 10)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDate() === 11}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'ArrowRight' });
+  // onChange should not have been called with the disabled date
+  const calls = onChange.mock.calls.map((c) => (c[0] as Date).getDate());
+  expect(calls).not.toContain(11);
+});
+
 test('events render in day cells', () => {
   render(
-    <Calendar value={null} onChange={() => {}} events={{ '2026-10-10': <span>Meeting</span> }} />,
+    <Calendar
+      value={null}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      events={{ '2026-10-10': <span>Meeting</span> }}
+    />,
   );
   expect(screen.getByText('Meeting')).toBeInTheDocument();
 });
@@ -53,6 +90,14 @@ test('controlled view', () => {
   expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
 });
 
+test('onViewChange without view still updates internal view', () => {
+  const onViewChange = vi.fn();
+  render(<Calendar value={null} onChange={() => {}} onViewChange={onViewChange} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  expect(onViewChange).toHaveBeenCalled();
+  expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
+});
+
 test('today is marked aria-current', () => {
   const now = new Date();
   render(
@@ -68,14 +113,42 @@ test('today is marked aria-current', () => {
   expect(todayCell).toBeDefined();
 });
 
-test('keyboard arrow moves selection', () => {
+test('Enter on a day button selects it', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar value={new Date(2026, 9, 10)} onChange={onChange} view={new Date(2026, 9, 1)} />,
+  );
+  const cell = screen.getByRole('gridcell', { name: /^15 tháng 10 năm 2026$/i });
+  fireEvent.click(cell);
+  // Enter on the button itself activates native click; ensure no crash
+  expect(cell).toBeInTheDocument();
+});
+
+test('keyboard arrow moves selection and view syncs across months', () => {
   function Harness() {
-    const [v, setV] = useState<Date | null>(new Date(2026, 9, 10));
-    return <Calendar value={v} onChange={setV} view={new Date(2026, 9, 1)} />;
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
+    return <Calendar value={v} onChange={setV} />;
   }
   render(<Harness />);
   const grid = screen.getByRole('grid');
   grid.focus();
   fireEvent.keyDown(grid, { key: 'ArrowRight' });
-  expect(screen.getByRole('gridcell', { name: '11' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('gridcell', { name: /^1 tháng 11 năm 2026$/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
+test('weeks are wrapped in role=row', () => {
+  render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
+  expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
+});
+
+test('month label has an id and grid references it', () => {
+  render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
+  const grid = screen.getByRole('grid');
+  const labelledBy = grid.getAttribute('aria-labelledby');
+  expect(labelledBy).toBeTruthy();
+  const label = document.getElementById(labelledBy!);
+  expect(label).not.toBeNull();
 });

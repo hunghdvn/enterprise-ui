@@ -97,7 +97,7 @@
   transition: background 0.12s;
 }
 
-.day:hover:not(:disabled) {
+.day:hover:not(:disabled):not(.day-selected) {
   background: var(--surface-muted);
 }
 

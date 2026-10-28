@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { Icon } from '../Icon';
 import type { CalendarProps } from './types';
 import styles from './Calendar.module.css';
@@ -33,6 +33,10 @@ function firstOffset(year: number, month: number): number {
   return (dow + 6) % 7;
 }
 
+function fmtFull(d: Date): string {
+  return `${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}`;
+}
+
 export function Calendar({
   value = null,
   onChange,
@@ -44,15 +48,35 @@ export function Calendar({
   className,
   'aria-label': ariaLabel,
 }: CalendarProps) {
-  const initialView = view ?? (value ? new Date(value) : new Date());
-  const [internalView, setInternalView] = useState(initialView);
+  const uid = useId();
+  const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const userPagedRef = useRef(false);
+
+  const [internalView, setInternalView] = useState<Date>(
+    view ?? (value ? new Date(value) : new Date()),
+  );
+  // sync view prop
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (view) setInternalView(view);
+  }, [view]);
+
+  // follow value's month on mount / when user hasn't paged
+  useEffect(() => {
+    if (value && !userPagedRef.current && !view) {
+      setInternalView(new Date(value.getFullYear(), value.getMonth(), 1));
+    }
+  }, [value, view]);
+
   const currentView = view ?? internalView;
   const setView = useCallback(
     (next: Date) => {
-      if (onViewChange) onViewChange(next);
-      else setInternalView(next);
+      userPagedRef.current = true;
+      if (view === undefined) setInternalView(next);
+      onViewChange?.(next);
     },
-    [onViewChange],
+    [view, onViewChange],
   );
 
   const year = currentView.getFullYear();
@@ -61,12 +85,14 @@ export function Calendar({
 
   const offset = firstOffset(year, month);
   const total = daysInMonth(year, month);
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < offset; i++) cells.push(null);
-  for (let d = 1; d <= total; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
 
-  const gridRef = useRef<HTMLDivElement>(null);
+  // cursor for keyboard (null → today or value)
+  const [cursor, setCursor] = useState<Date>(value ? startOfDay(value) : startOfDay(new Date()));
+  // keep cursor in view when value changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (value) setCursor(startOfDay(value));
+  }, [value]);
 
   const changeMonth = (delta: number) => {
     setView(new Date(year, month + delta, 1));
@@ -74,51 +100,86 @@ export function Calendar({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    const sel = value ? startOfDay(value) : null;
+    const base = cursor || (value ? startOfDay(value) : today);
     let next: Date | null = null;
+    let handled = false;
     switch (e.key) {
       case 'ArrowRight':
-        if (sel) next = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + 1);
+        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
         break;
       case 'ArrowLeft':
-        if (sel) next = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - 1);
+        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 1);
         break;
       case 'ArrowDown':
-        if (sel) next = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + 7);
+        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 7);
         break;
       case 'ArrowUp':
-        if (sel) next = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - 7);
+        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 7);
         break;
       case 'PageUp':
         changeMonth(-1);
+        // also move selection one month back if present
+        if (value) {
+          const d = new Date(
+            value.getFullYear(),
+            value.getMonth() - 1,
+            Math.min(value.getDate(), daysInMonth(value.getFullYear(), value.getMonth() - 1)),
+          );
+          if (!isDisabled?.(d)) onChange?.(d);
+        }
         e.preventDefault();
-        return;
+        handled = true;
+        break;
       case 'PageDown':
         changeMonth(1);
+        if (value) {
+          const d = new Date(
+            value.getFullYear(),
+            value.getMonth() + 1,
+            Math.min(value.getDate(), daysInMonth(value.getFullYear(), value.getMonth() + 1)),
+          );
+          if (!isDisabled?.(d)) onChange?.(d);
+        }
         e.preventDefault();
-        return;
+        handled = true;
+        break;
       case 'Home':
-        if (sel) next = new Date(year, month, 1);
+        next = new Date(year, month, 1);
         break;
       case 'End':
-        if (sel) next = new Date(year, month, total);
+        next = new Date(year, month, total);
         break;
       case 'Enter':
       case ' ':
-        if (sel) onChange?.(sel);
+        if (e.target !== e.currentTarget) return; // let the day button handle it
+        if (cursor && !isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
-        return;
+        handled = true;
+        break;
       default:
         return;
     }
+    if (handled) return;
     if (next) {
       e.preventDefault();
-      if (next.getMonth() !== month) setView(new Date(next.getFullYear(), next.getMonth(), 1));
+      if (isDisabled?.(next)) return;
+      if (next.getMonth() !== month || next.getFullYear() !== year) {
+        setView(new Date(next.getFullYear(), next.getMonth(), 1));
+      }
+      setCursor(next);
       onChange?.(next);
     }
   };
 
   const monthLabel = currentView.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+
+  // build weeks
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < offset; i++) cells.push(null);
+  for (let d = 1; d <= total; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
   return (
     <div className={className ? `${styles.wrap} ${className}` : styles.wrap} data-size={size}>
@@ -131,7 +192,7 @@ export function Calendar({
         >
           <Icon name="chevron-left" size={14} />
         </button>
-        <span className={styles['month-label']} aria-live="polite">
+        <span id={monthLabelId} className={styles['month-label']} aria-live="polite">
           {monthLabel}
         </span>
         <button
@@ -148,7 +209,7 @@ export function Calendar({
         className={styles.grid}
         role="grid"
         aria-label={ariaLabel ?? 'Lịch'}
-        aria-labelledby={undefined}
+        aria-labelledby={monthLabelId}
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
@@ -160,41 +221,57 @@ export function Calendar({
           ))}
         </div>
         <div className={styles['days-grid']} role="rowgroup">
-          {cells.map((d, i) => {
-            if (d === null)
-              return (
-                <div key={`b-${i}`} className={styles.blank} role="gridcell" aria-hidden="true" />
-              );
-            const date = new Date(year, month, d);
-            const disabled = isDisabled ? isDisabled(date) : false;
-            const selected = sameDay(date, value ?? null);
-            const isToday = sameDay(date, today);
-            const ev = events?.[isoKey(date)];
-            return (
-              <button
-                key={d}
-                type="button"
-                role="gridcell"
-                aria-selected={selected}
-                aria-current={isToday ? 'date' : undefined}
-                disabled={disabled}
-                className={[
-                  styles.day,
-                  selected ? styles['day-selected'] : '',
-                  isToday ? styles['day-today'] : '',
-                  disabled ? styles['day-disabled'] : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => {
-                  if (!disabled) onChange?.(date);
-                }}
-              >
-                <span className={styles['day-num']}>{d}</span>
-                {ev && <span className={styles['day-events']}>{ev}</span>}
-              </button>
-            );
-          })}
+          {weeks.map((week, wi) => (
+            <div key={wi} role="row" style={{ display: 'contents' }}>
+              {week.map((d, di) => {
+                if (d === null)
+                  return (
+                    <div
+                      key={`b-${wi}-${di}`}
+                      className={styles.blank}
+                      role="gridcell"
+                      aria-hidden="true"
+                    />
+                  );
+                const date = new Date(year, month, d);
+                const disabled = isDisabled ? isDisabled(date) : false;
+                const selected = sameDay(date, value);
+                const isToday = sameDay(date, today);
+                const isCursor = sameDay(date, cursor);
+                const ev = events?.[isoKey(date)];
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    role="gridcell"
+                    aria-label={fmtFull(date)}
+                    aria-selected={selected}
+                    aria-current={isToday ? 'date' : undefined}
+                    aria-disabled={disabled || undefined}
+                    tabIndex={isCursor ? 0 : -1}
+                    disabled={disabled}
+                    className={[
+                      styles.day,
+                      selected ? styles['day-selected'] : '',
+                      isToday ? styles['day-today'] : '',
+                      disabled ? styles['day-disabled'] : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => {
+                      if (!disabled) {
+                        setCursor(date);
+                        onChange?.(date);
+                      }
+                    }}
+                  >
+                    <span className={styles['day-num']}>{d}</span>
+                    {ev != null && <span className={styles['day-events']}>{ev}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
