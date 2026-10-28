@@ -66,3 +66,8 @@ in [`apps/showcase`](../apps/showcase):
 ```bash
 npm run dev --workspace=@enterprise-ui/showcase
 ```
+
+## License
+
+MIT. Icon geometry is derived from Lucide (ISC) and Feather (MIT); see
+[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md).
