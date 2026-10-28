@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ICONS } from './icons';
 import manifest from './icons.manifest.json';
+import removed from './icons.removed.json';
 import { Icon } from './Icon';
 import type { IconName } from './types';
 
@@ -190,25 +191,16 @@ test.each(EXPANDED_ICON_NAMES)('registers the expanded icon %s', (name) => {
   expect(ICONS[name as IconName]).toBeDefined();
 });
 
-test('does not register deprecated numbered aliases', () => {
-  const deprecated = [
-    'building-2',
-    'share-2',
-    'undo-2',
-    'redo-2',
-    'bar-chart-3',
-    'columns-3',
-    'rows-3',
-    'volume-2',
-  ];
-  for (const name of deprecated) {
-    expect(ICONS).not.toHaveProperty(name);
-  }
+test('uses clean names without numeric suffixes', () => {
+  const names = Object.keys(ICONS);
+  expect(names.filter((name) => /-\d+$/.test(name))).toEqual([]);
 });
 
 test('catalog matches the checked-in manifest', () => {
   const names = Object.keys(ICONS).sort();
-  expect(names).toHaveLength(1249);
+  expect(manifest.algorithm).toBe('fnv1a-64');
+  expect(manifest.count).toBe(Object.keys(manifest.icons).length);
+  expect(names).toHaveLength(manifest.count);
   expect(names).toEqual(Object.keys(manifest.icons).sort());
   for (const name of names) {
     expect(geometryHash(name as IconName), `${name} geometry changed`).toBe(
@@ -217,38 +209,10 @@ test('catalog matches the checked-in manifest', () => {
   }
 });
 
-test('keeps the original ERP-focused catalog free of unrelated icons', () => {
-  const unrelated = [
-    'pizza',
-    'cat',
-    'gamepad',
-    'guitar',
-    'trophy',
-    'snowflake',
-    'stethoscope',
-    'atom',
-    'party-popper',
-    'music',
-    'dumbbell',
-    'sofa',
-    'ferris-wheel',
-    'kayak',
-    'baby',
-    'car',
-    'rocket',
-    'theater',
-    'roller-coaster',
-    'disc-album',
-    'drama',
-    'turntable',
-    'rocking-chair',
-    'youtube',
-    'facebook',
-    'twitter',
-    'instagram',
-  ];
-  for (const name of unrelated) {
-    expect(ICONS).not.toHaveProperty(name);
+test('does not re-add icons removed from the catalog', () => {
+  expect(removed.count).toBe(removed.icons.length);
+  for (const name of removed.icons) {
+    expect(ICONS, `${name} was removed and must not return`).not.toHaveProperty(name);
   }
 });
 
@@ -261,10 +225,31 @@ const ALIASES = {
   'circle-alert': 'alert-circle',
   'circle-help': 'help-circle',
   'circle-user': 'user-circle',
+  refresh: 'refresh-cw',
+  edit: 'square-pen',
+  'bar-chart': 'chart-no-axes-column-increasing',
+  'check-circle': 'circle-check-big',
+  'chart-line': 'line-chart',
+  'chart-pie': 'pie-chart',
+  'text-align-start': 'align-left',
+  'text-align-center': 'align-center',
+  'text-align-end': 'align-right',
+  'square-arrow-down-left': 'arrow-down-left-square',
+  'square-arrow-down-right': 'arrow-down-right-square',
+  'square-arrow-down': 'arrow-down-square',
+  'circle-gauge': 'gauge-circle',
+  'hand-helping': 'helping-hand',
+  'square-m': 'm-square',
+  'square-parking': 'parking-square',
+  'square-parking-off': 'parking-square-off',
 } as const;
 
 test.each(Object.entries(ALIASES))('%s shares the canonical %s geometry', (alias, canonical) => {
-  expect(geometryHash(alias as IconName)).toBe(geometryHash(canonical as IconName));
+  expect(ICONS[alias as IconName], `${alias} must be registered`).toBeDefined();
+  expect(ICONS[canonical as IconName], `${canonical} must be registered`).toBeDefined();
+  const aliasHash = geometryHash(alias as IconName);
+  expect(aliasHash, `${alias} must draw geometry`).not.toBe('');
+  expect(aliasHash).toBe(geometryHash(canonical as IconName));
 });
 
 const CANONICAL_GLYPHS = {

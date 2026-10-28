@@ -3,48 +3,13 @@ import { readFile } from 'node:fs/promises';
 const root = new URL('../src/Icon/', import.meta.url);
 const lucideDir = new URL('../../../node_modules/lucide-static/icons/', import.meta.url);
 
-const customIcons = new Set([
-  // Original Feather-derived glyphs kept for backward compatibility.
-  'check',
-  'x',
-  'chevron-down',
-  'chevron-up',
-  'chevron-left',
-  'chevron-right',
-  'arrow-left',
-  'arrow-right',
-  'plus',
-  'search',
-  'filter',
-  'settings',
-  'user',
-  'bell',
-  'mail',
-  'home',
-  'edit',
-  'trash',
-  'download',
-  'upload',
-  'copy',
-  'check-circle',
-  'refresh',
-  'info',
-  'alert-triangle',
-  'help-circle',
-  'calendar',
-  'clock',
-  'eye',
-  'eye-off',
-  'external-link',
-  'inbox',
-  'menu',
-  // Current-name aliases that deliberately point at the canonical glyphs above.
-  'house',
-  'triangle-alert',
-  'circle-question-mark',
-  'funnel',
-  'circle-help',
-]);
+/**
+ * Names that are not Lucide icon names but deliberately reuse the geometry of
+ * another Lucide icon. Keep this list small and explicit.
+ */
+const LUCIDE_ALIASES = {
+  refresh: 'refresh-cw',
+};
 
 const camel = (attr) => attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 const normalize = (value) => value.replace(/\s+/g, ' ').trim();
@@ -81,27 +46,31 @@ for (const match of entries.matchAll(
 
 const mismatches = [];
 for (const [name, geometry] of icons) {
-  if (customIcons.has(name)) continue;
+  const sourceName = LUCIDE_ALIASES[name] ?? name;
   let svg;
   try {
-    svg = await readFile(new URL(`${name}.svg`, lucideDir), 'utf8');
+    svg = await readFile(new URL(`${sourceName}.svg`, lucideDir), 'utf8');
   } catch {
     mismatches.push(`${name}: missing from lucide-static 0.545.0`);
     continue;
   }
-  if (svgGeometry(svg) !== geometry)
-    mismatches.push(`${name}: geometry differs from lucide-static 0.545.0`);
+  if (svgGeometry(svg) !== geometry) {
+    const note = sourceName === name ? '' : ` (expected from ${sourceName}.svg, Lucide 0.545.0)`;
+    mismatches.push(`${name}: geometry differs from lucide-static 0.545.0${note}`);
+  }
 }
 
-const staleCustom = [...customIcons].filter((name) => !icons.has(name));
-if (mismatches.length > 0 || staleCustom.length > 0) {
+const staleAliases = Object.keys(LUCIDE_ALIASES).filter((name) => !icons.has(name));
+const aliasCount = Object.keys(LUCIDE_ALIASES).length;
+
+if (mismatches.length > 0 || staleAliases.length > 0) {
   if (mismatches.length > 0)
     console.error(`Icon provenance check failed:\n- ${mismatches.join('\n- ')}`);
-  if (staleCustom.length > 0)
-    console.error(`Custom icon list references missing icons: ${staleCustom.join(', ')}`);
+  if (staleAliases.length > 0)
+    console.error(`Alias list references missing icons: ${staleAliases.join(', ')}`);
   process.exit(1);
 }
 
 console.log(
-  `Icon provenance ok: ${icons.size} icons (${customIcons.size} curated originals, ${icons.size - customIcons.size} Lucide 0.545.0 glyphs).`,
+  `Icon provenance ok: ${icons.size} icons verified against lucide-static 0.545.0 (${icons.size - aliasCount} direct, ${aliasCount} aliased).`,
 );

@@ -1,8 +1,8 @@
 # Third-party notices
 
-The SVG icon geometry used by `@enterprise-ui/components` is derived from
-[Lucide](https://lucide.dev) v0.545.0 and from Feather (the icon set Lucide was
-forked from). The `Icon` React component, icon selection and curation, filtering,
+The SVG icon geometry used by `@enterprise-ui/components` is from
+[Lucide](https://lucide.dev) v0.545.0 (ISC), which includes portions derived from
+Feather (MIT). The `Icon` React component, icon selection and curation, filtering,
 tests and documentation in this repository are original work. Icon names are the
 names used by Lucide/Feather for identification; no originality is claimed over
 the names themselves.

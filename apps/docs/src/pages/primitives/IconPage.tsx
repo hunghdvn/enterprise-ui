@@ -87,11 +87,16 @@ export default function IconPage() {
                         aria-label="Tìm icon"
                         className={styles.search}
                       />
-                      <span className={styles.count}>
+                      <span
+                        className={styles.count}
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                      >
                         {filtered.length} / {names.length} icon
                       </span>
                     </div>
-                    <div className={styles.grid}>
+                    <div className={styles.grid} id="icon-gallery">
                       {shown.map((name) => (
                         <div key={name} className={styles.cell}>
                           <Icon name={name} size={20} />
@@ -100,15 +105,21 @@ export default function IconPage() {
                       ))}
                     </div>
                     {filtered.length === 0 && (
-                      <p className={styles.empty}>Không tìm thấy icon phù hợp.</p>
+                      <p className={styles.empty} role="status" aria-live="polite">
+                        Không tìm thấy icon phù hợp.
+                      </p>
                     )}
-                    {shown.length < filtered.length && (
+                    {filtered.length > PAGE_SIZE && (
                       <button
                         type="button"
                         className={styles.more}
                         onClick={() => setVisible((value) => value + PAGE_SIZE)}
+                        disabled={shown.length >= filtered.length}
+                        aria-controls="icon-gallery"
                       >
-                        Hiện thêm {Math.min(PAGE_SIZE, filtered.length - shown.length)} icon
+                        {shown.length < filtered.length
+                          ? `Hiện thêm ${Math.min(PAGE_SIZE, filtered.length - shown.length)} icon`
+                          : `Đã hiển thị tất cả ${filtered.length} icon`}
                       </button>
                     )}
                   </section>
