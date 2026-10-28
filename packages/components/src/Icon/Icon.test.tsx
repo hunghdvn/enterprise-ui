@@ -1,21 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { iconGeometryHash } from '../../scripts/geometry-hash';
 import { ICONS } from './icons';
 import manifest from './icons.manifest.json';
 import removed from './icons.removed.json';
 import { Icon } from './Icon';
 import type { IconName } from './types';
 
-// Keep this in sync with the same helper in scripts/gen-icon-manifest.mjs.
-const geometryHash = (name: IconName) => {
-  const markup = renderToStaticMarkup(ICONS[name]).replace(/\s+/g, ' ').trim();
-  let hash = 0xcbf29ce484222325n;
-  for (let index = 0; index < markup.length; index += 1) {
-    hash ^= BigInt(markup.charCodeAt(index));
-    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
-  }
-  return hash.toString(16).padStart(16, '0');
-};
+const geometryHash = (name: IconName) => iconGeometryHash(renderToStaticMarkup(ICONS[name]));
 
 test('renders an svg for a valid name', () => {
   render(<Icon name="check" />);

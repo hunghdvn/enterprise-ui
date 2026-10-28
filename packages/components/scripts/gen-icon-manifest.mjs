@@ -1,23 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ICONS } from '../src/Icon/icons';
-
-// Keep this in sync with the same helper in Icon.test.tsx.
-const geometryHash = (markup) => {
-  let hash = 0xcbf29ce484222325n;
-  for (let index = 0; index < markup.length; index += 1) {
-    hash ^= BigInt(markup.charCodeAt(index));
-    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
-  }
-  return hash.toString(16).padStart(16, '0');
-};
+import { iconGeometryHash } from './geometry-hash.ts';
 
 const names = Object.keys(ICONS).sort();
 const icons = Object.fromEntries(
-  names.map((name) => {
-    const markup = renderToStaticMarkup(ICONS[name]).replace(/\s+/g, ' ').trim();
-    return [name, geometryHash(markup)];
-  }),
+  names.map((name) => [name, iconGeometryHash(renderToStaticMarkup(ICONS[name]))]),
 );
 
 const manifest = {

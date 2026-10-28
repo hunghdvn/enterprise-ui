@@ -88,10 +88,15 @@ packages/components/src/Icon/
   Icon.test.tsx     // tests
 
 packages/components/scripts/
+  geometry-hash.ts          // FNV-1a-64 helper shared by manifest + tests
   gen-icon-types.mjs        // regenerate IconName from icons.tsx
   gen-icon-manifest.mjs     // regenerate/check the geometry manifest
   check-icon-provenance.mjs // verify every glyph against Lucide 0.545.0
   check-bundle-size.mjs     // enforce the 150 KiB gzip budget (JS + CSS)
+
+apps/shared/
+  IconGallery.tsx           // searchable/paginated gallery used by both apps
+  IconGallery.module.css
 ```
 
 ## 8. Refactors
@@ -108,7 +113,7 @@ packages/components/scripts/
 4. Export from `src/index.ts`
 5. Refactor Empty/Toast/Modal
 6. Update their tests if needed (Toast test checks close button? Modal test?)
-7. Docs page `IconPage` + showcase `IconDemoPage` (name filter, 240 icons initially, “Hiện thêm” pagination)
+7. `apps/shared/IconGallery` (name filter, 240 icons initially, “Hiện thêm” pagination, live region, `aria-disabled` end state), consumed by docs `IconPage` + showcase `IconDemoPage`
 8. Build + verify
 
 ## 10. Definition of Done
