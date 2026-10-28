@@ -92,7 +92,7 @@ const EXPANDED_ICON_NAMES = [
   'user-plus',
   'user-check',
   'user-circle',
-  'building-2',
+  'building',
   'briefcase',
   'id-card',
   'shield',
@@ -173,6 +173,10 @@ const EXPANDED_ICON_NAMES = [
 
 test.each(EXPANDED_ICON_NAMES)('registers the expanded icon %s', (name) => {
   expect(ICONS[name as IconName]).toBeDefined();
+});
+
+test('does not register the numbered building-2 alias', () => {
+  expect(ICONS).not.toHaveProperty('building-2');
 });
 
 test('every registered icon draws at least one shape', () => {

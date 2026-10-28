@@ -85,7 +85,7 @@ export type IconName =
   | 'user-plus'
   | 'user-check'
   | 'user-circle'
-  | 'building-2'
+  | 'building'
   | 'briefcase'
   | 'id-card'
   | 'shield'

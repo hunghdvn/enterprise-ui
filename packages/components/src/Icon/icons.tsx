@@ -549,7 +549,7 @@ export const ICONS: Record<IconName, ReactNode> = {
       <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
     </>
   ),
-  'building-2': (
+  building: (
     <>
       <path d="M10 12h4" />
       <path d="M10 8h4" />
