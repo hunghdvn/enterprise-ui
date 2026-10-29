@@ -53,7 +53,6 @@ test('keyboard selection skips disabled dates', () => {
   const grid = screen.getByRole('grid');
   grid.focus();
   fireEvent.keyDown(grid, { key: 'ArrowRight' });
-  // onChange should not have been called with the disabled date
   const calls = onChange.mock.calls.map((c) => (c[0] as Date).getDate());
   expect(calls).not.toContain(11);
 });
@@ -119,9 +118,10 @@ test('Enter on a day button selects it', () => {
     <Calendar value={new Date(2026, 9, 10)} onChange={onChange} view={new Date(2026, 9, 1)} />,
   );
   const cell = screen.getByRole('gridcell', { name: /^15 tháng 10 năm 2026$/i });
+  fireEvent.keyDown(cell, { key: 'Enter' });
+  // Enter on the button itself activates native click; guard prevents double-emit from grid
   fireEvent.click(cell);
-  // Enter on the button itself activates native click; ensure no crash
-  expect(cell).toBeInTheDocument();
+  expect(onChange).toHaveBeenCalled();
 });
 
 test('keyboard arrow moves selection and view syncs across months', () => {
@@ -151,4 +151,42 @@ test('month label has an id and grid references it', () => {
   expect(labelledBy).toBeTruthy();
   const label = document.getElementById(labelledBy!);
   expect(label).not.toBeNull();
+});
+
+test('aria-label prop overrides accessible name', () => {
+  render(
+    <Calendar
+      value={null}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      aria-label="Tháng sinh"
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  expect(grid.getAttribute('aria-label')).toBe('Tháng sinh');
+});
+
+test('events are described via aria-describedby', () => {
+  render(
+    <Calendar
+      value={null}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      events={{ '2026-10-10': <span>Meeting</span> }}
+    />,
+  );
+  const cell = screen.getByRole('gridcell', { name: /^10 tháng 10 năm 2026$/i });
+  expect(cell.getAttribute('aria-describedby')).toBeTruthy();
+});
+
+test('PageUp/PageDown change month and clamp day', () => {
+  function Harness() {
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
+    return <Calendar value={v} onChange={setV} />;
+  }
+  render(<Harness />);
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'PageDown' });
+  expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
 });

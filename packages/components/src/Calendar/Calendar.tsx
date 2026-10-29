@@ -37,6 +37,16 @@ function fmtFull(d: Date): string {
   return `${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}`;
 }
 
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function clampDay(y: number, m: number, day: number): number {
+  return Math.min(day, daysInMonth(y, m));
+}
+
 export function Calendar({
   value = null,
   onChange,
@@ -51,18 +61,16 @@ export function Calendar({
   const uid = useId();
   const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
   const gridRef = useRef<HTMLDivElement>(null);
-  const userPagedRef = useRef(false);
 
   const [internalView, setInternalView] = useState<Date>(
-    view ?? (value ? new Date(value) : new Date()),
+    view ?? (value ? new Date(value.getFullYear(), value.getMonth(), 1) : new Date()),
   );
-  // sync view prop
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (view) setInternalView(view);
   }, [view]);
 
-  // follow value's month on mount / when user hasn't paged
+  const userPagedRef = useRef(false);
   useEffect(() => {
     if (value && !userPagedRef.current && !view) {
       setInternalView(new Date(value.getFullYear(), value.getMonth(), 1));
@@ -72,7 +80,6 @@ export function Calendar({
   const currentView = view ?? internalView;
   const setView = useCallback(
     (next: Date) => {
-      userPagedRef.current = true;
       if (view === undefined) setInternalView(next);
       onViewChange?.(next);
     },
@@ -86,63 +93,74 @@ export function Calendar({
   const offset = firstOffset(year, month);
   const total = daysInMonth(year, month);
 
-  // cursor for keyboard (null → today or value)
   const [cursor, setCursor] = useState<Date>(value ? startOfDay(value) : startOfDay(new Date()));
-  // keep cursor in view when value changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (value) setCursor(startOfDay(value));
   }, [value]);
 
+  useEffect(() => {
+    const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${isoKey(cursor)}"]`);
+    if (el) el.focus();
+  }, [cursor, currentView]);
+
   const changeMonth = (delta: number) => {
+    userPagedRef.current = true;
     setView(new Date(year, month + delta, 1));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    const base = cursor || (value ? startOfDay(value) : today);
+    const base = cursor;
     let next: Date | null = null;
     let handled = false;
     switch (e.key) {
       case 'ArrowRight':
-        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1);
+        next = addDays(base, 1);
         break;
       case 'ArrowLeft':
-        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 1);
+        next = addDays(base, -1);
         break;
       case 'ArrowDown':
-        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 7);
+        next = addDays(base, 7);
         break;
       case 'ArrowUp':
-        next = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 7);
+        next = addDays(base, -7);
         break;
-      case 'PageUp':
-        changeMonth(-1);
-        // also move selection one month back if present
-        if (value) {
-          const d = new Date(
-            value.getFullYear(),
-            value.getMonth() - 1,
-            Math.min(value.getDate(), daysInMonth(value.getFullYear(), value.getMonth() - 1)),
-          );
-          if (!isDisabled?.(d)) onChange?.(d);
+      case 'PageUp': {
+        userPagedRef.current = true;
+        const ny = base.getMonth() === 0 ? base.getFullYear() - 1 : base.getFullYear();
+        const nm = base.getMonth() === 0 ? 11 : base.getMonth() - 1;
+        const nd = clampDay(ny, nm, base.getDate());
+        const d = new Date(ny, nm, nd);
+        if (!isDisabled?.(d)) {
+          setCursor(d);
+          onChange?.(d);
+          setView(new Date(ny, nm, 1));
+        } else {
+          setView(new Date(ny, nm, 1));
         }
         e.preventDefault();
         handled = true;
         break;
-      case 'PageDown':
-        changeMonth(1);
-        if (value) {
-          const d = new Date(
-            value.getFullYear(),
-            value.getMonth() + 1,
-            Math.min(value.getDate(), daysInMonth(value.getFullYear(), value.getMonth() + 1)),
-          );
-          if (!isDisabled?.(d)) onChange?.(d);
+      }
+      case 'PageDown': {
+        userPagedRef.current = true;
+        const ny = base.getMonth() === 11 ? base.getFullYear() + 1 : base.getFullYear();
+        const nm = base.getMonth() === 11 ? 0 : base.getMonth() + 1;
+        const nd = clampDay(ny, nm, base.getDate());
+        const d = new Date(ny, nm, nd);
+        if (!isDisabled?.(d)) {
+          setCursor(d);
+          onChange?.(d);
+          setView(new Date(ny, nm, 1));
+        } else {
+          setView(new Date(ny, nm, 1));
         }
         e.preventDefault();
         handled = true;
         break;
+      }
       case 'Home':
         next = new Date(year, month, 1);
         break;
@@ -151,7 +169,7 @@ export function Calendar({
         break;
       case 'Enter':
       case ' ':
-        if (e.target !== e.currentTarget) return; // let the day button handle it
+        if (e.target !== e.currentTarget) return;
         if (cursor && !isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
         handled = true;
@@ -161,25 +179,34 @@ export function Calendar({
     }
     if (handled) return;
     if (next) {
-      e.preventDefault();
-      if (isDisabled?.(next)) return;
-      if (next.getMonth() !== month || next.getFullYear() !== year) {
-        setView(new Date(next.getFullYear(), next.getMonth(), 1));
+      const step = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
+      let candidate = next;
+      let guard = 0;
+      while (isDisabled?.(candidate) && guard < 400) {
+        candidate = addDays(candidate, step);
+        guard++;
       }
-      setCursor(next);
-      onChange?.(next);
+      if (isDisabled?.(candidate)) return;
+      e.preventDefault();
+      if (candidate.getMonth() !== month || candidate.getFullYear() !== year) {
+        setView(new Date(candidate.getFullYear(), candidate.getMonth(), 1));
+      }
+      setCursor(candidate);
+      onChange?.(candidate);
     }
   };
 
   const monthLabel = currentView.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
 
-  // build weeks
   const cells: (number | null)[] = [];
   for (let i = 0; i < offset; i++) cells.push(null);
   for (let d = 1; d <= total; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
   const weeks: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+
+  const cursorInView = cursor.getFullYear() === year && cursor.getMonth() === month;
+  let fallbackSet = false;
 
   return (
     <div className={className ? `${styles.wrap} ${className}` : styles.wrap} data-size={size}>
@@ -208,9 +235,9 @@ export function Calendar({
         ref={gridRef}
         className={styles.grid}
         role="grid"
-        aria-label={ariaLabel ?? 'Lịch'}
-        aria-labelledby={monthLabelId}
-        tabIndex={0}
+        aria-label={ariaLabel ?? undefined}
+        aria-labelledby={ariaLabel ? undefined : monthLabelId}
+        tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
         <div className={styles['weekday-row']} role="row">
@@ -238,17 +265,26 @@ export function Calendar({
                 const selected = sameDay(date, value);
                 const isToday = sameDay(date, today);
                 const isCursor = sameDay(date, cursor);
+                let tabIndex = -1;
+                if (isCursor && !disabled) tabIndex = 0;
+                else if (!cursorInView && !fallbackSet && !disabled) {
+                  tabIndex = 0;
+                  fallbackSet = true;
+                }
                 const ev = events?.[isoKey(date)];
+                const evId = `cal-ev-${isoKey(date)}`;
                 return (
                   <button
                     key={d}
                     type="button"
                     role="gridcell"
+                    data-date={isoKey(date)}
                     aria-label={fmtFull(date)}
+                    aria-describedby={ev != null ? evId : undefined}
                     aria-selected={selected}
                     aria-current={isToday ? 'date' : undefined}
                     aria-disabled={disabled || undefined}
-                    tabIndex={isCursor ? 0 : -1}
+                    tabIndex={tabIndex}
                     disabled={disabled}
                     className={[
                       styles.day,
@@ -266,7 +302,11 @@ export function Calendar({
                     }}
                   >
                     <span className={styles['day-num']}>{d}</span>
-                    {ev != null && <span className={styles['day-events']}>{ev}</span>}
+                    {ev != null && (
+                      <span id={evId} className={styles['day-events']}>
+                        {ev}
+                      </span>
+                    )}
                   </button>
                 );
               })}
