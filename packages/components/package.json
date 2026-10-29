@@ -1,6 +1,7 @@
 {
   "name": "@enterprise-ui/components",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,8 +13,15 @@
     "./style.css": "./dist/style.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunghdvn/enterprise-ui.git",
+    "directory": "packages/components"
+  },
+  "homepage": "https://github.com/hunghdvn/enterprise-ui/tree/main/packages/components",
   "peerDependencies": {
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
@@ -28,15 +36,19 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^24.0.0",
+    "lucide-static": "0.545.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.0.0",
     "vite": "^5.4.0",
+    "vite-node": "2.1.9",
     "vitest": "^2.0.0"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "node scripts/gen-icon-types.mjs --check && node scripts/check-icon-provenance.mjs && vite-node scripts/gen-icon-manifest.mjs --check && vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && tsc -p tsconfig.build.json"
+    "gen:icon-types": "node scripts/gen-icon-types.mjs",
+    "gen:icon-manifest": "vite-node scripts/gen-icon-manifest.mjs",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/check-bundle-size.mjs"
   }
 }

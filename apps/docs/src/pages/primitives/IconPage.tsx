@@ -1,4 +1,5 @@
 import { Icon, ICONS, Tabs } from '@enterprise-ui/components';
+import { IconGallery } from '@enterprise-ui/demo-shared';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
@@ -9,7 +10,7 @@ const props: PropDoc[] = [
   {
     name: 'name',
     type: 'IconName',
-    description: 'Tên icon trong registry (~37 icon).',
+    description: 'Tên icon trong registry.',
   },
   {
     name: 'size',
@@ -63,17 +64,7 @@ export default function IconPage() {
             content: (
               <DemoPlayground>
                 <div className={styles.demo}>
-                  <section className={styles.section}>
-                    <h2 className={styles.sectionTitle}>Tất cả icon</h2>
-                    <div className={styles.grid}>
-                      {names.map((name) => (
-                        <div key={name} className={styles.cell}>
-                          <Icon name={name} size={20} />
-                          <span className={styles.name}>{name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
+                  <IconGallery headingLevel={2} />
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Kích thước & màu</h2>
                     <div className={styles.row}>

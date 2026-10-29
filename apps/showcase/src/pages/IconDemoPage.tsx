@@ -1,8 +1,10 @@
 import { Icon, ICONS } from '@enterprise-ui/components';
+import { IconGallery } from '@enterprise-ui/demo-shared';
 import styles from './IconDemoPage.module.css';
 
+const names = Object.keys(ICONS) as (keyof typeof ICONS)[];
+
 export default function IconDemoPage() {
-  const names = Object.keys(ICONS) as (keyof typeof ICONS)[];
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Icon</h2>
@@ -10,17 +12,7 @@ export default function IconDemoPage() {
         Bộ icon inline SVG (~{names.length} icon), stroke-based 24×24, màu theo currentColor.
       </p>
 
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Tất cả icon</h3>
-        <div className={styles.grid}>
-          {names.map((name) => (
-            <div key={name} className={styles.cell}>
-              <Icon name={name} size={20} />
-              <span className={styles.name}>{name}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <IconGallery headingLevel={3} />
 
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Kích thước & màu</h3>
