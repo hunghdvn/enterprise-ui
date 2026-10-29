@@ -90,11 +90,14 @@ test('controlled view', () => {
 });
 
 test('onViewChange without view still updates internal view', () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 9, 15));
   const onViewChange = vi.fn();
   render(<Calendar value={null} onChange={() => {}} onViewChange={onViewChange} />);
   fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
   expect(onViewChange).toHaveBeenCalled();
   expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
+  vi.useRealTimers();
 });
 
 test('today is marked aria-current', () => {
@@ -119,7 +122,8 @@ test('Enter on a day button selects it', () => {
   );
   const cell = screen.getByRole('gridcell', { name: /^15 tháng 10 năm 2026$/i });
   fireEvent.keyDown(cell, { key: 'Enter' });
-  // Enter on the button itself activates native click; guard prevents double-emit from grid
+  // keydown on the button itself is handled by native activation; grid guard prevents double-emit
+  expect(onChange).not.toHaveBeenCalled();
   fireEvent.click(cell);
   expect(onChange).toHaveBeenCalled();
 });
@@ -162,8 +166,7 @@ test('aria-label prop overrides accessible name', () => {
       aria-label="Tháng sinh"
     />,
   );
-  const grid = screen.getByRole('grid');
-  expect(grid.getAttribute('aria-label')).toBe('Tháng sinh');
+  expect(screen.getByRole('grid', { name: 'Tháng sinh' })).toBeInTheDocument();
 });
 
 test('events are described via aria-describedby', () => {
@@ -176,7 +179,7 @@ test('events are described via aria-describedby', () => {
     />,
   );
   const cell = screen.getByRole('gridcell', { name: /^10 tháng 10 năm 2026$/i });
-  expect(cell.getAttribute('aria-describedby')).toBeTruthy();
+  expect(cell).toHaveAccessibleDescription(/Meeting/);
 });
 
 test('PageUp/PageDown change month and clamp day', () => {

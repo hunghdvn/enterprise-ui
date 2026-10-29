@@ -99,10 +99,14 @@ export function Calendar({
     if (value) setCursor(startOfDay(value));
   }, [value]);
 
+  const interactedRef = useRef(false);
+  const cursorTime = cursor.getTime();
   useEffect(() => {
+    if (!interactedRef.current) return;
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${isoKey(cursor)}"]`);
-    if (el) el.focus();
-  }, [cursor, currentView]);
+    if (el) el.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursorTime, year, month]);
 
   const changeMonth = (delta: number) => {
     userPagedRef.current = true;
@@ -111,6 +115,7 @@ export function Calendar({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    interactedRef.current = true;
     const base = cursor;
     let next: Date | null = null;
     let handled = false;
@@ -133,13 +138,9 @@ export function Calendar({
         const nm = base.getMonth() === 0 ? 11 : base.getMonth() - 1;
         const nd = clampDay(ny, nm, base.getDate());
         const d = new Date(ny, nm, nd);
-        if (!isDisabled?.(d)) {
-          setCursor(d);
-          onChange?.(d);
-          setView(new Date(ny, nm, 1));
-        } else {
-          setView(new Date(ny, nm, 1));
-        }
+        setCursor(d);
+        setView(new Date(ny, nm, 1));
+        if (!isDisabled?.(d)) onChange?.(d);
         e.preventDefault();
         handled = true;
         break;
@@ -150,13 +151,9 @@ export function Calendar({
         const nm = base.getMonth() === 11 ? 0 : base.getMonth() + 1;
         const nd = clampDay(ny, nm, base.getDate());
         const d = new Date(ny, nm, nd);
-        if (!isDisabled?.(d)) {
-          setCursor(d);
-          onChange?.(d);
-          setView(new Date(ny, nm, 1));
-        } else {
-          setView(new Date(ny, nm, 1));
-        }
+        setCursor(d);
+        setView(new Date(ny, nm, 1));
+        if (!isDisabled?.(d)) onChange?.(d);
         e.preventDefault();
         handled = true;
         break;
@@ -179,15 +176,15 @@ export function Calendar({
     }
     if (handled) return;
     if (next) {
-      const step = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
+      e.preventDefault();
+      const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
       let candidate = next;
       let guard = 0;
       while (isDisabled?.(candidate) && guard < 400) {
-        candidate = addDays(candidate, step);
+        candidate = addDays(candidate, dir);
         guard++;
       }
       if (isDisabled?.(candidate)) return;
-      e.preventDefault();
       if (candidate.getMonth() !== month || candidate.getFullYear() !== year) {
         setView(new Date(candidate.getFullYear(), candidate.getMonth(), 1));
       }
@@ -272,7 +269,7 @@ export function Calendar({
                   fallbackSet = true;
                 }
                 const ev = events?.[isoKey(date)];
-                const evId = `cal-ev-${isoKey(date)}`;
+                const evId = `cal-ev-${uid.replace(/:/g, '')}-${isoKey(date)}`;
                 return (
                   <button
                     key={d}
