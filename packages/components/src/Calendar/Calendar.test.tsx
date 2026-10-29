@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach } from 'vitest';
 import { useState } from 'react';
 import { Calendar } from './Calendar';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 test('renders month grid with weekdays', () => {
   render(
@@ -97,7 +102,6 @@ test('onViewChange without view still updates internal view', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
   expect(onViewChange).toHaveBeenCalled();
   expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
-  vi.useRealTimers();
 });
 
 test('today is marked aria-current', () => {

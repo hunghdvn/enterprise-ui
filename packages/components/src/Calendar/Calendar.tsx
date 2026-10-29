@@ -103,6 +103,7 @@ export function Calendar({
   const cursorTime = cursor.getTime();
   useEffect(() => {
     if (!interactedRef.current) return;
+    if (!gridRef.current?.contains(document.activeElement)) return;
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${isoKey(cursor)}"]`);
     if (el) el.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,9 +139,11 @@ export function Calendar({
         const nm = base.getMonth() === 0 ? 11 : base.getMonth() - 1;
         const nd = clampDay(ny, nm, base.getDate());
         const d = new Date(ny, nm, nd);
-        setCursor(d);
         setView(new Date(ny, nm, 1));
-        if (!isDisabled?.(d)) onChange?.(d);
+        if (!isDisabled?.(d)) {
+          setCursor(d);
+          onChange?.(d);
+        }
         e.preventDefault();
         handled = true;
         break;
@@ -151,9 +154,11 @@ export function Calendar({
         const nm = base.getMonth() === 11 ? 0 : base.getMonth() + 1;
         const nd = clampDay(ny, nm, base.getDate());
         const d = new Date(ny, nm, nd);
-        setCursor(d);
         setView(new Date(ny, nm, 1));
-        if (!isDisabled?.(d)) onChange?.(d);
+        if (!isDisabled?.(d)) {
+          setCursor(d);
+          onChange?.(d);
+        }
         e.preventDefault();
         handled = true;
         break;
@@ -177,11 +182,12 @@ export function Calendar({
     if (handled) return;
     if (next) {
       e.preventDefault();
+      const stepSize = e.key === 'ArrowUp' || e.key === 'ArrowDown' ? 7 : 1;
       const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'End' ? -1 : 1;
       let candidate = next;
       let guard = 0;
       while (isDisabled?.(candidate) && guard < 400) {
-        candidate = addDays(candidate, dir);
+        candidate = addDays(candidate, dir * stepSize);
         guard++;
       }
       if (isDisabled?.(candidate)) return;
