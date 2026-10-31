@@ -1,40 +1,29 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Icon } from '../Icon';
+import { cx } from '../internal/cx';
+import {
+  DAYS_PER_WEEK,
+  WEEKDAYS,
+  daysInMonth,
+  firstDayOffset,
+  formatMonth,
+  sameDay,
+  startOfDay,
+} from '../internal/date';
 import type { DateRange, DateRangePickerProps } from './types';
 import styles from './DateRangePicker.module.css';
 
 const GAP_PX = 4;
 const EST_CHROME = 48;
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function sameDay(a: Date | null, b: Date | null): boolean {
-  if (!a || !b) return false;
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
+/** Column count comes from `WEEKDAYS.length` so the grid math and the CSS cannot drift. */
+const GRID_STYLE = { '--drp-cols': DAYS_PER_WEEK } as CSSProperties;
 
 function inRange(d: Date, from: Date | null, to: Date | null): boolean {
   if (!from || !to) return false;
   const t = d.getTime();
   return t >= from.getTime() && t <= to.getTime();
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function firstDayOffset(year: number, month: number): number {
-  const dow = new Date(year, month, 1).getDay();
-  return (dow + 6) % 7;
 }
 
 function formatRange(value: DateRange, placeholder: string): string {
@@ -208,7 +197,7 @@ export function DateRangePicker({
     cells.push({ date: new Date(year, month, d), out: false });
   }
   const next = new Date(year, month, totalDays + 1);
-  while (cells.length % 7 !== 0) {
+  while (cells.length % DAYS_PER_WEEK !== 0) {
     cells.push({ date: new Date(next), out: true });
     next.setDate(next.getDate() + 1);
   }
@@ -239,8 +228,9 @@ export function DateRangePicker({
   return (
     <div
       ref={wrapRef}
-      className={className ? `${styles.wrap} ${className}` : styles.wrap}
+      className={cx(styles.wrap, className)}
       data-disabled={disabled || undefined}
+      style={GRID_STYLE}
     >
       <button
         ref={triggerRef}
@@ -290,7 +280,7 @@ export function DateRangePicker({
               <Icon name="chevron-left" size={14} />
             </button>
             <span id={monthLabelId} className={styles['month-label']} aria-live="polite">
-              {view.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+              {formatMonth(view)}
             </span>
             <button
               type="button"
@@ -311,7 +301,8 @@ export function DateRangePicker({
           <div className={styles.grid} role="grid" aria-labelledby={monthLabelId}>
             {(() => {
               const rows: Cell[][] = [];
-              for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+              for (let i = 0; i < cells.length; i += DAYS_PER_WEEK)
+                rows.push(cells.slice(i, i + DAYS_PER_WEEK));
               return rows.map((row, ri) => (
                 <div key={ri} role="row" className={styles.row} style={{ display: 'contents' }}>
                   {row.map((cell) => {
@@ -325,15 +316,13 @@ export function DateRangePicker({
                         type="button"
                         role="gridcell"
                         aria-selected={isStart || isEnd}
-                        className={[
+                        className={cx(
                           styles.day,
-                          cell.out ? styles['day-out'] : '',
-                          isStart ? styles['day-start'] : '',
-                          isEnd ? styles['day-end'] : '',
-                          inside && !isStart && !isEnd ? styles['day-in'] : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
+                          cell.out && styles['day-out'],
+                          isStart && styles['day-start'],
+                          isEnd && styles['day-end'],
+                          inside && !isStart && !isEnd && styles['day-in'],
+                        )}
                         onClick={() => pickDay(d)}
                       >
                         {d.getDate()}

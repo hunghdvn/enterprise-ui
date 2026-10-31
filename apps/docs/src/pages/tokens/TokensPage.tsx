@@ -43,6 +43,8 @@ const THEME: TokenDoc[] = [
   { name: '--action-text', value: 'Light #1e47c4 · Dark #bfdbfe' },
   { name: '--nav-active-bg', value: 'Light #eff6ff · Dark #1e3a8a' },
   { name: '--scrim', value: 'Light rgba(15, 23, 42, 0.45) · Dark rgba(2, 6, 23, 0.65)' },
+  { name: '--focus-ring', value: 'Light #1e47c4 · Dark #93c5fd' },
+  { name: '--today-ring', value: 'Light #1e40af · Dark #93c5fd' },
 ];
 
 const DENSITY: TokenDoc[] = [

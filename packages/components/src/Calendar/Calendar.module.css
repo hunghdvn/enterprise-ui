@@ -1,0 +1,238 @@
+.wrap {
+  /* `--cal-cols` is set inline from DAYS_PER_WEEK; these are the rest of the grid geometry. */
+  --cal-gap: 2px;
+  --cal-pad: 6px;
+  --cal-border: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Intrinsic month-grid width: one square cell per weekday instead of stretching. */
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font, inherit);
+}
+
+.wrap[data-size='sm'] {
+  --cal-cell: 32px;
+}
+
+.wrap[data-size='md'] {
+  --cal-cell: 40px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius);
+  display: inline-flex;
+}
+
+.nav:hover {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.month-label {
+  font-weight: 600;
+  font-size: var(--font-size);
+  flex: 1;
+  text-align: center;
+}
+
+/* Only the first word is a sentence start; `capitalize` would title-case "Năm" too. */
+.month-label::first-letter {
+  text-transform: uppercase;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.grid {
+  /* cells + gaps + padding + one border on each side */
+  box-sizing: border-box;
+  width: calc(
+    var(--cal-cols) * var(--cal-cell) + (var(--cal-cols) - 1) * var(--cal-gap) + 2 *
+      var(--cal-pad) + 2 * var(--cal-border)
+  );
+  max-width: 100%;
+  border: var(--cal-border) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--cal-pad);
+}
+
+.grid:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(var(--cal-cols), 1fr);
+  gap: var(--cal-gap);
+  margin-bottom: 4px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 0;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cal-cols), 1fr);
+  gap: var(--cal-gap);
+}
+
+.blank {
+  height: var(--cal-cell);
+}
+
+.day {
+  position: relative;
+  height: var(--cal-cell);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2px;
+  gap: 2px;
+  overflow: hidden;
+  transition: background 0.12s;
+}
+
+.day:hover:not(:disabled):not(.day-selected) {
+  background: var(--surface-muted);
+}
+
+.day-selected {
+  background: var(--color-blue-600);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+
+/* Today gets its own token and a border dot: `box-shadow` disappears in forced-colors, and a
+   ring on a filled selection would merge into the white grid behind it. */
+.day-today::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  box-sizing: border-box;
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--today-ring);
+  border-radius: 50%;
+}
+
+/* On a filled selection the dot needs the on-primary colour: blue-on-blue disappears. */
+.day-today.day-selected::after {
+  border-color: var(--on-primary);
+}
+
+/* A blocked selection is no longer a filled primary surface, so white would vanish: use the
+   ring token itself, which keeps the "today" signal at full strength on the muted fill. */
+.day-disabled.day-today.day-selected::after {
+  border-color: var(--today-ring);
+}
+
+@media (forced-colors: active) {
+  .day-today::after,
+  .day-today.day-selected::after {
+    border-color: CanvasText;
+  }
+}
+
+.day-disabled {
+  cursor: not-allowed;
+}
+
+/* Dim the content, not the button: the today dot must stay legible on a disabled day. */
+.day-disabled .day-num,
+.day-disabled .day-events {
+  opacity: 0.45;
+}
+
+/* A disabled day that is also selected must still read as blocked: dimming only the text left the
+   full-strength blue fill looking like a live selection (white on blue-600 at 45% opacity is
+   ~2.8:1). The fill is muted with `color-mix`, keeping the today dot at full strength. */
+.day-disabled.day-selected {
+  background: color-mix(in srgb, var(--color-blue-600) 38%, var(--surface));
+  color: var(--text);
+}
+
+.day-disabled.day-selected .day-num,
+.day-disabled.day-selected .day-events {
+  opacity: 0.55;
+}
+
+/* `color-mix` is Baseline 2023; without it the fill above is dropped and blue-600 would read as a
+   live selection again, so fall back to the muted surface instead. */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .day-disabled.day-selected {
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+}
+
+.day-num {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Event slot: one line per event; lines beyond the cell's capacity are sr-only (still in the
+   day's description) rather than display:none. */
+.day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+}
+
+.day-event {
+  font-size: 9px;
+  line-height: 1.1;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-selected .day-event {
+  color: var(--on-primary);
+}
+
+/* A blocked selection is no longer a filled primary surface, so its events use muted text. */
+.day-disabled.day-selected .day-event {
+  color: var(--text-muted);
+}

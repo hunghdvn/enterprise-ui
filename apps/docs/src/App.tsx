@@ -31,6 +31,7 @@ import KpiGridPage from './pages/data/KpiGridPage';
 import StepsPage from './pages/data/StepsPage';
 import DateRangePickerPage from './pages/data/DateRangePickerPage';
 import KanbanPage from './pages/data/KanbanPage';
+import CalendarPage from './pages/data/CalendarPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
 import FileUploadPage from './pages/data/FileUploadPage';
 import TreePage from './pages/data/TreePage';
@@ -106,6 +107,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   steps: { label: 'Steps', icon: 'arrow-right', el: <StepsPage /> },
   daterange: { label: 'DateRangePicker', icon: 'calendar', el: <DateRangePickerPage /> },
   kanban: { label: 'Kanban', icon: 'menu', el: <KanbanPage /> },
+  calendar: { label: 'Calendar', icon: 'calendar', el: <CalendarPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
   fileupload: { label: 'FileUpload', icon: 'upload', el: <FileUploadPage /> },
   tree: { label: 'Tree', icon: 'menu', el: <TreePage /> },

@@ -12,4 +12,8 @@
   --action-text: #1e47c4;
   --nav-active-bg: #eff6ff;
   --scrim: rgba(15, 23, 42, 0.45);
+  /* Light subtrees nest inside a dark page, so both rings must be reset here. Blue-600 is
+     ~7:1 on white and blue-700 ~8.7:1; each must stay ≥3:1 on `--surface`. */
+  --focus-ring: #1e47c4;
+  --today-ring: #1e40af;
 }

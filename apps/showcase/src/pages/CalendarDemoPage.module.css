@@ -1,0 +1,119 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
+  font-family: var(--font, inherit);
+  padding: 8px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field select {
+  font: inherit;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.calendar {
+  min-width: 0;
+  /* The component has its intrinsic month width; center it in the wider content column. */
+  display: flex;
+  justify-content: center;
+}
+
+.side {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.side h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.side > * + h3 {
+  margin-top: 16px;
+}
+
+.side p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.side ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.side .shortcuts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shortcuts button {
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.shortcuts button::first-letter {
+  text-transform: uppercase;
+}
+
+.shortcuts button:hover {
+  background: var(--surface-muted);
+}
+
+.side .empty {
+  color: var(--text-muted);
+  font-size: 12px;
+}
