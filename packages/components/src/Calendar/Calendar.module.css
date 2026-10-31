@@ -1,4 +1,8 @@
 .wrap {
+  /* Month-grid geometry, shared by the width formula and both grids below. */
+  --cal-cols: 7;
+  --cal-gap: 2px;
+  --cal-pad: 6px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -41,9 +45,13 @@
 .month-label {
   font-weight: 600;
   font-size: var(--font-size);
-  text-transform: capitalize;
   flex: 1;
   text-align: center;
+}
+
+/* Only the first word is a sentence start; `capitalize` would title-case "Năm" too. */
+.month-label::first-letter {
+  text-transform: uppercase;
 }
 
 .sr-only {
@@ -59,25 +67,28 @@
 }
 
 .grid {
-  /* 7 cells + 6×2px gaps + 12px padding + 2px border */
+  /* cells + gaps + padding + 1px border on each side */
   box-sizing: border-box;
-  width: calc(7 * var(--cal-cell) + 26px);
+  width: calc(
+    var(--cal-cols) * var(--cal-cell) + (var(--cal-cols) - 1) * var(--cal-gap) + 2 *
+      var(--cal-pad) + 2px
+  );
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  padding: 6px;
+  padding: var(--cal-pad);
 }
 
 .grid:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--color-blue-600));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .weekday-row {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(var(--cal-cols), 1fr);
+  gap: var(--cal-gap);
   margin-bottom: 4px;
 }
 
@@ -91,8 +102,8 @@
 
 .days-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(var(--cal-cols), 1fr);
+  gap: var(--cal-gap);
 }
 
 .blank {
@@ -128,7 +139,12 @@
 }
 
 .day-today {
-  box-shadow: inset 0 0 0 1px var(--color-blue-600);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+/* On a filled selection the ring needs the on-primary colour: blue-on-blue disappears. */
+.day-today.day-selected {
+  box-shadow: inset 0 0 0 1px var(--on-primary);
 }
 
 .day-disabled {

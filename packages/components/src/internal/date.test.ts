@@ -73,6 +73,9 @@ test('clampDay caps at the length of the target month', () => {
 
 test('formatDay renders the full Vietnamese day label', () => {
   expect(formatDay(new Date(2026, 9, 15))).toBe('15 tháng 10, 2026');
+  // both ends of the year: a month/day swap or a missing leading zero would fail here
+  expect(formatDay(new Date(2026, 0, 1))).toBe('1 tháng 1, 2026');
+  expect(formatDay(new Date(2026, 11, 31))).toBe('31 tháng 12, 2026');
 });
 
 test('formatMonth renders the Vietnamese month heading', () => {

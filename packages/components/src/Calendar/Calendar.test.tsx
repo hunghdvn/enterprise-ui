@@ -35,6 +35,12 @@ test('renders month grid with weekdays', () => {
   expect(grid).toHaveAttribute('tabindex', '-1');
 });
 
+test('day labels follow the Vietnamese day pattern', () => {
+  render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
+  // pinned literally so a formatter regression on any day (not just 15/10) fails
+  expect(screen.getByRole('gridcell', { name: '20 tháng 10, 2026' })).toBeInTheDocument();
+});
+
 test('a null value selects no day', () => {
   render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
   const selected = screen
@@ -184,6 +190,58 @@ test('Home/End stay inside the visible month when it is fully disabled', () => {
   expect(grid).toHaveAttribute('tabindex', '0');
 });
 
+test('Home/End stay in the rendered month when the cursor is outside it', () => {
+  const onChange = vi.fn();
+  function Harness() {
+    const [value, setValue] = useState<Date | null>(new Date(2026, 9, 10));
+    return (
+      <>
+        <button type="button" onClick={() => setValue(new Date(2027, 2, 10))}>
+          đặt 3/2027
+        </button>
+        <Calendar value={value} onChange={onChange} view={new Date(2026, 9, 1)} />
+      </>
+    );
+  }
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'đặt 3/2027' }));
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'End' });
+  // not 31/3/2027: Home/End are bounded to the rendered October grid
+  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 31));
+  const endCell = document.activeElement as HTMLElement;
+  expect(endCell).toHaveAttribute('data-date', '2026-10-31');
+  fireEvent.keyDown(endCell, { key: 'Home' });
+  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 1));
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-10-01');
+});
+
+test('page keys anchor to the visible tab stop, not an off-month cursor day', () => {
+  const onChange = vi.fn();
+  function Harness() {
+    const [view, setView] = useState(new Date(2026, 1, 1));
+    return (
+      <Calendar
+        value={new Date(2027, 2, 31)}
+        onChange={onChange}
+        view={view}
+        onViewChange={setView}
+      />
+    );
+  }
+  render(<Harness />);
+  expect(monthHeading()).toMatch(/tháng 2 năm 2026/i);
+  // March 31 does not exist in February; the visible tab stop is 28/2, so the page keeps 28.
+  const stop = screen.getAllByRole('gridcell').find((c) => c.getAttribute('tabindex') === '0');
+  expect(stop).toHaveAttribute('data-date', '2026-02-28');
+  (stop as HTMLElement).focus();
+  fireEvent.keyDown(stop as HTMLElement, { key: 'PageDown' });
+  expect(monthHeading()).toMatch(/tháng 3 năm 2026/i);
+  expect(onChange).toHaveBeenCalledWith(new Date(2026, 2, 28));
+});
+
 test('grid keeps a tab stop when the value is a disabled date', () => {
   render(
     <Calendar
@@ -197,6 +255,43 @@ test('grid keeps a tab stop when the value is a disabled date', () => {
   expect(stops).toHaveLength(1);
   expect(stops[0]).toBeEnabled();
   expect(screen.getByRole('grid')).toHaveAttribute('tabindex', '-1');
+});
+
+test('arrow navigation starts from the tab stop when the value is disabled', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 17)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDay() === 0 || d.getDay() === 6}
+    />,
+  );
+  // Saturday 17/10 is the value but cannot hold focus; the tab stop moved to Monday 19/10.
+  const stop = screen.getAllByRole('gridcell').find((c) => c.getAttribute('tabindex') === '0');
+  expect(stop).toHaveAttribute('data-date', '2026-10-19');
+  (stop as HTMLElement).focus();
+  fireEvent.keyDown(stop as HTMLElement, { key: 'ArrowRight' });
+  // the old base (Sat 17) skipped forward to the same Monday instead of moving on to Tuesday
+  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 20));
+});
+
+test('a fully disabled rendered month ignores arrows even when value sits in it', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 15)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getMonth() === 9}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'ArrowRight' });
+  expect(onChange).not.toHaveBeenCalled();
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  expect(document.activeElement).toBe(grid);
 });
 
 test('paging through a fully disabled month never rewrites the selection', () => {
@@ -228,6 +323,30 @@ test('paging through a fully disabled month never rewrites the selection', () =>
   expect(onChange).not.toHaveBeenCalled();
 });
 
+test('a controlled view that accepts a closed month hands focus to the grid', () => {
+  function Harness() {
+    const [view, setView] = useState(new Date(2026, 9, 1));
+    return (
+      <Calendar
+        value={new Date(2026, 9, 31)}
+        onChange={() => {}}
+        view={view}
+        onViewChange={setView}
+        isDisabled={(d) => d.getMonth() === 8}
+      />
+    );
+  }
+  render(<Harness />);
+  const cell = day(new Date(2026, 9, 31));
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageUp' });
+  expect(monthHeading()).toMatch(/tháng 9 năm 2026/i);
+  // the focused day unmounted; focus must not fall back to <body>
+  const grid = screen.getByRole('grid');
+  expect(document.activeElement).toBe(grid);
+  expect(grid).toHaveAttribute('tabindex', '0');
+});
+
 test('a rejected chevron click keeps the cursor in the rendered month', () => {
   const onChange = vi.fn();
   render(
@@ -239,11 +358,15 @@ test('a rejected chevron click keeps the cursor in the rendered month', () => {
     />,
   );
   const cell = day(new Date(2026, 9, 15));
+  const next = screen.getByRole('button', { name: 'Tháng sau' });
   cell.focus();
-  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  // a real click focuses the chevron before the handler runs; jsdom's click does not
+  next.focus();
+  fireEvent.click(next);
   expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(document.activeElement).toBe(cell);
+  expect(document.activeElement).toBe(next);
   // the cursor still sits on a visible October day, so the next arrow selects one
+  cell.focus();
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
   expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
 });
@@ -266,6 +389,27 @@ test('a rejected jump into a closed month keeps focus on the mounted day', () =>
   // the day is still rendered, so focus must not be handed to the grid
   expect(document.activeElement).toBe(cell);
   expect(onChange).not.toHaveBeenCalled();
+});
+
+test('a rejected page into a normal month never commits its hidden date', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 15)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      onViewChange={() => {}}
+    />,
+  );
+  const cell = day(new Date(2026, 9, 15));
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  // the parent kept October, so November 15 must not leak out through onChange
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(cell);
+  fireEvent.keyDown(cell, { key: 'ArrowRight' });
+  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
 });
 
 test('dropping the controlled view keeps arrows anchored to the rendered month', () => {
@@ -399,21 +543,43 @@ test('an empty first event neither hides nor drops the rest', () => {
   expect(day(new Date(2026, 9, 15))).toHaveAccessibleDescription('Retro');
 });
 
-test('every event stays in the description when md clips the extra lines', () => {
+test('boolean entries do not leave blank event lines', () => {
   render(
     <Calendar
       value={null}
       onChange={() => {}}
       view={new Date(2026, 9, 1)}
-      size="md"
-      events={{ '2026-10-15': ['Release', 'Review', 'Retro'] }}
+      events={{ '2026-10-15': [false, true, 'Real'] }}
     />,
   );
   const cell = day(new Date(2026, 9, 15));
-  expect(cell).toHaveAccessibleDescription('Release Review Retro');
-  for (const label of ['Release', 'Review', 'Retro']) {
-    expect(screen.getByText(label)).toBeInTheDocument();
-  }
+  expect(cell).toHaveAccessibleDescription('Real');
+  expect(screen.getByText('Real').parentElement?.children).toHaveLength(1);
+});
+
+test('event lines beyond the cell capacity are sr-only, never removed', () => {
+  const renderCalendar = (size: 'sm' | 'md') => (
+    <Calendar
+      value={null}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      size={size}
+      events={{ '2026-10-15': ['Release', 'Review', 'Retro'] }}
+    />
+  );
+  const { rerender } = render(renderCalendar('md'));
+  expect(day(new Date(2026, 9, 15))).toHaveAccessibleDescription('Release Review Retro');
+  // md has room for two lines before the tail becomes visually hidden but stays described
+  expect(screen.getByText('Release').className).not.toMatch(/sr-only/);
+  expect(screen.getByText('Review').className).not.toMatch(/sr-only/);
+  expect(screen.getByText('Retro').className).toMatch(/sr-only/);
+
+  rerender(renderCalendar('sm'));
+  // sm has room for one line only; the rest remain in the text alternative
+  expect(screen.getByText('Release').className).not.toMatch(/sr-only/);
+  expect(screen.getByText('Review').className).toMatch(/sr-only/);
+  expect(screen.getByText('Retro').className).toMatch(/sr-only/);
+  expect(day(new Date(2026, 9, 15))).toHaveAccessibleDescription('Release Review Retro');
 });
 
 test('a numeric zero event is a real event', () => {
@@ -674,6 +840,27 @@ test('a closed month labelled by its heading does not repeat the month', () => {
   expect(document.activeElement).toBe(screen.getByRole('grid'));
   // focus lands on the grid, whose accessible name is the month heading: no second message
   expect(screen.getByRole('status')).toHaveTextContent('');
+});
+
+test('a second closed month announces because focus was already on the grid', () => {
+  render(
+    <Calendar
+      value={new Date(2026, 8, 15)}
+      onChange={() => {}}
+      isDisabled={(d) => d.getMonth() === 7 || d.getMonth() === 6}
+    />,
+  );
+  const cell = day(new Date(2026, 8, 15));
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageUp' });
+  // August: the day unmounted, so focus really moves to the grid and its heading names it
+  expect(monthHeading()).toMatch(/tháng 8 năm 2026/i);
+  expect(document.activeElement).toBe(screen.getByRole('grid'));
+  expect(screen.getByRole('status')).toHaveTextContent('');
+  fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageUp' });
+  // July: focus was already on the grid, so no focus event names the new month
+  expect(monthHeading()).toMatch(/tháng 7 năm 2026/i);
+  expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 7 năm 2026');
 });
 
 test('a suppressed month change clears the status so a later return still announces', () => {

@@ -12,6 +12,4 @@
   --action-text: #1e47c4;
   --nav-active-bg: #eff6ff;
   --scrim: rgba(15, 23, 42, 0.45);
-  /* Keyboard focus indicator — must clear 3:1 against --bg and --surface. */
-  --focus-ring: #1e47c4;
 }

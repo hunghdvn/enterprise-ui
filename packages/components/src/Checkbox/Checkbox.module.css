@@ -26,7 +26,7 @@
   height: var(--control-size);
 }
 .box:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--color-blue-600));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 /* The box keeps its accent color when enabled, so disabled is driven through

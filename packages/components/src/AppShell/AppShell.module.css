@@ -43,7 +43,7 @@
   justify-content: center;
 }
 .toggle:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--color-blue-600));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .toggle:hover {
@@ -94,7 +94,7 @@
   color: var(--color-blue-200);
 }
 .nav:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--color-blue-600));
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 .item {
