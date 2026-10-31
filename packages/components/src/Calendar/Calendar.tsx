@@ -1,59 +1,21 @@
-import { useCallback, useEffect, useRef, useState, useId } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '../Icon';
+import { cx } from '../internal/cx';
+import {
+  addDays,
+  clampDay,
+  daysInMonth,
+  firstDayOffset,
+  formatDay,
+  formatMonth,
+  isoKey,
+  sameDay,
+  startOfDay,
+} from '../internal/date';
 import type { CalendarProps } from './types';
 import styles from './Calendar.module.css';
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function sameDay(a: Date | null | undefined, b: Date | null | undefined): boolean {
-  if (!a || !b) return false;
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-function isoKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function firstOffset(year: number, month: number): number {
-  const dow = new Date(year, month, 1).getDay();
-  return (dow + 6) % 7;
-}
-
-function fmtFull(d: Date): string {
-  return `${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}`;
-}
-
-function fmtMonth(y: number, m: number): string {
-  return `tháng ${m + 1}/${y}`;
-}
-
-function fmtMonthLong(d: Date): string {
-  return d.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-}
-
-function addDays(d: Date, n: number): Date {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-
-function clampDay(y: number, m: number, day: number): number {
-  return Math.min(day, daysInMonth(y, m));
-}
 
 /** First enabled day at or after `start` (dir 1) / at or before it (dir -1), bounded to the month. */
 function scanMonth(
@@ -107,20 +69,11 @@ export function Calendar({
     if (view) setInternalView(view);
   }, [view]);
 
-  const userPagedRef = useRef(false);
-  useEffect(() => {
-    if (value && !userPagedRef.current && !view) {
-      setInternalView(new Date(value.getFullYear(), value.getMonth(), 1));
-    }
-  }, [value, view]);
-
-  // Release the latch: an explicitly controlled view, or a cleared selection, means the next
-  // external value should be able to bring its own month back into view again.
-  useEffect(() => {
-    if (view !== undefined || value === null) userPagedRef.current = false;
-  }, [view, value]);
-
   const currentView = view ?? internalView;
+  const year = currentView.getFullYear();
+  const month = currentView.getMonth();
+  const monthKey = `${year}-${month}`;
+
   const setView = useCallback(
     (next: Date) => {
       if (view === undefined) setInternalView(next);
@@ -129,95 +82,114 @@ export function Calendar({
     [view, onViewChange],
   );
 
-  const year = currentView.getFullYear();
-  const month = currentView.getMonth();
   const today = startOfDay(new Date());
-
-  const offset = firstOffset(year, month);
+  const offset = firstDayOffset(year, month);
   const total = daysInMonth(year, month);
 
-  const [cursor, setCursor] = useState<Date>(value ? startOfDay(value) : startOfDay(new Date()));
+  const [cursor, setCursor] = useState<Date>(() => startOfDay(value ?? new Date()));
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (value) setCursor(startOfDay(value));
   }, [value]);
 
+  // Follow an external selection: a new `value` brings its month into view (unless the view is
+  // controlled). Guarding on the day key — not the object identity — keeps a parent that
+  // re-creates `value` on every render from yanking the viewer back after paging.
+  const valueKey = value ? isoKey(value) : '';
+  const lastValueKeyRef = useRef(valueKey);
+  useEffect(() => {
+    if (lastValueKeyRef.current === valueKey) return;
+    lastValueKeyRef.current = valueKey;
+    if (view !== undefined || !value) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInternalView((prev) =>
+      prev.getFullYear() === value.getFullYear() && prev.getMonth() === value.getMonth()
+        ? prev
+        : new Date(value.getFullYear(), value.getMonth(), 1),
+    );
+  }, [valueKey, value, view]);
+
+  // Month changes started by the component (chevrons, Page/arrow keys) move the cursor in the
+  // same batch, so by the time this runs the cursor is already in the month. It only has work
+  // to do after a month change that came from outside (controlled `view`).
+  useEffect(() => {
+    if (cursor.getFullYear() === year && cursor.getMonth() === month) return;
+    // The selection wins when it lives in the month being shown (view and value set together),
+    // otherwise keep the day-of-month so paging away and back never loses it.
+    const day =
+      value && value.getFullYear() === year && value.getMonth() === month
+        ? value.getDate()
+        : cursor.getDate();
+    const next = nearestEnabled(year, month, day, isDisabled);
+    // A fully disabled month has no focusable day: leave the cursor (and its day-of-month)
+    // where it is and let `tabStop` fall back to the grid instead of clamping into it.
+    if (!next) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCursor(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthKey]);
+
   const pendingFocusRef = useRef<string | null>(null);
-  const pendingGridFocusRef = useRef(false);
+  /** True when the last commit moved focus into the grid — its label already names the month. */
+  const focusMovedInGridRef = useRef(false);
   const cursorTime = cursor.getTime();
   useEffect(() => {
+    focusMovedInGridRef.current = false;
     const grid = gridRef.current;
     if (!grid) return;
     const target = pendingFocusRef.current;
-    const focusGrid = pendingGridFocusRef.current;
     pendingFocusRef.current = null;
-    pendingGridFocusRef.current = false;
     const active = document.activeElement;
     const focusInside = grid.contains(active);
-    // Honour focus moves requested by keyboard navigation; otherwise only follow the
-    // cursor while focus already lives in the grid, so external value changes never steal it.
+    // Honour focus moves requested by keyboard navigation; otherwise only follow the cursor
+    // while focus already lives in the grid, so external value changes never steal it.
     // `body` counts as "lost focus" because the previously focused day may have re-rendered away.
-    if (!focusInside && target === null && !focusGrid) return;
-    if (!focusInside && !focusGrid && active !== null && active !== document.body) return;
+    if (!focusInside && target === null) return;
+    if (!focusInside && active !== null && active !== document.body) return;
     // A stale intent (cursor moved elsewhere in the meantime) must not pull focus backwards.
     const wanted = target === isoKey(cursor) ? target : null;
     const el = grid.querySelector<HTMLButtonElement>(`[data-date="${wanted ?? isoKey(cursor)}"]`);
-    // A closed month has no focusable day: keep the keyboard inside the grid itself.
     if (el && !el.disabled) el.focus({ preventScroll: true });
-    else if (focusGrid || target !== null) grid.focus({ preventScroll: true });
+    focusMovedInGridRef.current = grid.contains(document.activeElement);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursorTime, year, month]);
 
   const [monthAnnouncement, setMonthAnnouncement] = useState('');
   // Announce the month that is actually rendered (covers chevrons, Page keys and external `view`).
-  const monthKey = `${year}-${month}`;
   const announcedRef = useRef(monthKey);
   useEffect(() => {
     if (announcedRef.current === monthKey) return;
     announcedRef.current = monthKey;
-    setMonthAnnouncement(`Đã chuyển sang ${fmtMonth(year, month)}`);
+    // Keyboard day navigation moves focus to the day, whose label already carries the month;
+    // a second polite message would make screen readers read the month twice.
+    if (focusMovedInGridRef.current) return;
+    setMonthAnnouncement(`Đã chuyển sang ${formatMonth(currentView)}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey]);
 
-  // Keep the cursor inside the visible month when `view` changes from outside.
-  const cursorInMonth = cursor.getFullYear() === year && cursor.getMonth() === month;
-  useEffect(() => {
-    if (cursorInMonth) return;
-    // Fall back to the clamped day (possibly disabled) so arrow keys stay in the visible month
-    // even when the whole month is closed.
-    const next =
-      nearestEnabled(year, month, cursor.getDate(), isDisabled) ??
-      new Date(year, month, clampDay(year, month, cursor.getDate()));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCursor(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthKey, cursorInMonth]);
-
-  const changeMonth = (delta: number) => {
-    userPagedRef.current = true;
-    const target = new Date(year, month + delta, 1);
-    setView(target);
-    // keep the roving tab stop inside the visible month without stealing focus
-    if (cursor.getFullYear() !== target.getFullYear() || cursor.getMonth() !== target.getMonth()) {
-      const next = nearestEnabled(
-        target.getFullYear(),
-        target.getMonth(),
-        cursor.getDate(),
-        isDisabled,
-      );
-      if (next) setCursor(next);
-    }
+  /** Places the roving cursor on the nearest enabled day of `y/m`, keeping `day` when possible. */
+  const syncCursorToMonth = (y: number, m: number, day: number): Date | null => {
+    const next = nearestEnabled(y, m, day, isDisabled);
+    if (next) setCursor(next);
+    return next;
   };
+
+  const goToMonth = (target: Date) => {
+    setView(target);
+    syncCursorToMonth(target.getFullYear(), target.getMonth(), cursor.getDate());
+  };
+
+  const changeMonth = (delta: number) => goToMonth(new Date(year, month + delta, 1));
 
   const setCursorIntent = (next: Date) => {
     if (next.getFullYear() === year && next.getMonth() === month) {
       if (next.getTime() !== cursor.getTime()) pendingFocusRef.current = isoKey(next);
       setCursor(next);
-    } else {
-      setView(new Date(next.getFullYear(), next.getMonth(), 1));
-      pendingFocusRef.current = isoKey(next);
-      setCursor(next);
+      return;
     }
+    pendingFocusRef.current = isoKey(next);
+    setView(new Date(next.getFullYear(), next.getMonth(), 1));
+    setCursor(next);
   };
 
   const moveCursor = (next: Date) => {
@@ -227,21 +199,22 @@ export function Calendar({
 
   /** PageUp/PageDown: always change the month, move the cursor only to a selectable day. */
   const pageMonth = (delta: number) => {
-    userPagedRef.current = true;
     const ny = delta < 0 && month === 0 ? year - 1 : delta > 0 && month === 11 ? year + 1 : year;
     const nm = (month + delta + 12) % 12;
     const anchor = new Date(ny, nm, clampDay(ny, nm, cursor.getDate()));
     setView(new Date(ny, nm, 1));
     // a fully disabled month keeps the viewer intact but never selects a forbidden date
-    const target = nearestEnabled(ny, nm, anchor.getDate(), isDisabled);
+    const target = syncCursorToMonth(ny, nm, cursor.getDate());
     if (!target) {
-      // the focused day just unmounted — keep the keyboard on the grid, not on <body>
-      if (gridRef.current?.contains(document.activeElement)) pendingGridFocusRef.current = true;
+      // The focused day is about to unmount: hand focus to the grid now, while it is still
+      // mounted. A ref would outlive a rejected view change and could steal focus later.
+      if (gridRef.current?.contains(document.activeElement)) {
+        gridRef.current.focus({ preventScroll: true });
+      }
       return;
     }
     pendingFocusRef.current = isoKey(target);
-    setCursor(target);
-    if (target.getTime() === anchor.getTime()) onChange?.(target);
+    if (sameDay(target, anchor) && !sameDay(target, value)) onChange?.(target);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -312,7 +285,7 @@ export function Calendar({
     moveCursor(candidate);
   };
 
-  const monthLabel = fmtMonthLong(currentView);
+  const monthLabel = formatMonth(currentView);
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < offset; i++) cells.push(null);
@@ -331,7 +304,7 @@ export function Calendar({
       : nearestEnabled(year, month, cursor.getDate(), isDisabled);
 
   return (
-    <div className={className ? `${styles.wrap} ${className}` : styles.wrap} data-size={size}>
+    <div className={cx(styles.wrap, className)} data-size={size}>
       <div className={styles.header}>
         <button
           type="button"
@@ -391,6 +364,7 @@ export function Calendar({
                 const isToday = sameDay(date, today);
                 const tabIndex = sameDay(date, tabStop) ? 0 : -1;
                 const ev = events?.[isoKey(date)];
+                const evList = ev == null ? [] : Array.isArray(ev) ? ev : [ev];
                 const evId = `cal-ev-${uid.replace(/:/g, '')}-${isoKey(date)}`;
                 return (
                   <button
@@ -398,21 +372,19 @@ export function Calendar({
                     type="button"
                     role="gridcell"
                     data-date={isoKey(date)}
-                    aria-label={fmtFull(date)}
-                    aria-describedby={ev != null ? evId : undefined}
+                    aria-label={formatDay(date)}
+                    aria-describedby={evList.length > 0 ? evId : undefined}
                     aria-selected={selected}
                     aria-current={isToday ? 'date' : undefined}
                     aria-disabled={disabled || undefined}
                     tabIndex={tabIndex}
                     disabled={disabled}
-                    className={[
+                    className={cx(
                       styles.day,
-                      selected ? styles['day-selected'] : '',
-                      isToday ? styles['day-today'] : '',
-                      disabled ? styles['day-disabled'] : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
+                      selected && styles['day-selected'],
+                      isToday && styles['day-today'],
+                      disabled && styles['day-disabled'],
+                    )}
                     onClick={() => {
                       if (!disabled) {
                         setCursor(date);
@@ -421,9 +393,13 @@ export function Calendar({
                     }}
                   >
                     <span className={styles['day-num']}>{d}</span>
-                    {ev != null && (
+                    {evList.length > 0 && (
                       <span id={evId} className={styles['day-events']}>
-                        {ev}
+                        {evList.map((item, i) => (
+                          <span key={i} className={styles['day-event']}>
+                            {item}
+                          </span>
+                        ))}
                       </span>
                     )}
                   </button>

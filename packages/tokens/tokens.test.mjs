@@ -29,6 +29,7 @@ const must = [
   '--action-text',
   '--nav-active-bg',
   '--scrim',
+  '--focus-ring',
   '[data-theme="dark"]',
   '[data-density="compact"]',
 ];

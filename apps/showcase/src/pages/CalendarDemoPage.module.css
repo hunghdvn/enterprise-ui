@@ -4,6 +4,13 @@
   gap: 16px;
   font-family: var(--font, inherit);
   padding: 8px;
+  align-items: start;
+}
+
+@media (max-width: 719px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .header {
@@ -45,6 +52,9 @@
 
 .calendar {
   min-width: 0;
+  /* Cap the month grid so 1fr cells stay close to square instead of stretching across
+     the whole content column (7 cells + 6×2px gaps + 12px padding ≈ 320px at md). */
+  max-width: 320px;
 }
 
 .calendar > * {
@@ -103,7 +113,7 @@
   background: var(--surface-muted);
 }
 
-.empty {
+.side .empty {
   color: var(--text-muted);
   font-size: 12px;
 }

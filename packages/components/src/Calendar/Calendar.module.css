@@ -60,11 +60,11 @@
   border-radius: var(--radius);
   background: var(--surface);
   padding: 6px;
-  outline: none;
 }
 
 .grid:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-blue-600);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .weekday-row {
@@ -106,6 +106,7 @@
   justify-content: flex-start;
   padding: 2px;
   gap: 2px;
+  overflow: hidden;
   transition: background 0.12s;
 }
 
@@ -133,8 +134,19 @@
   line-height: 1;
 }
 
+/* Event slot: one line per event (an array renders stacked lines) so a second event
+   is never collapsed into the first one's ellipsis. */
 .day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+}
+
+.day-event {
   font-size: 9px;
+  line-height: 1.1;
   color: var(--text-muted);
   max-width: 100%;
   overflow: hidden;
@@ -142,6 +154,11 @@
   white-space: nowrap;
 }
 
-.day-selected .day-events {
+/* The compact cell only has room for one event line; extra lines are clipped in CSS. */
+.wrap[data-size='sm'] .day-event:nth-child(n + 2) {
+  display: none;
+}
+
+.day-selected .day-event {
   color: var(--on-primary);
 }

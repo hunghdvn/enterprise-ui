@@ -13,7 +13,8 @@ const props: PropDoc[] = [
   {
     name: 'events',
     type: 'Record<string, ReactNode>',
-    description: 'Sự kiện theo key ISO (YYYY-MM-DD) render trong ô ngày.',
+    description:
+      'Sự kiện theo key ISO (YYYY-MM-DD). Một node → một dòng; một mảng node → mỗi node một dòng (ô sm chỉ hiện dòng đầu).',
   },
   {
     name: 'isDisabled',

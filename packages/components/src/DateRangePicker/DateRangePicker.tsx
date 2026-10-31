@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '../Icon';
+import { cx } from '../internal/cx';
+import { daysInMonth, firstDayOffset, formatMonth, sameDay, startOfDay } from '../internal/date';
 import type { DateRange, DateRangePickerProps } from './types';
 import styles from './DateRangePicker.module.css';
 
@@ -7,34 +9,10 @@ const GAP_PX = 4;
 const EST_CHROME = 48;
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function sameDay(a: Date | null, b: Date | null): boolean {
-  if (!a || !b) return false;
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 function inRange(d: Date, from: Date | null, to: Date | null): boolean {
   if (!from || !to) return false;
   const t = d.getTime();
   return t >= from.getTime() && t <= to.getTime();
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function firstDayOffset(year: number, month: number): number {
-  const dow = new Date(year, month, 1).getDay();
-  return (dow + 6) % 7;
 }
 
 function formatRange(value: DateRange, placeholder: string): string {
@@ -237,11 +215,7 @@ export function DateRangePicker({
   };
 
   return (
-    <div
-      ref={wrapRef}
-      className={className ? `${styles.wrap} ${className}` : styles.wrap}
-      data-disabled={disabled || undefined}
-    >
+    <div ref={wrapRef} className={cx(styles.wrap, className)} data-disabled={disabled || undefined}>
       <button
         ref={triggerRef}
         type="button"
@@ -290,7 +264,7 @@ export function DateRangePicker({
               <Icon name="chevron-left" size={14} />
             </button>
             <span id={monthLabelId} className={styles['month-label']} aria-live="polite">
-              {view.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+              {formatMonth(view)}
             </span>
             <button
               type="button"
@@ -325,15 +299,13 @@ export function DateRangePicker({
                         type="button"
                         role="gridcell"
                         aria-selected={isStart || isEnd}
-                        className={[
+                        className={cx(
                           styles.day,
-                          cell.out ? styles['day-out'] : '',
-                          isStart ? styles['day-start'] : '',
-                          isEnd ? styles['day-end'] : '',
-                          inside && !isStart && !isEnd ? styles['day-in'] : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
+                          cell.out && styles['day-out'],
+                          isStart && styles['day-start'],
+                          isEnd && styles['day-end'],
+                          inside && !isStart && !isEnd && styles['day-in'],
+                        )}
                         onClick={() => pickDay(d)}
                       >
                         {d.getDate()}
