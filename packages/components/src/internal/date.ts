@@ -6,6 +6,9 @@
 /** Monday-first weekday headers shared by the month grids. */
 export const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
+/** Columns in a month grid; also feeds the `--cal-cols` custom property. */
+export const DAYS_PER_WEEK = WEEKDAYS.length;
+
 /** Midnight of `d`, in local time. */
 export function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -28,6 +31,11 @@ export function isoKey(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** `YYYY-M` identity of a month (0-based, unpadded) used by Calendar's view state. */
+export function monthKeyOf(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}`;
 }
 
 /** Number of days in a month (month is 0-based). */

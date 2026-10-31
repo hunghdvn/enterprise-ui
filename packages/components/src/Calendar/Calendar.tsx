@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
 import {
+  DAYS_PER_WEEK,
   WEEKDAYS,
   addDays,
   clampDay,
@@ -11,6 +12,7 @@ import {
   formatDay,
   formatMonth,
   isoKey,
+  monthKeyOf,
   sameDay,
   startOfDay,
 } from '../internal/date';
@@ -54,6 +56,8 @@ function eventList(ev: ReactNode): ReactNode[] {
 
 /** A PageUp/PageDown request waiting for its target month to actually render. */
 interface PendingPage {
+  /** Month that was rendered when the key was pressed; scopes the request to that commit. */
+  fromMonthKey: string;
   monthKey: string;
   /** Day the cursor should land on; null when the target month is fully disabled. */
   cursor: Date | null;
@@ -61,8 +65,18 @@ interface PendingPage {
   select: Date | null;
 }
 
+/** Day that should receive focus once the cursor update carrying it lands. */
+interface FocusIntent {
+  key: string;
+  /** Cursor key when the intent was queued; an override settles somewhere else and cancels it. */
+  previousKey: string;
+}
+
 /** Whole event lines that fit each cell; the rest stay in the accessible description. */
-const EVENT_LINES = { sm: 1, md: 2 } as const;
+export const CALENDAR_EVENT_LINES = { sm: 1, md: 2 } as const;
+
+/** Column count is set from `WEEKDAYS.length` so CSS geometry and key handling cannot drift. */
+const GRID_STYLE = { '--cal-cols': DAYS_PER_WEEK } as CSSProperties;
 
 export function Calendar({
   value = null,
@@ -90,7 +104,7 @@ export function Calendar({
   const currentView = view ?? internalView;
   const year = currentView.getFullYear();
   const month = currentView.getMonth();
-  const monthKey = `${year}-${month}`;
+  const monthKey = monthKeyOf(currentView);
 
   const setView = useCallback(
     (next: Date) => {
@@ -130,7 +144,7 @@ export function Calendar({
   // Reposition the cursor once a month change has actually rendered. Chevrons only request the
   // month, so an accepted change lands here and a rejected controlled change never gets here.
   const [pendingPage, setPendingPage] = useState<PendingPage | null>(null);
-  const pendingFocusRef = useRef<string | null>(null);
+  const pendingFocusRef = useRef<FocusIntent | null>(null);
   /** Month whose grid should take focus after a page into a fully disabled month. */
   const pendingGridFocusRef = useRef<string | null>(null);
   useEffect(() => {
@@ -158,18 +172,26 @@ export function Calendar({
   // nobody can see, and lets a fully disabled target hand focus to the grid instead.
   useEffect(() => {
     if (!pendingPage) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPendingPage(null);
-    if (pendingPage.monthKey !== monthKey) return;
-    if (!pendingPage.cursor) {
-      pendingGridFocusRef.current = monthKey;
+    if (pendingPage.monthKey === monthKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPendingPage(null);
+      if (!pendingPage.cursor) {
+        pendingGridFocusRef.current = monthKey;
+        return;
+      }
+      setCursor(pendingPage.cursor);
+      pendingFocusRef.current = { key: isoKey(pendingPage.cursor), previousKey: isoKey(cursor) };
+      if (pendingPage.select) onChange?.(pendingPage.select);
       return;
     }
-    setCursor(pendingPage.cursor);
-    pendingFocusRef.current = isoKey(pendingPage.cursor);
-    if (pendingPage.select) onChange?.(pendingPage.select);
+    // A controlled parent may apply the view in a later commit (transition, debounce, router).
+    // Keep the request while that month is still on screen; any other month means it went
+    // somewhere else or a newer action replaced the request.
+    if (monthKey !== pendingPage.fromMonthKey) {
+      setPendingPage(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingPage]);
+  }, [pendingPage, monthKey]);
 
   /** True when the last commit focused an element whose own label already names the month. */
   const focusNamesMonthRef = useRef(false);
@@ -185,7 +207,12 @@ export function Calendar({
         pendingGridFocusRef.current = null;
       } else {
         pendingGridFocusRef.current = null;
-        const alreadyFocused = document.activeElement === grid;
+        const active = document.activeElement;
+        const focusInside = grid.contains(active);
+        // A closed month unmounts the focused day; only take focus back when it was lost to the
+        // page or already lived in the grid, never from a dialog opened in `onViewChange`.
+        if (!focusInside && active !== null && active !== document.body) return;
+        const alreadyFocused = active === grid;
         grid.focus({ preventScroll: true });
         // Only a real focus move onto the grid replaces the month announcement. A grid that
         // already held focus (two closed months in a row) must still speak the new month.
@@ -195,21 +222,32 @@ export function Calendar({
       }
     }
 
-    const target = pendingFocusRef.current;
-    const active = document.activeElement;
-    const focusInside = grid.contains(active);
-    // The cursor update that carries this intent has not committed yet (page keys apply the
-    // cursor after the target month renders); keep the intent for the next commit.
-    if (target !== null && target !== isoKey(cursor)) return;
-    pendingFocusRef.current = null;
+    const cursorKey = isoKey(cursor);
+    const intent = pendingFocusRef.current;
+    let target: string | null = null;
+    if (intent) {
+      if (intent.key === cursorKey) {
+        pendingFocusRef.current = null;
+        target = intent.key;
+      } else if (cursorKey === intent.previousKey) {
+        // The cursor update that carries this intent has not committed yet (page keys apply
+        // the cursor after the target month renders); keep the intent for the next commit.
+        return;
+      } else {
+        // The cursor settled on another day (a parent snapped/clamped the selection). Follow
+        // the day that actually won instead of leaving an intent that mutes every later month.
+        pendingFocusRef.current = null;
+        target = cursorKey;
+      }
+    }
     // Honour focus moves requested by keyboard navigation; otherwise only follow the cursor
     // while focus already lives in the grid, so external value changes never steal it.
     // `body` counts as "lost focus" because the previously focused day may have re-rendered away.
+    const active = document.activeElement;
+    const focusInside = grid.contains(active);
     if (!focusInside && target === null) return;
     if (!focusInside && active !== null && active !== document.body) return;
-    // A stale intent (cursor moved elsewhere in the meantime) must not pull focus backwards.
-    const wanted = target === isoKey(cursor) ? target : null;
-    const el = grid.querySelector<HTMLButtonElement>(`[data-date="${wanted ?? isoKey(cursor)}"]`);
+    const el = grid.querySelector<HTMLButtonElement>(`[data-date="${target ?? cursorKey}"]`);
     if (el && !el.disabled) {
       const alreadyFocused = document.activeElement === el;
       el.focus({ preventScroll: true });
@@ -256,16 +294,20 @@ export function Calendar({
   const changeMonth = (target: Date) => {
     // The month effect above moves the cursor after the new month has rendered. Moving it here
     // would also move it when a controlled parent rejects the change.
+    setPendingPage(null);
     setView(target);
   };
 
   const setCursorIntent = (next: Date) => {
+    // Any direct move supersedes a page request whose target month has not been applied yet.
+    setPendingPage(null);
+    const intent = { key: isoKey(next), previousKey: isoKey(cursor) };
     if (next.getFullYear() === year && next.getMonth() === month) {
-      if (next.getTime() !== cursor.getTime()) pendingFocusRef.current = isoKey(next);
+      if (next.getTime() !== cursor.getTime()) pendingFocusRef.current = intent;
       setCursor(next);
       return;
     }
-    pendingFocusRef.current = isoKey(next);
+    pendingFocusRef.current = intent;
     setView(new Date(next.getFullYear(), next.getMonth(), 1));
     setCursor(next);
   };
@@ -277,20 +319,22 @@ export function Calendar({
 
   /** PageUp/PageDown: request the month; cursor/selection land once that month renders. */
   const pageMonth = (delta: number) => {
-    const ny = delta < 0 && month === 0 ? year - 1 : delta > 0 && month === 11 ? year + 1 : year;
-    const nm = (month + delta + 12) % 12;
+    const targetView = new Date(year, month + delta, 1);
+    const targetYear = targetView.getFullYear();
+    const targetMonth = targetView.getMonth();
     // A closed current month has no tab stop; its cursor day still carries the page anchor.
     const day = tabStop?.getDate() ?? cursor.getDate();
-    const anchor = new Date(ny, nm, clampDay(ny, nm, day));
-    const target = nearestEnabled(ny, nm, day, isDisabled);
+    const anchor = new Date(targetYear, targetMonth, clampDay(targetYear, targetMonth, day));
+    const target = nearestEnabled(targetYear, targetMonth, day, isDisabled);
     setPendingPage({
-      monthKey: `${ny}-${nm}`,
+      fromMonthKey: monthKey,
+      monthKey: monthKeyOf(targetView),
       // A fully disabled target month keeps the viewer intact but never selects a forbidden date.
       cursor: target,
       // Keep the same day-of-month; a skipped disabled day only moves the cursor.
       select: target && sameDay(target, anchor) && !sameDay(target, value) ? target : null,
     });
-    setView(new Date(ny, nm, 1));
+    setView(targetView);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -309,7 +353,13 @@ export function Calendar({
           return;
         }
         const step =
-          e.key === 'ArrowUp' ? -7 : e.key === 'ArrowDown' ? 7 : e.key === 'ArrowLeft' ? -1 : 1;
+          e.key === 'ArrowUp'
+            ? -DAYS_PER_WEEK
+            : e.key === 'ArrowDown'
+              ? DAYS_PER_WEEK
+              : e.key === 'ArrowLeft'
+                ? -1
+                : 1;
         next = addDays(base, step);
         break;
       }
@@ -342,6 +392,7 @@ export function Calendar({
       case ' ':
         if (e.target !== e.currentTarget) return;
         if (cursor.getFullYear() !== year || cursor.getMonth() !== month) return;
+        setPendingPage(null);
         if (!isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
         handled = true;
@@ -351,7 +402,7 @@ export function Calendar({
     }
     if (handled || !next) return;
     e.preventDefault();
-    const stepSize = e.key === 'ArrowUp' || e.key === 'ArrowDown' ? 7 : 1;
+    const stepSize = e.key === 'ArrowUp' || e.key === 'ArrowDown' ? DAYS_PER_WEEK : 1;
     const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
     let candidate = next;
     let guard = 0;
@@ -368,16 +419,17 @@ export function Calendar({
   const cells: (number | null)[] = [];
   for (let i = 0; i < offset; i++) cells.push(null);
   for (let d = 1; d <= total; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length % DAYS_PER_WEEK !== 0) cells.push(null);
   const weeks: (number | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  for (let i = 0; i < cells.length; i += DAYS_PER_WEEK)
+    weeks.push(cells.slice(i, i + DAYS_PER_WEEK));
 
   // Lines that do not fit the cell stay in the day's accessible description (sr-only) instead
   // of being display:none, which would remove them from the text alternative.
-  const visibleEvents = EVENT_LINES[size];
+  const visibleEvents = CALENDAR_EVENT_LINES[size];
 
   return (
-    <div className={cx(styles.wrap, className)} data-size={size}>
+    <div className={cx(styles.wrap, className)} data-size={size} style={GRID_STYLE}>
       <div className={styles.header}>
         <button
           type="button"
@@ -459,6 +511,7 @@ export function Calendar({
                     )}
                     onClick={() => {
                       if (!disabled) {
+                        setPendingPage(null);
                         setCursor(date);
                         onChange?.(date);
                       }

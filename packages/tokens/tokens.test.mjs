@@ -1,14 +1,13 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const css = (
-  readFileSync(new URL('./tokens.css', import.meta.url), 'utf8') +
-  readFileSync(new URL('./theme-light.css', import.meta.url), 'utf8') +
-  readFileSync(new URL('./theme-dark.css', import.meta.url), 'utf8') +
-  readFileSync(new URL('./density.css', import.meta.url), 'utf8')
-)
-  .toLowerCase()
-  .replaceAll("'", '"');
+const readTokenFile = (name) =>
+  readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
+    .toLowerCase()
+    .replaceAll("'", '"');
+const lightCss = readTokenFile('theme-light.css');
+const darkCss = readTokenFile('theme-dark.css');
+const css = readTokenFile('tokens.css') + lightCss + darkCss + readTokenFile('density.css');
 const must = [
   '--color-blue-600: #1e47c4',
   '--color-orange-500: #f97316',
@@ -29,12 +28,38 @@ const must = [
   '--action-text',
   '--nav-active-bg',
   '--scrim',
-  '--focus-ring',
+  '--focus-ring: var(--color-blue-600)',
+  '--today-ring: var(--color-blue-700)',
   '[data-theme="dark"]',
   '[data-density="compact"]',
 ];
 for (const m of must) {
   if (!css.includes(m)) throw new Error('missing token ' + m);
+}
+
+// A theme block must redeclare the ring tokens: a light subtree nested inside a dark page
+// inherits the dark values otherwise, and the dark blue-300 ring falls to ~1.8:1 on white.
+const themeRings = [
+  [
+    'light',
+    lightCss,
+    '[data-theme="light"]',
+    { '--focus-ring': '#1e47c4', '--today-ring': '#1e40af' },
+  ],
+  [
+    'dark',
+    darkCss,
+    '[data-theme="dark"]',
+    { '--focus-ring': '#93c5fd', '--today-ring': '#93c5fd' },
+  ],
+];
+for (const [theme, source, selector, tokens] of themeRings) {
+  const block = source.slice(source.indexOf(selector));
+  for (const [name, value] of Object.entries(tokens)) {
+    if (!new RegExp(`${name}:\\s*${value}\\b`).test(block)) {
+      throw new Error(`${theme} theme must reset ${name} to ${value}`);
+    }
+  }
 }
 
 // AGENTS.md: "*.module.css plus var(--…) tokens — never hardcode hex in components".

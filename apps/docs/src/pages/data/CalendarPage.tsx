@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar } from '@enterprise-ui/components';
+import { Calendar, CALENDAR_EVENT_LINES } from '@enterprise-ui/components';
 import { CodeBlock } from '../../components/CodeBlock';
 import { DemoPlayground } from '../../components/DemoPlayground';
 import { PropsTable } from '../../components/PropsTable';
@@ -13,8 +13,7 @@ const props: PropDoc[] = [
   {
     name: 'events',
     type: 'Record<string, ReactNode>',
-    description:
-      'Sự kiện theo key ISO (YYYY-MM-DD). Một node → một dòng; mảng node → mỗi node một dòng. Ô sm hiện 1 dòng, md 2 dòng; toàn bộ danh sách vẫn nằm trong accessible description của ngày.',
+    description: `Sự kiện theo key ISO (YYYY-MM-DD). Một node → một dòng; mảng node → mỗi node một dòng. Ô sm hiện ${CALENDAR_EVENT_LINES.sm} dòng, md ${CALENDAR_EVENT_LINES.md} dòng; toàn bộ danh sách vẫn nằm trong accessible description của ngày.`,
   },
   {
     name: 'isDisabled',

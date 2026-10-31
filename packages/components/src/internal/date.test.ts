@@ -1,4 +1,5 @@
 import {
+  DAYS_PER_WEEK,
   WEEKDAYS,
   addDays,
   clampDay,
@@ -7,6 +8,7 @@ import {
   formatDay,
   formatMonth,
   isoKey,
+  monthKeyOf,
   sameDay,
   startOfDay,
 } from './date';
@@ -37,6 +39,13 @@ test('sameDay treats null and undefined as no match', () => {
 test('isoKey pads single-digit months and days', () => {
   expect(isoKey(new Date(2026, 0, 5))).toBe('2026-01-05');
   expect(isoKey(new Date(2026, 11, 31))).toBe('2026-12-31');
+});
+
+test('monthKeyOf keeps the month 0-based and unpadded', () => {
+  // the key only has to be stable inside Calendar, not sortable or ISO-like
+  expect(monthKeyOf(new Date(2026, 0, 1))).toBe('2026-0');
+  expect(monthKeyOf(new Date(2025, 11, 31))).toBe('2025-11');
+  expect(monthKeyOf(new Date(2027, 2, 15))).toBe('2027-2');
 });
 
 test('daysInMonth handles 30/31-day months and leap years', () => {
@@ -84,4 +93,5 @@ test('formatMonth renders the Vietnamese month heading', () => {
 
 test('WEEKDAYS is Monday-first', () => {
   expect(WEEKDAYS).toEqual(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
+  expect(DAYS_PER_WEEK).toBe(7);
 });

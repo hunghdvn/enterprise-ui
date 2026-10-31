@@ -95,7 +95,11 @@
 .month-label {
   font-weight: 600;
   font-size: var(--font-size);
-  text-transform: capitalize;
+}
+
+/* Only the first word is a sentence start; `capitalize` would title-case "Năm" too. */
+.month-label::first-letter {
+  text-transform: uppercase;
 }
 
 .weekdays {

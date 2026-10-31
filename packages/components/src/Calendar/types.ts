@@ -10,7 +10,7 @@ export interface CalendarProps {
   /**
    * Events keyed by ISO date (YYYY-MM-DD). A single node renders one line; an array renders one
    * line per node. The full list stays in the day's accessible description even when the cell
-   * clips it visually (sm shows 1 line, md 2).
+   * clips it visually (see `CALENDAR_EVENT_LINES` for the per-size capacity).
    */
   events?: Record<string, ReactNode>;
   /** Predicate to disable a day. */

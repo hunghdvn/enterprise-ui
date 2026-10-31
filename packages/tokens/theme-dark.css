@@ -13,6 +13,7 @@
   --action-text: #bfdbfe;
   --nav-active-bg: #1e3a8a;
   --scrim: rgba(2, 6, 23, 0.65);
-  /* Blue-600 falls to ~2.2:1 on the dark background; the ring uses blue-300 instead. */
+  /* Blue-600 falls to ~2.2:1 on the dark background; both rings use blue-300 instead. */
   --focus-ring: #93c5fd;
+  --today-ring: #93c5fd;
 }
