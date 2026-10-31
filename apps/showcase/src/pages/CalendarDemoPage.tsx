@@ -1,118 +1,96 @@
 import { useState } from 'react';
-import { Button, Icon } from '@enterprise-ui/components';
+import { Calendar } from '@enterprise-ui/components';
 import styles from './CalendarDemoPage.module.css';
 
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-function daysInMonth(y: number, m: number) {
-  return new Date(y, m + 1, 0).getDate();
-}
-function firstOffset(y: number, m: number) {
-  const dow = new Date(y, m, 1).getDay();
-  return (dow + 6) % 7;
-}
-
-const EVENTS: Record<string, { title: string; tone: string }[]> = {
-  '2026-10-10': [{ title: 'Họp sprint', tone: 'blue' }],
-  '2026-10-15': [
-    { title: 'Release v1.2', tone: 'green' },
-    { title: 'Review PR', tone: 'orange' },
-  ],
-  '2026-10-22': [{ title: 'Demo khách hàng', tone: 'blue' }],
-  '2026-10-28': [{ title: 'Retro', tone: 'orange' }],
+const EVENTS: Record<string, string[]> = {
+  '2026-10-10': ['Họp sprint'],
+  '2026-10-15': ['Release v1.2', 'Review PR'],
+  '2026-10-22': ['Demo khách hàng'],
+  '2026-10-28': ['Retro'],
 };
+
+const MONTHS = [
+  { label: 'Tháng 9/2026', value: new Date(2026, 8, 1) },
+  { label: 'Tháng 10/2026', value: new Date(2026, 9, 1) },
+  { label: 'Tháng 11/2026', value: new Date(2026, 10, 1) },
+];
 
 export default function CalendarDemoPage() {
   const [view, setView] = useState(new Date(2026, 9, 1));
   const [selected, setSelected] = useState<Date | null>(new Date(2026, 9, 15));
-  const y = view.getFullYear();
-  const m = view.getMonth();
-  const offset = firstOffset(y, m);
-  const total = daysInMonth(y, m);
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < offset; i++) cells.push(null);
-  for (let d = 1; d <= total; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  const [size, setSize] = useState<'sm' | 'md'>('md');
+  const [blockWeekends, setBlockWeekends] = useState(true);
 
-  const monthLabel = view.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+  const monthPrefix = `${view.getFullYear()}-${String(view.getMonth() + 1).padStart(2, '0')}`;
+  const monthEvents = Object.entries(EVENTS).filter(([key]) => key.startsWith(monthPrefix));
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1>Calendar — demo (spike)</h1>
-        <div className={styles.nav}>
-          <Button
-            size="sm"
-            variant="secondary"
-            aria-label="Tháng trước"
-            onClick={() => setView(new Date(y, m - 1, 1))}
-          >
-            <Icon name="chevron-left" size={14} />
-          </Button>
-          <span className={styles.month}>{monthLabel}</span>
-          <Button
-            size="sm"
-            variant="secondary"
-            aria-label="Tháng sau"
-            onClick={() => setView(new Date(y, m + 1, 1))}
-          >
-            <Icon name="chevron-right" size={14} />
-          </Button>
+        <h1>Calendar</h1>
+        <div className={styles.controls}>
+          <label className={styles.field}>
+            Kích thước
+            <select
+              value={size}
+              onChange={(e) => setSize(e.target.value as 'sm' | 'md')}
+              aria-label="Kích thước calendar"
+            >
+              <option value="sm">sm</option>
+              <option value="md">md</option>
+            </select>
+          </label>
+          <label className={styles.field}>
+            <input
+              type="checkbox"
+              checked={blockWeekends}
+              onChange={(e) => setBlockWeekends(e.target.checked)}
+            />
+            Chặn cuối tuần
+          </label>
         </div>
       </header>
 
-      <div className={styles.grid}>
-        {WEEKDAYS.map((w) => (
-          <div key={w} className={styles.weekday}>
-            {w}
-          </div>
-        ))}
-        {cells.map((d, i) => {
-          if (d === null) return <div key={`b-${i}`} className={styles.blank} />;
-          const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          const evs = EVENTS[key] || [];
-          const isSelected =
-            selected &&
-            selected.getFullYear() === y &&
-            selected.getMonth() === m &&
-            selected.getDate() === d;
-          const now = new Date();
-          const isToday = y === now.getFullYear() && m === now.getMonth() && d === now.getDate();
-          return (
-            <button
-              key={d}
-              type="button"
-              className={`${styles.day} ${isSelected ? styles.selected : ''} ${isToday ? styles.today : ''}`}
-              onClick={() => setSelected(new Date(y, m, d))}
-            >
-              <span className={styles.daynum}>{d}</span>
-              <div className={styles.events}>
-                {evs.map((e, idx) => (
-                  <span key={idx} className={`${styles.event} ${styles[e.tone]}`}>
-                    {e.title}
-                  </span>
-                ))}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <section className={styles.calendar}>
+        <Calendar
+          value={selected}
+          onChange={setSelected}
+          view={view}
+          onViewChange={setView}
+          size={size}
+          events={EVENTS}
+          isDisabled={(d) => blockWeekends && (d.getDay() === 0 || d.getDay() === 6)}
+          aria-label="Lịch làm việc"
+        />
+      </section>
 
       <aside className={styles.side}>
         <h3>Ngày đã chọn</h3>
         <p>{selected ? selected.toLocaleDateString('vi-VN') : '—'}</p>
-        <h3>Sự kiện tháng này</h3>
-        <ul>
-          {Object.entries(EVENTS)
-            .filter(([k]) => k.startsWith(`${y}-${String(m + 1).padStart(2, '0')}`))
-            .map(([k, evs]) =>
-              evs.map((e, i) => (
-                <li key={k + i}>
-                  {k}: {e.title}
-                </li>
-              )),
-            )}
+
+        <h3>Chuyển nhanh</h3>
+        <ul className={styles.shortcuts}>
+          {MONTHS.map((m) => (
+            <li key={m.label}>
+              <button type="button" onClick={() => setView(m.value)}>
+                {m.label}
+              </button>
+            </li>
+          ))}
         </ul>
+
+        <h3>Sự kiện tháng này</h3>
+        {monthEvents.length === 0 ? (
+          <p className={styles.empty}>Không có sự kiện</p>
+        ) : (
+          <ul>
+            {monthEvents.map(([key, titles]) => (
+              <li key={key}>
+                {key}: {titles.join(', ')}
+              </li>
+            ))}
+          </ul>
+        )}
       </aside>
     </div>
   );

@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach } from 'vitest';
 import { useState } from 'react';
 import { Calendar } from './Calendar';
 
@@ -59,7 +58,90 @@ test('keyboard selection skips disabled dates', () => {
   grid.focus();
   fireEvent.keyDown(grid, { key: 'ArrowRight' });
   const calls = onChange.mock.calls.map((c) => (c[0] as Date).getDate());
-  expect(calls).not.toContain(11);
+  expect(calls).toEqual([12]);
+});
+
+test('keyboard skip keeps the week row for ArrowDown', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 5)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDate() === 12}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'ArrowDown' });
+  const calls = onChange.mock.calls.map((c) => (c[0] as Date).getDate());
+  expect(calls).toEqual([19]);
+});
+
+test('focus follows the cursor into the next month', () => {
+  function Harness() {
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
+    return <Calendar value={v} onChange={setV} />;
+  }
+  render(<Harness />);
+  const cell = screen.getByRole('gridcell', { name: /^31 tháng 10 năm 2026$/i });
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
+  const active = document.activeElement as HTMLElement;
+  expect(active.getAttribute('data-date')).toBe('2026-11-30');
+});
+
+test('external value change does not steal focus', () => {
+  function Harness() {
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 10));
+    return (
+      <>
+        <input aria-label="khác" />
+        <button type="button" onClick={() => setV(new Date(2026, 9, 20))}>
+          đổi
+        </button>
+        <Calendar value={v} onChange={setV} view={new Date(2026, 9, 1)} />
+      </>
+    );
+  }
+  render(<Harness />);
+  const input = screen.getByRole('textbox', { name: 'khác' });
+  input.focus();
+  fireEvent.click(screen.getByRole('button', { name: 'đổi' }));
+  expect(document.activeElement).toBe(input);
+});
+
+test('Home/End stay inside the visible month when it is fully disabled', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={null}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={() => true}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'Home' });
+  fireEvent.keyDown(grid, { key: 'End' });
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByText(/tháng 10 năm 2026/i)).toBeInTheDocument();
+});
+
+test('grid keeps a tab stop when the value is a disabled date', () => {
+  render(
+    <Calendar
+      value={new Date(2026, 9, 5)}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDate() === 5}
+    />,
+  );
+  const stops = screen.getAllByRole('gridcell').filter((c) => c.getAttribute('tabindex') === '0');
+  expect(stops).toHaveLength(1);
+  expect(stops[0]).toBeEnabled();
 });
 
 test('events render in day cells', () => {
@@ -196,4 +278,21 @@ test('PageUp/PageDown change month and clamp day', () => {
   grid.focus();
   fireEvent.keyDown(grid, { key: 'PageDown' });
   expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
+  // 31/11 does not exist → clamp to 30
+  expect(screen.getByRole('gridcell', { name: /^30 tháng 11 năm 2026$/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  fireEvent.keyDown(grid, { key: 'PageUp' });
+  expect(screen.getByText(/tháng 10 năm 2026/i)).toBeInTheDocument();
+  expect(screen.getByRole('gridcell', { name: /^30 tháng 10 năm 2026$/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
+test('month change is announced politely', () => {
+  render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 11/2026');
 });

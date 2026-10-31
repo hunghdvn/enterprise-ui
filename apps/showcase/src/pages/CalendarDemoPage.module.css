@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: minmax(0, 1fr) 260px;
   gap: 16px;
   font-family: var(--font, inherit);
   padding: 8px;
@@ -11,6 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .header h1 {
@@ -18,98 +20,32 @@
   font-size: 20px;
 }
 
-.nav {
+.controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.month {
-  font-weight: 600;
-  min-width: 160px;
-  text-align: center;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px;
-}
-
-.weekday {
-  text-align: center;
-  font-size: 11px;
+  gap: 16px;
+  font-size: 13px;
   color: var(--text-muted);
-  padding: 4px 0;
-  font-weight: 600;
 }
 
-.blank {
-  min-height: 80px;
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.day {
-  min-height: 80px;
+.field select {
+  font: inherit;
+  padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
   color: var(--text);
-  transition: background 0.12s;
 }
 
-.day:hover {
-  background: var(--surface-muted);
-}
-
-.selected {
-  border-color: var(--color-blue-600);
-  box-shadow: 0 0 0 1px var(--color-blue-600);
-}
-
-.today {
-  font-weight: 700;
-}
-
-.daynum {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.events {
+.calendar {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.event {
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  color: var(--on-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.event.blue {
-  background: var(--color-blue-600);
-}
-.event.green {
-  background: var(--success, #16a34a);
-}
-.event.orange {
-  background: var(--color-orange-500);
+  justify-content: center;
 }
 
 .side {
@@ -124,8 +60,47 @@
   font-size: 13px;
 }
 
+.side h3 + h3 {
+  margin-top: 16px;
+}
+
+.side p {
+  margin: 0;
+  font-size: 13px;
+}
+
 .side ul {
   margin: 0;
   padding-left: 16px;
+  font-size: 12px;
+}
+
+.shortcuts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shortcuts button {
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.shortcuts button:hover {
+  background: var(--surface-muted);
+}
+
+.empty {
+  color: var(--text-muted);
   font-size: 12px;
 }
