@@ -28,7 +28,7 @@
 }
 
 .control:focus-within {
-  outline: 2px solid var(--color-blue-600);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: 1px;
   border-color: var(--color-blue-600);
 }

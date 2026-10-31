@@ -1,13 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
-import { daysInMonth, firstDayOffset, formatMonth, sameDay, startOfDay } from '../internal/date';
+import {
+  WEEKDAYS,
+  daysInMonth,
+  firstDayOffset,
+  formatMonth,
+  sameDay,
+  startOfDay,
+} from '../internal/date';
 import type { DateRange, DateRangePickerProps } from './types';
 import styles from './DateRangePicker.module.css';
 
 const GAP_PX = 4;
 const EST_CHROME = 48;
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 function inRange(d: Date, from: Date | null, to: Date | null): boolean {
   if (!from || !to) return false;

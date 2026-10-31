@@ -14,7 +14,7 @@ const props: PropDoc[] = [
     name: 'events',
     type: 'Record<string, ReactNode>',
     description:
-      'Sự kiện theo key ISO (YYYY-MM-DD). Một node → một dòng; một mảng node → mỗi node một dòng (ô sm chỉ hiện dòng đầu).',
+      'Sự kiện theo key ISO (YYYY-MM-DD). Một node → một dòng; mảng node → mỗi node một dòng. Ô sm hiện 1 dòng, md 2 dòng; toàn bộ danh sách vẫn nằm trong accessible description của ngày.',
   },
   {
     name: 'isDisabled',

@@ -7,7 +7,7 @@
   align-items: start;
 }
 
-@media (max-width: 719px) {
+@media (max-width: 768px) {
   .page {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -52,13 +52,9 @@
 
 .calendar {
   min-width: 0;
-  /* Cap the month grid so 1fr cells stay close to square instead of stretching across
-     the whole content column (7 cells + 6×2px gaps + 12px padding ≈ 320px at md). */
-  max-width: 320px;
-}
-
-.calendar > * {
-  width: 100%;
+  /* The component has its intrinsic month width; center it in the wider content column. */
+  display: flex;
+  justify-content: center;
 }
 
 .side {
@@ -107,6 +103,10 @@
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+}
+
+.shortcuts button::first-letter {
+  text-transform: uppercase;
 }
 
 .shortcuts button:hover {

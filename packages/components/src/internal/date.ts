@@ -3,6 +3,9 @@
  * month grids agree on day boundaries, keys and week offsets.
  */
 
+/** Monday-first weekday headers shared by the month grids. */
+export const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
 /** Midnight of `d`, in local time. */
 export function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -49,9 +52,9 @@ export function clampDay(year: number, month: number, day: number): number {
   return Math.min(day, daysInMonth(year, month));
 }
 
-/** "15 tháng 10 năm 2026" — the accessible label of a single day. */
+/** "15 tháng 10, 2026" — the accessible label of a single day. */
 export function formatDay(d: Date): string {
-  return `${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}`;
+  return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /** "tháng 10 năm 2026" — the heading of a month grid. */

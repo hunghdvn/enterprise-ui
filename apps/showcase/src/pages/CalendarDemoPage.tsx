@@ -9,11 +9,7 @@ const EVENTS: Record<string, string[]> = {
   '2026-10-28': ['Retro'],
 };
 
-const MONTHS = [
-  { label: 'Tháng 9/2026', value: new Date(2026, 8, 1) },
-  { label: 'Tháng 10/2026', value: new Date(2026, 9, 1) },
-  { label: 'Tháng 11/2026', value: new Date(2026, 10, 1) },
-];
+const MONTHS = [new Date(2026, 8, 1), new Date(2026, 9, 1), new Date(2026, 10, 1)];
 
 export default function CalendarDemoPage() {
   const [view, setView] = useState(new Date(2026, 9, 1));
@@ -21,8 +17,10 @@ export default function CalendarDemoPage() {
   const [size, setSize] = useState<'sm' | 'md'>('md');
   const [blockWeekends, setBlockWeekends] = useState(true);
 
-  const monthPrefix = `${view.getFullYear()}-${String(view.getMonth() + 1).padStart(2, '0')}`;
-  const monthEvents = Object.entries(EVENTS).filter(([key]) => key.startsWith(monthPrefix));
+  const monthEvents = Object.entries(EVENTS).filter(([key]) => {
+    const [year, month] = key.split('-').map(Number);
+    return year === view.getFullYear() && month === view.getMonth() + 1;
+  });
 
   return (
     <div className={styles.page}>
@@ -71,9 +69,9 @@ export default function CalendarDemoPage() {
         <h3>Chuyển nhanh</h3>
         <ul className={styles.shortcuts}>
           {MONTHS.map((m) => (
-            <li key={m.label}>
-              <button type="button" onClick={() => setView(m.value)}>
-                {m.label}
+            <li key={m.toISOString()}>
+              <button type="button" onClick={() => setView(m)}>
+                {m.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
               </button>
             </li>
           ))}

@@ -121,7 +121,7 @@
 }
 
 .groupToggle:focus-visible {
-  outline: 2px solid var(--color-blue-600);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: -2px;
 }
 
@@ -243,7 +243,7 @@ button.h:hover {
 
 .sortBtn:focus-visible,
 .check:focus-visible {
-  outline: 2px solid var(--color-blue-600);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: -2px;
 }
 
@@ -301,7 +301,7 @@ button.h:hover {
 }
 
 .resizeHandle:focus-visible {
-  outline: 2px solid var(--color-blue-600);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: -2px;
 }
 
@@ -530,7 +530,7 @@ button.h:hover {
 /* Same inward focus-ring trick as .groupToggle/.sortBtn: the ring draws
    inside so the card's overflow never clips it. */
 .cardAction:focus-visible {
-  outline: 2px solid var(--color-blue-600);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: -2px;
 }
 

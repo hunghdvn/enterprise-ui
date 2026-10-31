@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Intrinsic month-grid width: 7 square cells instead of stretching to the container. */
+  width: fit-content;
+  max-width: 100%;
   font-family: var(--font, inherit);
 }
 
@@ -56,6 +59,10 @@
 }
 
 .grid {
+  /* 7 cells + 6×2px gaps + 12px padding + 2px border */
+  box-sizing: border-box;
+  width: calc(7 * var(--cal-cell) + 26px);
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -63,7 +70,7 @@
 }
 
 .grid:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--focus-ring, var(--color-blue-600));
   outline-offset: 2px;
 }
 
@@ -134,8 +141,8 @@
   line-height: 1;
 }
 
-/* Event slot: one line per event (an array renders stacked lines) so a second event
-   is never collapsed into the first one's ellipsis. */
+/* Event slot: one line per event; lines beyond the cell's capacity are sr-only (still in the
+   day's description) rather than display:none. */
 .day-events {
   display: flex;
   flex-direction: column;
@@ -152,11 +159,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* The compact cell only has room for one event line; extra lines are clipped in CSS. */
-.wrap[data-size='sm'] .day-event:nth-child(n + 2) {
-  display: none;
 }
 
 .day-selected .day-event {

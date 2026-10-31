@@ -1,4 +1,5 @@
 import {
+  WEEKDAYS,
   addDays,
   clampDay,
   daysInMonth,
@@ -71,9 +72,13 @@ test('clampDay caps at the length of the target month', () => {
 });
 
 test('formatDay renders the full Vietnamese day label', () => {
-  expect(formatDay(new Date(2026, 9, 15))).toBe('15 tháng 10 năm 2026');
+  expect(formatDay(new Date(2026, 9, 15))).toBe('15 tháng 10, 2026');
 });
 
 test('formatMonth renders the Vietnamese month heading', () => {
   expect(formatMonth(new Date(2026, 9, 1))).toBe('tháng 10 năm 2026');
+});
+
+test('WEEKDAYS is Monday-first', () => {
+  expect(WEEKDAYS).toEqual(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
 });
