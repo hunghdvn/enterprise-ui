@@ -158,6 +158,12 @@
   border-color: var(--on-primary);
 }
 
+/* A blocked selection is no longer a filled primary surface, so white would vanish: use the
+   ring token itself, which keeps the "today" signal at full strength on the muted fill. */
+.day-disabled.day-today.day-selected::after {
+  border-color: var(--today-ring);
+}
+
 @media (forced-colors: active) {
   .day-today::after,
   .day-today.day-selected::after {
@@ -173,6 +179,28 @@
 .day-disabled .day-num,
 .day-disabled .day-events {
   opacity: 0.45;
+}
+
+/* A disabled day that is also selected must still read as blocked: dimming only the text left the
+   full-strength blue fill looking like a live selection (white on blue-600 at 45% opacity is
+   ~2.8:1). The fill is muted with `color-mix`, keeping the today dot at full strength. */
+.day-disabled.day-selected {
+  background: color-mix(in srgb, var(--color-blue-600) 38%, var(--surface));
+  color: var(--text);
+}
+
+.day-disabled.day-selected .day-num,
+.day-disabled.day-selected .day-events {
+  opacity: 0.55;
+}
+
+/* `color-mix` is Baseline 2023; without it the fill above is dropped and blue-600 would read as a
+   live selection again, so fall back to the muted surface instead. */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .day-disabled.day-selected {
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
 }
 
 .day-num {
@@ -202,4 +230,9 @@
 
 .day-selected .day-event {
   color: var(--on-primary);
+}
+
+/* A blocked selection is no longer a filled primary surface, so its events use muted text. */
+.day-disabled.day-selected .day-event {
+  color: var(--text-muted);
 }

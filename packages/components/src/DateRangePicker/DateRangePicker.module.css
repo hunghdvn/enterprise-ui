@@ -1,4 +1,6 @@
 .wrap {
+  /* Column count is set inline from `DAYS_PER_WEEK`; CSS and key handling share one source. */
+  --drp-cols: 7;
   display: inline-flex;
   font-family: var(--font, inherit);
 }
@@ -104,7 +106,7 @@
 
 .weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--drp-cols), 1fr);
   gap: 2px;
 }
 
@@ -117,7 +119,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--drp-cols), 1fr);
   gap: 2px;
 }
 

@@ -14,6 +14,7 @@ import {
   isoKey,
   monthKeyOf,
   sameDay,
+  sameMonth,
   startOfDay,
 } from '../internal/date';
 import type { CalendarProps } from './types';
@@ -58,18 +59,40 @@ function eventList(ev: ReactNode): ReactNode[] {
 interface PendingPage {
   /** Month that was rendered when the key was pressed; scopes the request to that commit. */
   fromMonthKey: string;
-  monthKey: string;
-  /** Day the cursor should land on; null when the target month is fully disabled. */
-  cursor: Date | null;
-  /** Day to report through `onChange`, or null when only the cursor moves. */
-  select: Date | null;
+  /** Month the request should land on; advances when the key repeats while it waits. */
+  target: Date;
+  /** Day-of-month to keep; resolved against `isDisabled` only when the request is applied. */
+  anchorDay: number;
+  /** Selected day when the key was pressed; a newer selection wins over this request. */
+  valueKey: string;
 }
 
-/** Day that should receive focus once the cursor update carrying it lands. */
-interface FocusIntent {
-  key: string;
-  /** Cursor key when the intent was queued; an override settles somewhere else and cancels it. */
-  previousKey: string;
+/** Day or grid that should receive focus once the commit carrying it lands. */
+type FocusIntent =
+  { kind: 'day'; key: string; previousKey: string } | { kind: 'grid'; monthKey: string };
+
+/**
+ * Resolve a waiting request against the props as they are when it is applied, not as they were
+ * when the key was pressed: a list that started blocking the day, or a newer selection, wins.
+ */
+function resolvePage(
+  request: PendingPage,
+  isDisabled: ((d: Date) => boolean) | undefined,
+  value: Date | null,
+  valueKey: string,
+): { cursor: Date | null; select: Date | null } {
+  const year = request.target.getFullYear();
+  const month = request.target.getMonth();
+  const cursor = nearestEnabled(year, month, request.anchorDay, isDisabled);
+  if (!cursor) return { cursor: null, select: null };
+  // Only the anchor day itself is a selection, a skipped disabled day just moves the cursor, and
+  // a selection that changed while the request waited is never overwritten by it.
+  const anchor = new Date(year, month, clampDay(year, month, request.anchorDay));
+  const select =
+    sameDay(cursor, anchor) && valueKey === request.valueKey && !sameDay(cursor, value)
+      ? cursor
+      : null;
+  return { cursor, select };
 }
 
 /** Whole event lines that fit each cell; the rest stay in the accessible description. */
@@ -92,6 +115,8 @@ export function Calendar({
   const uid = useId();
   const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
   const gridRef = useRef<HTMLDivElement>(null);
+  /** Exact `Date` last handed to `onViewChange`, so an echo can be told from an unrelated view. */
+  const requestedViewRef = useRef<Date | null>(null);
 
   const [internalView, setInternalView] = useState<Date>(
     view ?? (value ? new Date(value.getFullYear(), value.getMonth(), 1) : new Date()),
@@ -108,6 +133,10 @@ export function Calendar({
 
   const setView = useCallback(
     (next: Date) => {
+      // The exact `Date` handed to `onViewChange`. A later controlled `view` that is this very
+      // object is the parent accepting our request; any other object is the parent navigating on
+      // its own, even when it lands on the same month.
+      requestedViewRef.current = next;
       if (view === undefined) setInternalView(next);
       onViewChange?.(next);
     },
@@ -135,29 +164,33 @@ export function Calendar({
     if (view !== undefined || !value) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setInternalView((prev) =>
-      prev.getFullYear() === value.getFullYear() && prev.getMonth() === value.getMonth()
-        ? prev
-        : new Date(value.getFullYear(), value.getMonth(), 1),
+      sameMonth(prev, value) ? prev : new Date(value.getFullYear(), value.getMonth(), 1),
     );
   }, [valueKey, value, view]);
 
   // Reposition the cursor once a month change has actually rendered. Chevrons only request the
   // month, so an accepted change lands here and a rejected controlled change never gets here.
   const [pendingPage, setPendingPage] = useState<PendingPage | null>(null);
-  const pendingFocusRef = useRef<FocusIntent | null>(null);
-  /** Month whose grid should take focus after a page into a fully disabled month. */
-  const pendingGridFocusRef = useRef<string | null>(null);
+  /** The one focus handoff still waiting for the commit that carries it. */
+  const focusIntentRef = useRef<FocusIntent | null>(null);
+
+  /**
+   * A page request only applies when the month it asks for is the one we requested through
+   * `onViewChange` — the parent echoing it back. A parent that rejects the page and later shows
+   * that month for its own reasons (month picker, deep link) must not inherit the hidden commit.
+   */
+  const pageLanded = (request: PendingPage): boolean =>
+    monthKeyOf(request.target) === monthKey &&
+    (view === undefined || requestedViewRef.current === view);
+
   useEffect(() => {
     // An accepted page key applies its own cursor (and focus) below; a rejected one never
     // reaches this effect because `monthKey` did not change.
-    if (pendingPage && pendingPage.monthKey === monthKey) return;
-    if (cursor.getFullYear() === year && cursor.getMonth() === month) return;
+    if (pendingPage && pageLanded(pendingPage)) return;
+    if (sameMonth(cursor, currentView)) return;
     // The selection wins when it lives in the month being shown (view and value set together),
     // otherwise keep the day-of-month so paging away and back never loses it.
-    const day =
-      value && value.getFullYear() === year && value.getMonth() === month
-        ? value.getDate()
-        : cursor.getDate();
+    const day = value && sameMonth(value, currentView) ? value.getDate() : cursor.getDate();
     const next = nearestEnabled(year, month, day, isDisabled);
     // A fully disabled month has no focusable day: leave the cursor (and its day-of-month)
     // where it is and let `tabStop` fall back to the grid instead of clamping into it.
@@ -172,26 +205,33 @@ export function Calendar({
   // nobody can see, and lets a fully disabled target hand focus to the grid instead.
   useEffect(() => {
     if (!pendingPage) return;
-    if (pendingPage.monthKey === monthKey) {
+    if (pageLanded(pendingPage)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingPage(null);
-      if (!pendingPage.cursor) {
-        pendingGridFocusRef.current = monthKey;
+      requestedViewRef.current = null;
+      // Re-validate against the props as they are now: the selection or `isDisabled` may have
+      // changed while the parent was deciding whether to show the month.
+      const { cursor: next, select } = resolvePage(pendingPage, isDisabled, value, valueKey);
+      if (!next) {
+        focusIntentRef.current = { kind: 'grid', monthKey };
         return;
       }
-      setCursor(pendingPage.cursor);
-      pendingFocusRef.current = { key: isoKey(pendingPage.cursor), previousKey: isoKey(cursor) };
-      if (pendingPage.select) onChange?.(pendingPage.select);
+      setCursor(next);
+      focusIntentRef.current = { kind: 'day', key: isoKey(next), previousKey: isoKey(cursor) };
+      if (select) onChange?.(select);
       return;
     }
-    // A controlled parent may apply the view in a later commit (transition, debounce, router).
-    // Keep the request while that month is still on screen; any other month means it went
-    // somewhere else or a newer action replaced the request.
-    if (monthKey !== pendingPage.fromMonthKey) {
+    // The request lives for exactly one `onViewChange` round trip: it is dropped when the view
+    // settles on any other month (the parent rejected or overrode it) as well as when the target
+    // month is already rendered without carrying our commit. `pageMonth` re-arms it for a repeat.
+    if (monthKey !== pendingPage.fromMonthKey || monthKeyOf(pendingPage.target) === monthKey) {
       setPendingPage(null);
+      requestedViewRef.current = null;
     }
+    // `view` is a dependency so a controlled parent answering with the same month still runs the
+    // landing check above: without it the request would sit armed until some later month change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingPage, monthKey]);
+  }, [pendingPage, monthKey, view]);
 
   /** True when the last commit focused an element whose own label already names the month. */
   const focusNamesMonthRef = useRef(false);
@@ -201,33 +241,33 @@ export function Calendar({
     const grid = gridRef.current;
     if (!grid) return;
 
-    const gridTarget = pendingGridFocusRef.current;
-    if (gridTarget !== null) {
-      if (gridTarget !== monthKey) {
-        pendingGridFocusRef.current = null;
-      } else {
-        pendingGridFocusRef.current = null;
-        const active = document.activeElement;
-        const focusInside = grid.contains(active);
-        // A closed month unmounts the focused day; only take focus back when it was lost to the
-        // page or already lived in the grid, never from a dialog opened in `onViewChange`.
-        if (!focusInside && active !== null && active !== document.body) return;
-        const alreadyFocused = active === grid;
-        grid.focus({ preventScroll: true });
-        // Only a real focus move onto the grid replaces the month announcement. A grid that
-        // already held focus (two closed months in a row) must still speak the new month.
-        focusNamesMonthRef.current =
-          !alreadyFocused && document.activeElement === grid && ariaLabel === undefined;
+    const intent = focusIntentRef.current;
+    const cursorKey = isoKey(cursor);
+
+    // Grid handoff: the target month had no focusable day, so the grid itself takes focus.
+    if (intent?.kind === 'grid') {
+      if (intent.monthKey !== monthKey) {
+        focusIntentRef.current = null;
         return;
       }
+      focusIntentRef.current = null;
+      const active = document.activeElement;
+      // A closed month unmounts the focused day; only take focus back when it was lost to the
+      // page or already lived in the grid, never from a dialog opened in `onViewChange`.
+      if (!grid.contains(active) && active !== null && active !== document.body) return;
+      const alreadyFocused = active === grid;
+      grid.focus({ preventScroll: true });
+      // Only a real focus move onto the grid replaces the month announcement. A grid that
+      // already held focus (two closed months in a row) must still speak the new month.
+      focusNamesMonthRef.current =
+        !alreadyFocused && document.activeElement === grid && ariaLabel === undefined;
+      return;
     }
 
-    const cursorKey = isoKey(cursor);
-    const intent = pendingFocusRef.current;
     let target: string | null = null;
     if (intent) {
       if (intent.key === cursorKey) {
-        pendingFocusRef.current = null;
+        focusIntentRef.current = null;
         target = intent.key;
       } else if (cursorKey === intent.previousKey) {
         // The cursor update that carries this intent has not committed yet (page keys apply
@@ -236,7 +276,7 @@ export function Calendar({
       } else {
         // The cursor settled on another day (a parent snapped/clamped the selection). Follow
         // the day that actually won instead of leaving an intent that mutes every later month.
-        pendingFocusRef.current = null;
+        focusIntentRef.current = null;
         target = cursorKey;
       }
     }
@@ -267,7 +307,7 @@ export function Calendar({
     if (announcedRef.current === monthKey) return;
     // The page-key handover applies its cursor in the next commit; decide after it lands so a
     // focused day (whose label names the month) can suppress the duplicate message.
-    if (pendingFocusRef.current !== null) return;
+    if (focusIntentRef.current !== null) return;
     announcedRef.current = monthKey;
     // Keyboard day navigation moves focus to the day, whose label already carries the month;
     // a second polite message would make screen readers read the month twice.
@@ -281,7 +321,7 @@ export function Calendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey, cursorTime]);
 
-  const cursorInView = cursor.getFullYear() === year && cursor.getMonth() === month;
+  const cursorInView = sameMonth(cursor, currentView);
   // Roving tab stop: always resolve to an enabled day in the visible month so the grid stays
   // reachable by Tab even when the cursor sits on a disabled/off-month date or the month is
   // closed (then the grid itself becomes the tab stop). Day and page navigation start from this
@@ -291,23 +331,30 @@ export function Calendar({
       ? cursor
       : nearestEnabled(year, month, cursor.getDate(), isDisabled);
 
+  /** Drop every waiting handoff: a page request and the focus it was going to claim. */
+  const cancelIntent = () => {
+    setPendingPage(null);
+    focusIntentRef.current = null;
+  };
+
   const changeMonth = (target: Date) => {
+    // A chevron is a fresh navigation: it supersedes any page request and its focus handoff.
     // The month effect above moves the cursor after the new month has rendered. Moving it here
     // would also move it when a controlled parent rejects the change.
-    setPendingPage(null);
+    cancelIntent();
     setView(target);
   };
 
   const setCursorIntent = (next: Date) => {
     // Any direct move supersedes a page request whose target month has not been applied yet.
-    setPendingPage(null);
-    const intent = { key: isoKey(next), previousKey: isoKey(cursor) };
-    if (next.getFullYear() === year && next.getMonth() === month) {
-      if (next.getTime() !== cursor.getTime()) pendingFocusRef.current = intent;
+    cancelIntent();
+    const intent = { kind: 'day' as const, key: isoKey(next), previousKey: isoKey(cursor) };
+    if (sameMonth(next, currentView)) {
+      if (next.getTime() !== cursor.getTime()) focusIntentRef.current = intent;
       setCursor(next);
       return;
     }
-    pendingFocusRef.current = intent;
+    focusIntentRef.current = intent;
     setView(new Date(next.getFullYear(), next.getMonth(), 1));
     setCursor(next);
   };
@@ -319,21 +366,14 @@ export function Calendar({
 
   /** PageUp/PageDown: request the month; cursor/selection land once that month renders. */
   const pageMonth = (delta: number) => {
-    const targetView = new Date(year, month + delta, 1);
-    const targetYear = targetView.getFullYear();
-    const targetMonth = targetView.getMonth();
+    // Key repeat while the request is still waiting stacks up: two PageDowns ask for two
+    // months ahead, starting from the month the wait already targets.
+    const waiting = pendingPage && pendingPage.fromMonthKey === monthKey ? pendingPage : null;
+    const from = waiting ? waiting.target : currentView;
+    const targetView = new Date(from.getFullYear(), from.getMonth() + delta, 1);
     // A closed current month has no tab stop; its cursor day still carries the page anchor.
-    const day = tabStop?.getDate() ?? cursor.getDate();
-    const anchor = new Date(targetYear, targetMonth, clampDay(targetYear, targetMonth, day));
-    const target = nearestEnabled(targetYear, targetMonth, day, isDisabled);
-    setPendingPage({
-      fromMonthKey: monthKey,
-      monthKey: monthKeyOf(targetView),
-      // A fully disabled target month keeps the viewer intact but never selects a forbidden date.
-      cursor: target,
-      // Keep the same day-of-month; a skipped disabled day only moves the cursor.
-      select: target && sameDay(target, anchor) && !sameDay(target, value) ? target : null,
-    });
+    const day = waiting ? waiting.anchorDay : (tabStop?.getDate() ?? cursor.getDate());
+    setPendingPage({ fromMonthKey: monthKey, target: targetView, anchorDay: day, valueKey });
     setView(targetView);
   };
 
@@ -391,8 +431,8 @@ export function Calendar({
       case 'Enter':
       case ' ':
         if (e.target !== e.currentTarget) return;
-        if (cursor.getFullYear() !== year || cursor.getMonth() !== month) return;
-        setPendingPage(null);
+        if (!sameMonth(cursor, currentView)) return;
+        cancelIntent();
         if (!isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
         handled = true;
@@ -511,7 +551,8 @@ export function Calendar({
                     )}
                     onClick={() => {
                       if (!disabled) {
-                        setPendingPage(null);
+                        // A click is a direct selection: it drops any page request still waiting.
+                        cancelIntent();
                         setCursor(date);
                         onChange?.(date);
                       }

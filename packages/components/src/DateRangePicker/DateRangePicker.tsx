@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
 import {
+  DAYS_PER_WEEK,
   WEEKDAYS,
   daysInMonth,
   firstDayOffset,
@@ -14,6 +16,9 @@ import styles from './DateRangePicker.module.css';
 
 const GAP_PX = 4;
 const EST_CHROME = 48;
+
+/** Column count comes from `WEEKDAYS.length` so the grid math and the CSS cannot drift. */
+const GRID_STYLE = { '--drp-cols': DAYS_PER_WEEK } as CSSProperties;
 
 function inRange(d: Date, from: Date | null, to: Date | null): boolean {
   if (!from || !to) return false;
@@ -192,7 +197,7 @@ export function DateRangePicker({
     cells.push({ date: new Date(year, month, d), out: false });
   }
   const next = new Date(year, month, totalDays + 1);
-  while (cells.length % 7 !== 0) {
+  while (cells.length % DAYS_PER_WEEK !== 0) {
     cells.push({ date: new Date(next), out: true });
     next.setDate(next.getDate() + 1);
   }
@@ -221,7 +226,12 @@ export function DateRangePicker({
   };
 
   return (
-    <div ref={wrapRef} className={cx(styles.wrap, className)} data-disabled={disabled || undefined}>
+    <div
+      ref={wrapRef}
+      className={cx(styles.wrap, className)}
+      data-disabled={disabled || undefined}
+      style={GRID_STYLE}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -291,7 +301,8 @@ export function DateRangePicker({
           <div className={styles.grid} role="grid" aria-labelledby={monthLabelId}>
             {(() => {
               const rows: Cell[][] = [];
-              for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+              for (let i = 0; i < cells.length; i += DAYS_PER_WEEK)
+                rows.push(cells.slice(i, i + DAYS_PER_WEEK));
               return rows.map((row, ri) => (
                 <div key={ri} role="row" className={styles.row} style={{ display: 'contents' }}>
                   {row.map((cell) => {

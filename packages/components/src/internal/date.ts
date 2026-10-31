@@ -33,6 +33,12 @@ export function isoKey(d: Date): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** True when both dates fall in the same calendar month (day and time are ignored). */
+export function sameMonth(a: Date | null | undefined, b: Date | null | undefined): boolean {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
 /** `YYYY-M` identity of a month (0-based, unpadded) used by Calendar's view state. */
 export function monthKeyOf(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}`;
