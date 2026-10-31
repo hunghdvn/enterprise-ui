@@ -78,6 +78,26 @@ test('keyboard skip keeps the week row for ArrowDown', () => {
   expect(calls).toEqual([19]);
 });
 
+test('backwards keys skip disabled days backwards', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 13)}
+      onChange={onChange}
+      view={new Date(2026, 9, 1)}
+      isDisabled={(d) => d.getDate() === 12}
+    />,
+  );
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'ArrowLeft' });
+  expect(onChange.mock.calls.map((c) => (c[0] as Date).getDate())).toEqual([11]);
+
+  onChange.mockClear();
+  fireEvent.keyDown(grid, { key: 'ArrowUp' });
+  expect(onChange.mock.calls.map((c) => (c[0] as Date).getDate())).toEqual([4]);
+});
+
 test('focus follows the cursor into the next month', () => {
   function Harness() {
     const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
@@ -116,10 +136,10 @@ test('Home/End stay inside the visible month when it is fully disabled', () => {
   const onChange = vi.fn();
   render(
     <Calendar
-      value={null}
+      value={new Date(2026, 9, 31)}
       onChange={onChange}
       view={new Date(2026, 9, 1)}
-      isDisabled={() => true}
+      isDisabled={(d) => d.getMonth() === 9}
     />,
   );
   const grid = screen.getByRole('grid');
@@ -128,6 +148,8 @@ test('Home/End stay inside the visible month when it is fully disabled', () => {
   fireEvent.keyDown(grid, { key: 'End' });
   expect(onChange).not.toHaveBeenCalled();
   expect(screen.getByText(/tháng 10 năm 2026/i)).toBeInTheDocument();
+  // the closed month is still reachable by keyboard
+  expect(grid).toHaveAttribute('tabindex', '0');
 });
 
 test('grid keeps a tab stop when the value is a disabled date', () => {
@@ -142,6 +164,64 @@ test('grid keeps a tab stop when the value is a disabled date', () => {
   const stops = screen.getAllByRole('gridcell').filter((c) => c.getAttribute('tabindex') === '0');
   expect(stops).toHaveLength(1);
   expect(stops[0]).toBeEnabled();
+});
+
+test('PageUp into a fully disabled month never selects a forbidden date', () => {
+  const onChange = vi.fn();
+  render(
+    <Calendar
+      value={new Date(2026, 9, 31)}
+      onChange={onChange}
+      isDisabled={(d) => d.getMonth() === 8}
+    />,
+  );
+  const cell = screen.getByRole('gridcell', { name: /^31 tháng 10 năm 2026$/i });
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageUp' });
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByText(/tháng 9 năm 2026/i)).toBeInTheDocument();
+  // focus must stay usable instead of falling back to <body>
+  expect(document.activeElement).toBe(screen.getByRole('grid'));
+  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'PageDown' });
+  expect(screen.getByText(/tháng 10 năm 2026/i)).toBeInTheDocument();
+});
+
+test('stale focus intent does not pull focus back after a later click', () => {
+  function Harness() {
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 1));
+    return <Calendar value={v} onChange={setV} view={new Date(2026, 9, 1)} />;
+  }
+  render(<Harness />);
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  // Home resolves to the current cursor → no cursor change, so no pending intent may survive
+  fireEvent.keyDown(grid, { key: 'Home' });
+  const cell20 = screen.getByRole('gridcell', { name: /^20 tháng 10 năm 2026$/i });
+  fireEvent.click(cell20);
+  expect(document.activeElement).toBe(cell20);
+});
+
+test('latch resets so a later external value can bring its month back', () => {
+  function Harness() {
+    const [v, setV] = useState<Date | null>(new Date(2026, 9, 10));
+    return (
+      <>
+        <button type="button" onClick={() => setV(null)}>
+          xoá
+        </button>
+        <button type="button" onClick={() => setV(new Date(2027, 4, 9))}>
+          đặt 5/2027
+        </button>
+        <Calendar value={v} onChange={setV} />
+      </>
+    );
+  }
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'xoá' }));
+  fireEvent.click(screen.getByRole('button', { name: 'đặt 5/2027' }));
+  expect(screen.getByText(/tháng 5 năm 2027/i)).toBeInTheDocument();
 });
 
 test('events render in day cells', () => {
@@ -268,6 +348,48 @@ test('events are described via aria-describedby', () => {
   expect(cell).toHaveAccessibleDescription(/Meeting/);
 });
 
+test('days without events have no description', () => {
+  render(
+    <Calendar
+      value={null}
+      onChange={() => {}}
+      view={new Date(2026, 9, 1)}
+      events={{ '2026-10-10': 'Meeting' }}
+    />,
+  );
+  const withEvent = screen.getByRole('gridcell', { name: /^10 tháng 10 năm 2026$/i });
+  const without = screen.getByRole('gridcell', { name: /^11 tháng 10 năm 2026$/i });
+  expect(withEvent).toHaveAccessibleDescription('Meeting');
+  expect(without).toHaveAccessibleDescription('');
+});
+
+test('two instances do not share event ids', () => {
+  render(
+    <>
+      <Calendar
+        value={null}
+        onChange={() => {}}
+        view={new Date(2026, 9, 1)}
+        events={{ '2026-10-10': 'A' }}
+        aria-label="Lịch 1"
+      />
+      <Calendar
+        value={null}
+        onChange={() => {}}
+        view={new Date(2026, 9, 1)}
+        events={{ '2026-10-10': 'B' }}
+        aria-label="Lịch 2"
+      />
+    </>,
+  );
+  const ids = screen
+    .getAllByRole('gridcell', { name: /^10 tháng 10 năm 2026$/i })
+    .map((c) => c.getAttribute('aria-describedby'));
+  expect(ids[0]).toBeTruthy();
+  expect(ids[1]).toBeTruthy();
+  expect(ids[0]).not.toBe(ids[1]);
+});
+
 test('PageUp/PageDown change month and clamp day', () => {
   function Harness() {
     const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
@@ -291,8 +413,40 @@ test('PageUp/PageDown change month and clamp day', () => {
   );
 });
 
-test('month change is announced politely', () => {
-  render(<Calendar value={null} onChange={() => {}} view={new Date(2026, 9, 1)} />);
+test('month change is announced politely and matches the rendered month', () => {
+  function Harness() {
+    const [v, setV] = useState(new Date(2026, 9, 1));
+    return <Calendar value={null} onChange={() => {}} view={v} onViewChange={setV} />;
+  }
+  render(<Harness />);
+  // nothing announced on mount
+  expect(screen.getByRole('status')).toHaveTextContent('');
   fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  expect(screen.getByText(/tháng 11 năm 2026/i)).toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 11/2026');
+});
+
+test('external view change is announced and pulls the cursor into the month', () => {
+  function Harness() {
+    const [v, setV] = useState(new Date(2026, 9, 1));
+    return (
+      <>
+        <button type="button" onClick={() => setV(new Date(2027, 2, 1))}>
+          sang 3/2027
+        </button>
+        <Calendar value={new Date(2026, 9, 15)} onChange={() => {}} view={v} />
+      </>
+    );
+  }
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'sang 3/2027' }));
+  expect(screen.getByText(/tháng 3 năm 2027/i)).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 3/2027');
+  const stops = screen.getAllByRole('gridcell').filter((c) => c.getAttribute('tabindex') === '0');
+  expect(stops).toHaveLength(1);
+  // the cursor moved into March 2027, so ArrowRight must not jump the view back to October
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'ArrowRight' });
+  expect(screen.getByText(/tháng 3 năm 2027/i)).toBeInTheDocument();
 });

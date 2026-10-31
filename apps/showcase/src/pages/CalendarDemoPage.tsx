@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Calendar } from '@enterprise-ui/components';
 import styles from './CalendarDemoPage.module.css';
 
-const EVENTS: Record<string, string[]> = {
-  '2026-10-10': ['Họp sprint'],
-  '2026-10-15': ['Release v1.2', 'Review PR'],
-  '2026-10-22': ['Demo khách hàng'],
-  '2026-10-28': ['Retro'],
+const EVENTS: Record<string, string> = {
+  '2026-10-10': 'Họp sprint',
+  '2026-10-15': 'Release v1.2 · Review PR',
+  '2026-10-22': 'Demo khách hàng',
+  '2026-10-28': 'Retro',
 };
 
 const MONTHS = [
@@ -84,9 +84,9 @@ export default function CalendarDemoPage() {
           <p className={styles.empty}>Không có sự kiện</p>
         ) : (
           <ul>
-            {monthEvents.map(([key, titles]) => (
+            {monthEvents.map(([key, title]) => (
               <li key={key}>
-                {key}: {titles.join(', ')}
+                {key}: {title}
               </li>
             ))}
           </ul>

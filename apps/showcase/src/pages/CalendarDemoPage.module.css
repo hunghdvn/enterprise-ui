@@ -44,8 +44,11 @@
 }
 
 .calendar {
-  display: flex;
-  justify-content: center;
+  min-width: 0;
+}
+
+.calendar > * {
+  width: 100%;
 }
 
 .side {
@@ -60,7 +63,7 @@
   font-size: 13px;
 }
 
-.side h3 + h3 {
+.side > * + h3 {
   margin-top: 16px;
 }
 
@@ -75,7 +78,7 @@
   font-size: 12px;
 }
 
-.shortcuts {
+.side .shortcuts {
   list-style: none;
   padding: 0;
   display: flex;
