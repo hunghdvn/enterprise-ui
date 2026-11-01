@@ -31,3 +31,25 @@ export function cssRule(css: string, selector: string): string {
   if (body === null) throw new Error(`missing rule ${selector}`);
   return body;
 }
+
+/**
+ * Body of the at-rule block whose prelude contains `atRule` (e.g. `@media (forced-colors: active)`).
+ * Scoping a rule assertion to its block pins that the rule sits inside that query rather than
+ * merely somewhere in the file.
+ */
+export function cssBlock(css: string, atRule: string): string {
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const at = stripped.indexOf(atRule);
+  if (at === -1) throw new Error(`missing at-rule ${atRule}`);
+  const open = stripped.indexOf('{', at);
+  if (open === -1) throw new Error(`missing block for ${atRule}`);
+  let depth = 0;
+  for (let i = open; i < stripped.length; i++) {
+    if (stripped[i] === '{') depth += 1;
+    else if (stripped[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return stripped.slice(open + 1, i);
+    }
+  }
+  throw new Error(`unterminated ${atRule}`);
+}

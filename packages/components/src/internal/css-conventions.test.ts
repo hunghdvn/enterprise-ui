@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 

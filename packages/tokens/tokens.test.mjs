@@ -30,6 +30,8 @@ const must = [
   '--scrim',
   '--focus-ring: var(--color-blue-600)',
   '--today-ring: var(--color-blue-700)',
+  '--surface-disabled: var(--color-blue-300)',
+  '--text-disabled: var(--color-blue-800)',
   '[data-theme="dark"]',
   '[data-density="compact"]',
 ];
@@ -96,6 +98,30 @@ if (!missingReported) throw new Error('theme guard does not report a missing the
 
 for (const [theme, source, selector, tokens] of themeRings) {
   assertThemeTokens(theme, source, selector, tokens);
+}
+
+// The blocked-selection pair needs a :root base (custom themes inherit it) and a per-theme
+// override: the dark fill is the muted surface and its text is the body colour, because the light
+// blue-300 fill would outshine a live pick in dark mode.
+const rootCss = readTokenFile('tokens.css');
+for (const decl of [
+  '--surface-disabled: var(--color-blue-300)',
+  '--text-disabled: var(--color-blue-800)',
+]) {
+  if (!rootCss.includes(decl)) throw new Error(':root must define ' + decl);
+}
+const themeDisabled = [
+  [
+    'light',
+    lightCss,
+    ['--surface-disabled: var(--color-blue-300)', '--text-disabled: var(--color-blue-800)'],
+  ],
+  ['dark', darkCss, ['--surface-disabled: var(--surface-muted)', '--text-disabled: var(--text)']],
+];
+for (const [theme, source, decls] of themeDisabled) {
+  for (const decl of decls) {
+    if (!source.includes(decl)) throw new Error(`${theme} theme must declare ${decl}`);
+  }
 }
 
 // Component-source conventions (no hardcoded hex, both data-size variants styled) live in the

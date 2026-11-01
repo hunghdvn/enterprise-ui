@@ -13,7 +13,6 @@ const MONTHS = [new Date(2026, 8, 1), new Date(2026, 9, 1), new Date(2026, 10, 1
 
 export default function CalendarDemoPage() {
   const [view, setView] = useState(new Date(2026, 9, 1));
-  const [viewRequestId, setViewRequestId] = useState(0);
   const [selected, setSelected] = useState<Date | null>(new Date(2026, 9, 15));
   const [size, setSize] = useState<'sm' | 'md'>('md');
   const [blockWeekends, setBlockWeekends] = useState(true);
@@ -55,11 +54,7 @@ export default function CalendarDemoPage() {
           value={selected}
           onChange={setSelected}
           view={view}
-          viewRequestId={viewRequestId}
-          onViewChange={(next, requestId) => {
-            setView(next);
-            setViewRequestId((prev) => requestId ?? prev);
-          }}
+          onViewChange={setView}
           size={size}
           events={EVENTS}
           isDisabled={(d) => blockWeekends && (d.getDay() === 0 || d.getDay() === 6)}

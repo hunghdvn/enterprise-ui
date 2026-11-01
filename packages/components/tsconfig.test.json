@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Tests use node:fs to pin CSS contracts; the src program below stays node-free. */
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts", "vite.config.ts"],
+  "exclude": []
+}

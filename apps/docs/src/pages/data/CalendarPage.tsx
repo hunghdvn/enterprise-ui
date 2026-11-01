@@ -9,17 +9,7 @@ const props: PropDoc[] = [
   { name: 'value', type: 'Date | null', description: 'Ngày đang chọn (controlled).' },
   { name: 'onChange', type: '(date: Date) => void', description: 'Báo khi chọn ngày.' },
   { name: 'view', type: 'Date', description: 'Tháng đang xem (controlled).' },
-  {
-    name: 'viewRequestId',
-    type: 'number',
-    description:
-      'Id request tháng do component phát qua onViewChange; echo lại để page key chỉ land khi parent áp đúng request (tránh commit nhầm khi parent tự mở cùng tháng).',
-  },
-  {
-    name: 'onViewChange',
-    type: '(view: Date, requestId?: number) => void',
-    description: 'Báo khi đổi tháng; requestId đi kèm chỉ khi đổi tháng do page key.',
-  },
+  { name: 'onViewChange', type: '(view: Date) => void', description: 'Báo khi đổi tháng.' },
   {
     name: 'events',
     type: 'Record<string, ReactNode>',
@@ -42,17 +32,12 @@ import { Calendar } from '@enterprise-ui/components';
 export function AppointmentPicker() {
   const [date, setDate] = useState<Date | null>(null);
   const [view, setView] = useState(new Date());
-  const [viewRequestId, setViewRequestId] = useState(0);
   return (
     <Calendar
       value={date}
       onChange={setDate}
       view={view}
-      viewRequestId={viewRequestId}
-      onViewChange={(next, requestId) => {
-        setView(next);
-        setViewRequestId((prev) => requestId ?? prev);
-      }}
+      onViewChange={setView}
       events={{ '2026-10-10': <span>Khám</span> }}
     />
   );
@@ -61,22 +46,12 @@ export function AppointmentPicker() {
 export default function CalendarPage() {
   const [date, setDate] = useState<Date | null>(new Date(2026, 9, 15));
   const [view, setView] = useState(new Date(2026, 9, 1));
-  const [viewRequestId, setViewRequestId] = useState(0);
   return (
     <div>
       <h1>Calendar</h1>
       <p>Lịch tháng presentational, controlled.</p>
       <DemoPlayground>
-        <Calendar
-          value={date}
-          onChange={setDate}
-          view={view}
-          viewRequestId={viewRequestId}
-          onViewChange={(next, requestId) => {
-            setView(next);
-            setViewRequestId((prev) => requestId ?? prev);
-          }}
-        />
+        <Calendar value={date} onChange={setDate} view={view} onViewChange={setView} />
       </DemoPlayground>
       <h2>Code</h2>
       <CodeBlock code={code} />

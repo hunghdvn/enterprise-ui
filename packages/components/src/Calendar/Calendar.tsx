@@ -12,7 +12,6 @@ import {
   formatDay,
   formatMonth,
   isoKey,
-  monthIndex,
   monthKeyOf,
   sameDay,
   sameMonth,
@@ -56,52 +55,9 @@ function eventList(ev: ReactNode): ReactNode[] {
   return list.filter((item) => item != null && item !== false && item !== true && item !== '');
 }
 
-/** A PageUp/PageDown request waiting for its target month to actually render. */
-interface PendingPage {
-  /** Request id echoed by the parent via `viewRequestId` (strict landing). */
-  id: number;
-  /** Month that was rendered when the key was pressed. */
-  from: Date;
-  /** Month the request should land on; advances when the key repeats while it waits. */
-  target: Date;
-  /** Travel direction, so a parent applying a stacked request keeps the newer one. */
-  step: 1 | -1;
-  /** Day-of-month to keep; resolved against `isDisabled` only when the request is applied. */
-  anchorDay: number;
-  /** Selected day when the key was pressed; a newer selection wins over this request. */
-  valueKey: string;
-}
-
 /** Day or grid that should receive focus once the commit carrying it lands. */
 type FocusIntent =
   { kind: 'day'; key: string; previousKey: string } | { kind: 'grid'; monthKey: string };
-
-/**
- * Resolve a waiting request against the props as they are when it is applied, not as they were
- * when the key was pressed: a list that started blocking the day, or a newer selection, wins.
- */
-function resolvePage(
-  request: PendingPage,
-  isDisabled: ((d: Date) => boolean) | undefined,
-  value: Date | null,
-  valueKey: string,
-): { cursor: Date | null; select: Date | null } {
-  const year = request.target.getFullYear();
-  const month = request.target.getMonth();
-  // A selection made while the request waited also moves the cursor: landing on the remembered
-  // day-of-month would leave the roving tab stop on a different day than `aria-selected`.
-  const anchorDay = value && sameMonth(value, request.target) ? value.getDate() : request.anchorDay;
-  const cursor = nearestEnabled(year, month, anchorDay, isDisabled);
-  if (!cursor) return { cursor: null, select: null };
-  // Only the anchor day itself is a selection, a skipped disabled day just moves the cursor, and
-  // a selection that changed while the request waited is never overwritten by it.
-  const anchor = new Date(year, month, clampDay(year, month, anchorDay));
-  const select =
-    sameDay(cursor, anchor) && valueKey === request.valueKey && !sameDay(cursor, value)
-      ? cursor
-      : null;
-  return { cursor, select };
-}
 
 /** Whole event lines that fit each cell; the rest stay in the accessible description. Internal:
  *  the capacity is documented on the `events` prop rather than exported as API. */
@@ -115,7 +71,6 @@ export function Calendar({
   onChange,
   view,
   onViewChange,
-  viewRequestId,
   events,
   isDisabled,
   size = 'sm',
@@ -125,8 +80,6 @@ export function Calendar({
   const uid = useId();
   const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
   const gridRef = useRef<HTMLDivElement>(null);
-  const pageRequestCounterRef = useRef(0);
-
   const [internalView, setInternalView] = useState<Date>(
     view ?? (value ? new Date(value.getFullYear(), value.getMonth(), 1) : new Date()),
   );
@@ -141,9 +94,9 @@ export function Calendar({
   const monthKey = monthKeyOf(currentView);
 
   const setView = useCallback(
-    (next: Date, requestId?: number) => {
+    (next: Date) => {
       if (view === undefined) setInternalView(next);
-      onViewChange?.(next, requestId);
+      onViewChange?.(next);
     },
     [view, onViewChange],
   );
@@ -173,34 +126,12 @@ export function Calendar({
     );
   }, [valueKey, value, view]);
 
-  // Reposition the cursor once a month change has actually rendered. Chevrons only request the
-  // month, so an accepted change lands here and a rejected controlled change never gets here.
-  const [pendingPage, setPendingPage] = useState<PendingPage | null>(null);
+  // Reposition the cursor once a month change has actually rendered: a chevron, a page key or an
+  // external `view` all land here, while a controlled parent that rejects the change does not.
   /** The one focus handoff still waiting for the commit that carries it. */
   const focusIntentRef = useRef<FocusIntent | null>(null);
 
-  /**
-   * A page request lands when the month it asks for renders AND the parent echoed the matching
-   * request id. Without an id, a parent that ignores the request and later opens that month on
-   * its own (month picker/deep link) is indistinguishable from one that answered it, because
-   * `onViewChange(view: Date)` returns no token — that is the known backwards-compat
-   * limitation. The request-id API (`viewRequestId`) closes it: the parent sets `viewRequestId`
-   * to the id it applied, and leaves it untouched when it navigates independently.
-   */
-  const usesRequestIdApi = viewRequestId !== undefined;
-
-  const pageLanded = (request: PendingPage): boolean => {
-    if (monthKeyOf(request.target) !== monthKey) return false;
-    if (usesRequestIdApi) {
-      return viewRequestId === request.id;
-    }
-    return true;
-  };
-
   useEffect(() => {
-    // An accepted page key applies its own cursor (and focus) below; a rejected one never
-    // reaches this effect because `monthKey` did not change.
-    if (pendingPage && pageLanded(pendingPage)) return;
     if (sameMonth(cursor, currentView)) return;
     // The selection wins when it lives in the month being shown (view and value set together),
     // otherwise keep the day-of-month so paging away and back never loses it.
@@ -213,38 +144,6 @@ export function Calendar({
     setCursor(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey]);
-
-  // Page keys only request a month. Applying the cursor and selection here — after that month
-  // actually rendered — keeps a controlled parent that clamps its range from committing a date
-  // nobody can see, and lets a fully disabled target hand focus to the grid instead.
-  useEffect(() => {
-    if (!pendingPage) return;
-    if (pageLanded(pendingPage)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPendingPage(null);
-      // Re-validate against the props as they are now: the selection or `isDisabled` may have
-      // changed while the parent was deciding whether to show the month.
-      const { cursor: next, select } = resolvePage(pendingPage, isDisabled, value, valueKey);
-      if (!next) {
-        focusIntentRef.current = { kind: 'grid', monthKey };
-        return;
-      }
-      setCursor(next);
-      focusIntentRef.current = { kind: 'day', key: isoKey(next), previousKey: isoKey(cursor) };
-      if (select) onChange?.(select);
-      return;
-    }
-    // Keep the request while the rendered month is still between the pressed month and the target:
-    // a parent may apply a stack of requests one commit at a time (November, then December), and
-    // dropping on the first commit would lose the newer one. Any other month means the parent
-    // rejected or overrode the page.
-    const now = monthIndex(currentView);
-    const from = monthIndex(pendingPage.from);
-    const to = monthIndex(pendingPage.target);
-    const onTheWay = pendingPage.step > 0 ? now >= from && now < to : now <= from && now > to;
-    if (!onTheWay) setPendingPage(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingPage, monthKey]);
 
   /** True when the last commit focused an element whose own label already names the month. */
   const focusNamesMonthRef = useRef(false);
@@ -344,23 +243,22 @@ export function Calendar({
       ? cursor
       : nearestEnabled(year, month, cursor.getDate(), isDisabled);
 
-  /** Drop every waiting handoff: a page request and the focus it was going to claim. */
-  const cancelIntent = () => {
-    setPendingPage(null);
+  /** Drop the focus handoff a pending page key was going to claim. */
+  const clearFocusIntent = () => {
     focusIntentRef.current = null;
   };
 
   const changeMonth = (target: Date) => {
-    // A chevron is a fresh navigation: it supersedes any page request and its focus handoff.
-    // The month effect above moves the cursor after the new month has rendered. Moving it here
-    // would also move it when a controlled parent rejects the change.
-    cancelIntent();
+    // A chevron is a fresh navigation: it drops any pending focus handoff. The month effect
+    // above moves the cursor after the new month has rendered; moving it here would also move it
+    // when a controlled parent rejects the change.
+    clearFocusIntent();
     setView(target);
   };
 
   const setCursorIntent = (next: Date) => {
-    // Any direct move supersedes a page request whose target month has not been applied yet.
-    cancelIntent();
+    // Any direct move drops any pending focus handoff.
+    clearFocusIntent();
     const intent = { kind: 'day' as const, key: isoKey(next), previousKey: isoKey(cursor) };
     if (sameMonth(next, currentView)) {
       if (next.getTime() !== cursor.getTime()) focusIntentRef.current = intent;
@@ -377,35 +275,23 @@ export function Calendar({
     onChange?.(next);
   };
 
-  /** PageUp/PageDown: request the month; cursor/selection land once that month renders. */
+  /**
+   * PageUp/PageDown: move the view one month. The roving cursor keeps its day-of-month (clamped,
+   * skipping disabled days) and focus follows it; the selection is untouched — Enter, click or an
+   * arrow key commits a day.
+   */
   const pageMonth = (delta: 1 | -1) => {
-    // Key repeat while the request is still waiting stacks up: two PageDowns ask for two
-    // months ahead, starting from the month the wait already targets.
-    const waiting = pendingPage && sameMonth(pendingPage.from, currentView) ? pendingPage : null;
-    const baseFrom = waiting ? waiting.target : currentView;
-    const targetView = new Date(baseFrom.getFullYear(), baseFrom.getMonth() + delta, 1);
-    // Paging forward and back returns to the month already on screen: there is nothing to wait
-    // for, and committing the anchor again would report a selection the user never changed.
-    // Withdraw the parked request too, so a parent that drains its queue does not land on the
-    // forward month the user already cancelled.
-    if (sameMonth(targetView, currentView)) {
-      cancelIntent();
-      setView(currentView);
-      return;
-    }
-    // A closed current month has no tab stop; its cursor day still carries the page anchor.
-    const day = waiting ? waiting.anchorDay : (tabStop?.getDate() ?? cursor.getDate());
-    const id = ++pageRequestCounterRef.current;
-    const moveStep = monthIndex(targetView) >= monthIndex(currentView) ? 1 : -1;
-    setPendingPage({
-      id,
-      from: currentView,
-      target: targetView,
-      step: moveStep,
-      anchorDay: day,
-      valueKey,
-    });
-    setView(targetView, id);
+    // Anchor on the visible tab stop: a disabled or off-month cursor day must not seed the move,
+    // and parking the cursor there keeps the month effect and the focus handoff on the same day.
+    const anchor = tabStop ?? cursor;
+    if (anchor.getTime() !== cursor.getTime()) setCursor(anchor);
+    const target = new Date(year, month + delta, 1);
+    const anchorDay = value && sameMonth(value, target) ? value.getDate() : anchor.getDate();
+    const day = nearestEnabled(target.getFullYear(), target.getMonth(), anchorDay, isDisabled);
+    focusIntentRef.current = day
+      ? { kind: 'day', key: isoKey(day), previousKey: isoKey(anchor) }
+      : { kind: 'grid', monthKey: monthKeyOf(target) };
+    setView(target);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -463,7 +349,7 @@ export function Calendar({
       case ' ':
         if (e.target !== e.currentTarget) return;
         if (!sameMonth(cursor, currentView)) return;
-        cancelIntent();
+        clearFocusIntent();
         if (!isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
         handled = true;
@@ -582,8 +468,8 @@ export function Calendar({
                     )}
                     onClick={() => {
                       if (!disabled) {
-                        // A click is a direct selection: it drops any page request still waiting.
-                        cancelIntent();
+                        // A click is a direct selection: it drops any pending focus handoff.
+                        clearFocusIntent();
                         setCursor(date);
                         onChange?.(date);
                       }

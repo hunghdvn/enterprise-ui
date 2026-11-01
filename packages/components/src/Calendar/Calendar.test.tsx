@@ -1,9 +1,8 @@
-/// <reference types="node" />
 import { fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { useEffect, useRef, useState } from 'react';
-import { cssRule } from '../internal/cssRule';
+import { cssBlock, cssRule } from '../internal/cssRule';
 import { formatDay } from '../internal/date';
 import { Calendar } from './Calendar';
 import styles from './Calendar.module.css';
@@ -41,9 +40,8 @@ const OCT_31 = new Date(2026, 9, 31);
 
 /**
  * A controlled parent that records what `onViewChange` asked for and applies a request only when a
- * button says so (or, with `auto`, one commit later). Requests are kept in order so a test can
- * apply an older one on purpose — the stale and out-of-order cases — and `useRequestId` echoes the
- * request id back through `viewRequestId` for the strict landing path.
+ * button says so (or, with `auto`, one commit later). Page keys never commit a selection, so the
+ * harness only has to move `view`.
  */
 function DeferredCalendar({
   onChange,
@@ -51,7 +49,6 @@ function DeferredCalendar({
   isDisabled,
   auto = false,
   initialView = new Date(2026, 9, 1),
-  useRequestId = false,
 }: {
   onChange: (date: Date) => void;
   value?: Date | null;
@@ -59,43 +56,20 @@ function DeferredCalendar({
   /** Apply every request as it arrives, without a click (a debounced/router parent). */
   auto?: boolean;
   initialView?: Date;
-  /** Echo the request id back through `viewRequestId` (the strict API). */
-  useRequestId?: boolean;
 }) {
   const [view, setView] = useState(initialView);
-  const [requested, setRequested] = useState<{ view: Date; id: number }[]>([]);
-  const [appliedId, setAppliedId] = useState<number | undefined>(undefined);
+  const [requested, setRequested] = useState<Date[]>([]);
   const last = requested[requested.length - 1];
-  const apply = (next: Date | undefined, id: number | undefined) => {
-    if (next) {
-      setView(next);
-      if (id !== undefined) setAppliedId(id);
-    }
-  };
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (auto && last) apply(last.view, last.id);
+    if (auto && last) setView(last);
   }, [auto, last]);
   return (
     <>
-      <button type="button" onClick={() => apply(requested[0]?.view, requested[0]?.id)}>
-        áp dụng yêu cầu đầu
-      </button>
-      <button type="button" onClick={() => apply(last?.view, last?.id)}>
+      <button type="button" onClick={() => last && setView(last)}>
         áp dụng yêu cầu cuối
       </button>
-      {/* Answers the last request with a different Date object for the same month. */}
-      <button
-        type="button"
-        onClick={() => {
-          if (!last) return;
-          setView(new Date(last.view.getFullYear(), last.view.getMonth(), 1));
-          setAppliedId(last.id);
-        }}
-      >
-        áp dụng bản sao
-      </button>
-      {/* A month the component never asked for: sets `view` directly, never touches the id. */}
+      {/* A month the component never asked for. */}
       <button type="button" onClick={() => setView(new Date(2026, 8, 1))}>
         tự sang 9/2026
       </button>
@@ -106,10 +80,7 @@ function DeferredCalendar({
         value={value}
         onChange={onChange}
         view={view}
-        viewRequestId={useRequestId ? (appliedId ?? 0) : undefined}
-        onViewChange={(next, requestId) =>
-          setRequested((prev) => [...prev, { view: next, id: requestId ?? 0 }])
-        }
+        onViewChange={(next) => setRequested((prev) => [...prev, next])}
         isDisabled={isDisabled}
       />
     </>
@@ -345,7 +316,8 @@ test('page keys anchor to the visible tab stop, not an off-month cursor day', ()
   stop.focus();
   fireEvent.keyDown(stop, { key: 'PageDown' });
   expect(monthHeading()).toMatch(/tháng 3 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 2, 28));
+  expect(tabStop()).toHaveAttribute('data-date', '2026-03-28');
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 test('page keys anchor to the tab stop when the value day is disabled', () => {
@@ -368,8 +340,10 @@ test('page keys anchor to the tab stop when the value day is disabled', () => {
   expect(stop).toHaveAttribute('data-date', '2026-10-19');
   stop.focus();
   fireEvent.keyDown(stop, { key: 'PageDown' });
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   // Thursday 19/11, not Tuesday 17/11 from the disabled cursor day.
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 19));
+  expect(tabStop()).toHaveAttribute('data-date', '2026-11-19');
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 test('grid keeps a tab stop when the value is a disabled date', () => {
@@ -564,7 +538,7 @@ test('a rejected page into a normal month never commits its hidden date', () => 
   const cell = day(new Date(2026, 9, 15));
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent kept October, so November 15 must not leak out through onChange
+  // the parent kept October: the view and the cursor stay, and no date is committed
   expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
   expect(onChange).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(cell);
@@ -572,21 +546,21 @@ test('a rejected page into a normal month never commits its hidden date', () => 
   expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
 });
 
-test('a page request survives a view applied in a later commit', () => {
+test('a controlled parent that applies the page later moves the view and cursor then', () => {
   const onChange = vi.fn();
   render(<DeferredCalendar onChange={onChange} value={OCT_31} />);
   const cell = day(OCT_31);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent deferred the request: nothing hidden may be committed yet
+  // the parent deferred the month change: the view and the cursor stay put
   expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 30));
+  expect(tabStop()).toHaveAttribute('data-date', '2026-11-30');
+  expect(onChange).not.toHaveBeenCalled();
 });
 
-test('focus follows a page request the parent applies without a click', () => {
+test('focus follows a page the parent applies without a click', () => {
   const onChange = vi.fn();
   // `auto` models a debounced/router parent: the view lands in a later commit while focus is
   // still in the grid (a real browser keeps focus on a clicked button, so the button harness
@@ -596,295 +570,22 @@ test('focus follows a page request the parent applies without a click', () => {
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 30));
   // 30/11 shares neither the day number nor the week row with 31/10, so the button is rebuilt and
   // this is a real focus move rather than the reused node keeping focus by accident.
   expect(document.activeElement).not.toBe(cell);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  expect(onChange).not.toHaveBeenCalled();
 });
 
-test('a direct move cancels a page request that is still waiting', () => {
+test('repeated page keys move one month per rendered commit', () => {
   const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
+  render(<DeferredCalendar onChange={onChange} auto />);
   const cell = day(OCT_15);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  fireEvent.keyDown(cell, { key: 'ArrowRight' });
-  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // the stale request must not select its hidden 15/11
-  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
-});
-
-test('Enter supersedes a page request that is still waiting', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const grid = screen.getByRole('grid');
-  grid.focus();
-  fireEvent.keyDown(grid, { key: 'PageDown' });
-  // Enter commits the visible cursor day; the in-flight page must not fire afterwards
-  fireEvent.keyDown(grid, { key: 'Enter' });
-  expect(onChange).toHaveBeenCalledWith(OCT_15);
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(onChange).toHaveBeenCalledTimes(1);
-});
-
-test('a click supersedes a page request that is still waiting', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  day(OCT_15).focus();
-  fireEvent.keyDown(day(OCT_15), { key: 'PageDown' });
-  fireEvent.click(day(new Date(2026, 9, 20)));
-  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 20));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(onChange).toHaveBeenCalledTimes(1);
-});
-
-test('a chevron supersedes a page request that is still waiting', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the chevron asks for the same month the key already asked for; whichever request the parent
-  // applies, the page key's hidden 15/11 must be gone
-  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test('a page request answered with another month is dropped', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent shows September instead: the page did not land, so nothing may be committed
-  fireEvent.click(screen.getByRole('button', { name: 'tự sang 9/2026' }));
-  expect(monthHeading()).toMatch(/tháng 9 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  // nor can the dropped request wake up when the parent later applies it
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test('a page request lands when the parent answers with a cloned Date', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // `setView(startOfMonth(d))`, a router round trip or a store re-create hands back a different
-  // object for the same month: the month is the acknowledgement, not the object identity.
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng bản sao' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
-});
-
-test('paging forward and back while the parent defers commits nothing', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const grid = screen.getByRole('grid');
-  grid.focus();
-  // move the cursor so a later commit of the same day would be observable
-  fireEvent.keyDown(grid, { key: 'ArrowRight' });
-  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 16));
-  fireEvent.keyDown(grid, { key: 'PageDown' }); // asks for November
-  fireEvent.keyDown(grid, { key: 'PageUp' }); // and back: the target is October again
-  // the target month is the one already on screen, so nothing is left to wait for: applying the
-  // parked request must not re-commit the day the round trip started from
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(onChange).toHaveBeenCalledTimes(1);
-});
-
-test('paging forward and back with no selection leaves nothing selected', () => {
-  const onChange = vi.fn();
-  // Without a value there is no old selection to protect the guard: a parked October request
-  // would happily commit the anchor day, so the net-zero press has to drop the request itself.
-  render(<DeferredCalendar onChange={onChange} value={null} />);
-  const grid = screen.getByRole('grid');
-  grid.focus();
-  fireEvent.keyDown(grid, { key: 'PageDown' }); // asks for November
-  fireEvent.keyDown(grid, { key: 'PageUp' }); // and back: the target is October again
-  expect(onChange).not.toHaveBeenCalled();
-  // the net-zero press cancels the request and withdraws it from the parent's queue, so the
-  // parked November request is dead: draining it must not commit anything either
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu đầu' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // with `value = null` every cell is unselected, so the commit is only observable via onChange
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test('a stacked page request survives the parent applying the earlier one', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // still waiting for November, so the second press asks for December on top
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent applies only the first request: November is on the way to December
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu đầu' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  // the newer request must survive that commit, not be dropped with the older one
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageDown' });
   expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 11, 15));
-});
-
-test('a stacked backward page survives the parent applying the earlier one', () => {
-  const onChange = vi.fn();
-  const nov15 = new Date(2026, 10, 15);
-  render(
-    <DeferredCalendar onChange={onChange} value={nov15} initialView={new Date(2026, 10, 1)} />,
-  );
-  const cell = day(nov15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageUp' });
-  fireEvent.keyDown(cell, { key: 'PageUp' }); // still waiting, so this asks for September
-  // the parent applies only the first request: October lies between November and September
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu đầu' }));
-  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 9 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 8, 15));
-});
-
-test('a stacked page request survives a year boundary', () => {
-  const onChange = vi.fn();
-  const dec15 = new Date(2026, 11, 15);
-  render(
-    <DeferredCalendar onChange={onChange} value={dec15} initialView={new Date(2026, 11, 1)} />,
-  );
-  const cell = day(dec15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  fireEvent.keyDown(cell, { key: 'PageDown' }); // still waiting, so this asks for February
-  // January 2027 is between December and February, even though its month number (0) is the
-  // smallest of the three: a comparison that only looks at the month number drops the request.
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu đầu' }));
-  expect(monthHeading()).toMatch(/tháng 1 năm 2027/i);
-  expect(onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 2 năm 2027/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2027, 1, 15));
-});
-
-test('a selection made while a page request waits sets the landing day', () => {
-  const onChange = vi.fn();
-  function Harness() {
-    const [view, setView] = useState(new Date(2026, 9, 1));
-    const [value, setValue] = useState<Date | null>(OCT_15);
-    const [requested, setRequested] = useState<Date | null>(null);
-    return (
-      <>
-        <button type="button" onClick={() => setValue(new Date(2026, 10, 20))}>
-          chọn 20/11
-        </button>
-        <button type="button" onClick={() => requested && setView(requested)}>
-          áp dụng
-        </button>
-        <Calendar value={value} onChange={onChange} view={view} onViewChange={setRequested} />
-      </>
-    );
-  }
-  render(<Harness />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent picks a day in the target month while the request is still waiting
-  fireEvent.click(screen.getByRole('button', { name: 'chọn 20/11' }));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // the tab stop must sit on the day that is actually selected, not the remembered 15th
-  expect(tabStop()).toHaveAttribute('data-date', '2026-11-20');
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-test('repeated page keys while the parent defers accumulate months', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // still waiting for November, so the second press has to start from the waiting target
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 11, 15));
-});
-
-test('a waiting page request is re-checked against isDisabled when it lands', () => {
-  const onChange = vi.fn();
-  function Harness() {
-    const [view, setView] = useState(new Date(2026, 9, 1));
-    const [blocked, setBlocked] = useState(false);
-    const [requested, setRequested] = useState<Date | null>(null);
-    return (
-      <>
-        <button type="button" onClick={() => setBlocked(true)}>
-          chặn 15/11
-        </button>
-        <button type="button" onClick={() => requested && setView(requested)}>
-          áp dụng
-        </button>
-        <Calendar
-          value={OCT_15}
-          onChange={onChange}
-          view={view}
-          onViewChange={setRequested}
-          isDisabled={blocked ? (d) => d.getMonth() === 10 && d.getDate() === 15 : undefined}
-        />
-      </>
-    );
-  }
-  render(<Harness />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the block list changes while the parent is still sitting on the request
-  fireEvent.click(screen.getByRole('button', { name: 'chặn 15/11' }));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // 15/11 is blocked now: the request may move the cursor but must never commit it
-  expect(onChange).not.toHaveBeenCalled();
-  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-16');
-});
-
-test('a waiting page request never overwrites a selection made while it waited', () => {
-  const onChange = vi.fn();
-  function Harness() {
-    const [view, setView] = useState(new Date(2026, 9, 1));
-    const [value, setValue] = useState<Date | null>(OCT_15);
-    const [requested, setRequested] = useState<Date | null>(null);
-    return (
-      <>
-        <button type="button" onClick={() => setValue(new Date(2026, 9, 20))}>
-          chọn 20/10
-        </button>
-        <button type="button" onClick={() => requested && setView(requested)}>
-          áp dụng
-        </button>
-        <Calendar value={value} onChange={onChange} view={view} onViewChange={setRequested} />
-      </>
-    );
-  }
-  render(<Harness />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // the parent picks another day while the page request is still in flight
-  fireEvent.click(screen.getByRole('button', { name: 'chọn 20/10' }));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // the newer selection wins: the request must not commit 15/11 over it
   expect(onChange).not.toHaveBeenCalled();
 });
 
@@ -1251,39 +952,34 @@ test('two instances do not share event ids', () => {
   expect(ids[0]).not.toBe(ids[1]);
 });
 
-test('PageUp/PageDown change month and clamp day', () => {
-  function Harness() {
-    const [v, setV] = useState<Date | null>(new Date(2026, 9, 31));
-    return <Calendar value={v} onChange={setV} />;
-  }
-  render(<Harness />);
+test('PageUp/PageDown change month and clamp the roving day', () => {
+  const onChange = vi.fn();
+  render(<Calendar value={new Date(2026, 9, 31)} onChange={onChange} />);
   const grid = screen.getByRole('grid');
   grid.focus();
   fireEvent.keyDown(grid, { key: 'PageDown' });
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // 31/11 does not exist → clamp to 30
-  expect(day(new Date(2026, 10, 30))).toHaveAttribute('aria-selected', 'true');
-  fireEvent.keyDown(grid, { key: 'PageUp' });
+  // 31/11 does not exist → clamp to 30, and nothing is selected
+  expect(tabStop()).toHaveAttribute('data-date', '2026-11-30');
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageUp' });
   expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(day(new Date(2026, 9, 30))).toHaveAttribute('aria-selected', 'true');
+  // back in the selection's own month the cursor returns to the selected day
+  expect(tabStop()).toHaveAttribute('data-date', '2026-10-31');
 });
 
 test('page keys roll the year over in both directions', () => {
-  function Harness() {
-    const [v, setV] = useState<Date | null>(new Date(2026, 0, 15));
-    return <Calendar value={v} onChange={setV} />;
-  }
-  render(<Harness />);
+  const onChange = vi.fn();
+  render(<Calendar value={new Date(2026, 0, 15)} onChange={onChange} />);
   const jan = day(new Date(2026, 0, 15));
   jan.focus();
   fireEvent.keyDown(jan, { key: 'PageUp' });
   expect(monthHeading()).toMatch(/tháng 12 năm 2025/i);
-  expect(day(new Date(2025, 11, 15))).toHaveAttribute('aria-selected', 'true');
-  const dec = day(new Date(2025, 11, 15));
-  dec.focus();
-  fireEvent.keyDown(dec, { key: 'PageDown' });
+  expect(tabStop()).toHaveAttribute('data-date', '2025-12-15');
+  fireEvent.keyDown(tabStop(), { key: 'PageDown' });
   expect(monthHeading()).toMatch(/tháng 1 năm 2026/i);
-  expect(day(new Date(2026, 0, 15))).toHaveAttribute('aria-selected', 'true');
+  expect(tabStop()).toHaveAttribute('data-date', '2026-01-15');
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 test('paging onto a disabled day moves the cursor without selecting', () => {
@@ -1310,35 +1006,6 @@ test('paging onto a disabled day moves the cursor without selecting', () => {
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-21');
   fireEvent.click(document.activeElement as HTMLElement);
   expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 21));
-});
-
-test('a parent that snaps the paged day still announces later months', () => {
-  function Harness() {
-    const [value, setValue] = useState<Date | null>(new Date(2026, 9, 15));
-    const [view, setView] = useState(new Date(2026, 9, 1));
-    return (
-      <>
-        <input aria-label="ngoài lịch" />
-        <Calendar
-          value={value}
-          onChange={(next) => setValue(next.getDay() === 0 ? new Date(2026, 10, 16) : next)}
-          view={view}
-          onViewChange={setView}
-        />
-      </>
-    );
-  }
-  render(<Harness />);
-  const cell = day(new Date(2026, 9, 15));
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' }); // 15/11 is Sunday → the parent snaps to 16/11
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-16');
-  // leave the grid, then change month: a stale focus intent would mute this announcement
-  screen.getByRole('textbox', { name: 'ngoài lịch' }).focus();
-  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
-  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
-  expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 12 năm 2026');
 });
 
 test('month change is announced and matches the rendered month', () => {
@@ -1549,8 +1216,11 @@ test('a blocked selection keeps a readable, visibly disabled style', () => {
     /^\s*color:\s*var\(--text-disabled[,)]/m,
   );
   // forced colors strip the theme fills, so the live selection needs an outline cue of its own or
-  // only the blocked cell (with its dashed outline) would still look selected
-  expect(cssRule(css, '.day-selected')).toMatch(/^\s*outline:\s*2px solid CanvasText/m);
+  // only the blocked cell (with its dashed outline) would still look selected. Scoped to the
+  // forced-colors block so the rule cannot quietly move outside it.
+  expect(cssRule(cssBlock(css, '@media (forced-colors: active)'), '.day-selected')).toMatch(
+    /^\s*outline:\s*2px solid CanvasText/m,
+  );
 });
 
 test('a disabled day that is also selected carries both state classes', () => {
@@ -1559,73 +1229,4 @@ test('a disabled day that is also selected carries both state classes', () => {
   // the CSS contract above is only meaningful if the component really applies both classes
   expect(cell.className).toContain(styles['day-disabled']);
   expect(cell.className).toContain(styles['day-selected']);
-});
-
-test('a page request is not committed when the parent opens the target month on its own', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} useRequestId />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // parent ignores the request, then opens November via a month picker / deep link / preset
-  fireEvent.click(screen.getByRole('button', { name: 'tự sang 11/2026' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  expect(day(new Date(2026, 10, 15))).toHaveAttribute('aria-selected', 'false');
-});
-
-test('a page request lands when the parent echoes the request id', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} useRequestId />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  // parent applies the request and echoes the id back through `viewRequestId`
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
-});
-
-test('a direction flip in a stacked request is not dropped', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' }); // Nov
-  fireEvent.keyDown(cell, { key: 'PageDown' }); // Dec (stacked)
-  fireEvent.keyDown(cell, { key: 'PageUp' }); // Nov (flip)
-  // the flipped request (target 11, actual direction forward) must survive the parent applying
-  // the last one
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
-});
-
-test('a net-zero round trip withdraws the request so the parent drops it', () => {
-  const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} useRequestId />);
-  const grid = screen.getByRole('grid');
-  grid.focus();
-  fireEvent.keyDown(grid, { key: 'PageDown' }); // asks for November
-  fireEvent.keyDown(grid, { key: 'PageUp' }); // and back: the target is October again
-  // the net-zero press cancels the request and withdraws it from the parent's queue, so the
-  // parked November request is dead: applying it must not commit a selection the user never made
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
-  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
-  expect(onChange).not.toHaveBeenCalled();
-  expect(day(new Date(2026, 9, 15))).toHaveAttribute('aria-selected', 'true');
-});
-
-test('a page request lands on month-key alone without the request-id API (documented limitation)', () => {
-  const onChange = vi.fn();
-  // Backwards-compat parent: no `viewRequestId`, so a parent that ignores the request and later
-  // opens the target month on its own is indistinguishable from one that answered it. This is the
-  // documented limitation of the no-token fallback; the request-id API above closes the gap.
-  render(<DeferredCalendar onChange={onChange} />);
-  const cell = day(OCT_15);
-  cell.focus();
-  fireEvent.keyDown(cell, { key: 'PageDown' });
-  fireEvent.click(screen.getByRole('button', { name: 'tự sang 11/2026' }));
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
 });

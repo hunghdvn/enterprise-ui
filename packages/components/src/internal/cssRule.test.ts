@@ -1,4 +1,4 @@
-import { cssRule } from './cssRule';
+import { cssBlock, cssRule } from './cssRule';
 
 test('cssRule returns the body of the matching rule', () => {
   expect(cssRule('.a {\n  color: red;\n}', '.a')).toMatch(/^\s*color:\s*red;/m);
@@ -29,4 +29,13 @@ test('cssRule reads a grouped selector list', () => {
 test('cssRule does not match a selector that is a suffix of another', () => {
   const css = '.b.a {\n  color: red;\n}\n.a {\n  color: blue;\n}';
   expect(cssRule(css, '.a')).toMatch(/color:\s*blue/);
+});
+
+test('cssBlock scopes an assertion to its at-rule', () => {
+  const css =
+    '@media (forced-colors: active) {\n  .a { outline: 1px solid CanvasText; }\n}\n.b { color: red; }';
+  const forced = cssBlock(css, '@media (forced-colors: active)');
+  expect(cssRule(forced, '.a')).toMatch(/CanvasText/);
+  // a rule outside the query is not part of that block
+  expect(() => cssRule(forced, '.b')).toThrow(/missing rule/);
 });

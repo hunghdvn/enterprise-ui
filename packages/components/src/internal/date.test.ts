@@ -8,7 +8,6 @@ import {
   formatDay,
   formatMonth,
   isoKey,
-  monthIndex,
   monthKeyOf,
   sameDay,
   sameMonth,
@@ -48,14 +47,6 @@ test('monthKeyOf keeps the month 0-based and unpadded', () => {
   expect(monthKeyOf(new Date(2026, 0, 1))).toBe('2026-0');
   expect(monthKeyOf(new Date(2025, 11, 31))).toBe('2025-11');
   expect(monthKeyOf(new Date(2027, 2, 15))).toBe('2027-2');
-});
-
-test('monthIndex compares months across a year boundary', () => {
-  // a bare month number would rank January (0) below December (11)
-  expect(monthIndex(new Date(2026, 11, 15))).toBeLessThan(monthIndex(new Date(2027, 0, 1)));
-  expect(monthIndex(new Date(2027, 1, 1)) - monthIndex(new Date(2026, 11, 1))).toBe(2);
-  // the day of month must not shift the index
-  expect(monthIndex(new Date(2026, 9, 1))).toBe(monthIndex(new Date(2026, 9, 31)));
 });
 
 test('sameMonth ignores the day and the time but not the year', () => {

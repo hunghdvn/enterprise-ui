@@ -6,12 +6,7 @@ export interface CalendarProps {
   onChange?: (date: Date) => void;
   /** Viewed month (controlled). Defaults to value's month or today. */
   view?: Date;
-  onViewChange?: (view: Date, requestId?: number) => void;
-  /**
-   * Echo of the requestId issued by a page key. Pass a number on every render to opt into strict
-   * landing (a page request only lands when this matches); leave it off for month-key landing.
-   */
-  viewRequestId?: number;
+  onViewChange?: (view: Date) => void;
   /**
    * Events keyed by ISO date (YYYY-MM-DD). A single node renders one line; an array renders one
    * line per node. The full list stays in the day's accessible description even when the cell
