@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { useState } from 'react';
 import { DateRangePicker } from './DateRangePicker';
 import type { DateRange } from './types';
@@ -138,4 +140,17 @@ test('panel is positioned fixed', () => {
   render(<DateRangePicker value={{ from: null, to: null }} onChange={() => {}} />);
   fireEvent.click(screen.getByRole('button', { name: /Chọn khoảng ngày|→/ }));
   expect(screen.getByRole('dialog')).toHaveStyle({ position: 'fixed' });
+});
+
+/**
+ * jsdom cannot compute styles from the module CSS, so this contract is pinned at source level: an
+ * endpoint that falls in a neighbouring month's pad cell keeps the range fill, and dimming the
+ * whole button to 45% (like an ordinary pad day) made the picked endpoint look unselected.
+ */
+test('a pad cell that is a range endpoint keeps full opacity', () => {
+  const css = readFileSync(join(import.meta.dirname, 'DateRangePicker.module.css'), 'utf8');
+  const at = css.indexOf('.day-out.day-start,');
+  expect(at).toBeGreaterThan(-1);
+  const body = css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
+  expect(body).toMatch(/opacity:\s*1\b/);
 });

@@ -1,6 +1,4 @@
 .wrap {
-  /* Column count is set inline from `DAYS_PER_WEEK`; CSS and key handling share one source. */
-  --drp-cols: 7;
   display: inline-flex;
   font-family: var(--font, inherit);
 }
@@ -148,6 +146,13 @@
 .day-out {
   color: var(--text-muted);
   opacity: 0.45;
+}
+
+/* An endpoint can fall in a pad cell: the fill is what marks the range boundary, so only the
+   number is dimmed — fading the whole button made a picked endpoint look unselected. */
+.day-out.day-start,
+.day-out.day-end {
+  opacity: 1;
 }
 
 .day-start,

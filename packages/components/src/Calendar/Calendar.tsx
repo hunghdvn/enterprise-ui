@@ -58,13 +58,20 @@ function eventList(ev: ReactNode): ReactNode[] {
 /** A PageUp/PageDown request waiting for its target month to actually render. */
 interface PendingPage {
   /** Month that was rendered when the key was pressed; scopes the request to that commit. */
-  fromMonthKey: string;
+  from: Date;
   /** Month the request should land on; advances when the key repeats while it waits. */
   target: Date;
+  /** Travel direction, so a parent applying a stacked request keeps the newer one. */
+  step: 1 | -1;
   /** Day-of-month to keep; resolved against `isDisabled` only when the request is applied. */
   anchorDay: number;
   /** Selected day when the key was pressed; a newer selection wins over this request. */
   valueKey: string;
+}
+
+/** `year * 12 + month`: month keys must compare across year boundaries, `YYYY-M` strings cannot. */
+function monthIndex(d: Date): number {
+  return d.getFullYear() * 12 + d.getMonth();
 }
 
 /** Day or grid that should receive focus once the commit carrying it lands. */
@@ -83,11 +90,14 @@ function resolvePage(
 ): { cursor: Date | null; select: Date | null } {
   const year = request.target.getFullYear();
   const month = request.target.getMonth();
-  const cursor = nearestEnabled(year, month, request.anchorDay, isDisabled);
+  // A selection made while the request waited also moves the cursor: landing on the remembered
+  // day-of-month would leave the roving tab stop on a different day than `aria-selected`.
+  const anchorDay = value && sameMonth(value, request.target) ? value.getDate() : request.anchorDay;
+  const cursor = nearestEnabled(year, month, anchorDay, isDisabled);
   if (!cursor) return { cursor: null, select: null };
   // Only the anchor day itself is a selection, a skipped disabled day just moves the cursor, and
   // a selection that changed while the request waited is never overwritten by it.
-  const anchor = new Date(year, month, clampDay(year, month, request.anchorDay));
+  const anchor = new Date(year, month, clampDay(year, month, anchorDay));
   const select =
     sameDay(cursor, anchor) && valueKey === request.valueKey && !sameDay(cursor, value)
       ? cursor
@@ -115,8 +125,6 @@ export function Calendar({
   const uid = useId();
   const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
   const gridRef = useRef<HTMLDivElement>(null);
-  /** Exact `Date` last handed to `onViewChange`, so an echo can be told from an unrelated view. */
-  const requestedViewRef = useRef<Date | null>(null);
 
   const [internalView, setInternalView] = useState<Date>(
     view ?? (value ? new Date(value.getFullYear(), value.getMonth(), 1) : new Date()),
@@ -133,10 +141,6 @@ export function Calendar({
 
   const setView = useCallback(
     (next: Date) => {
-      // The exact `Date` handed to `onViewChange`. A later controlled `view` that is this very
-      // object is the parent accepting our request; any other object is the parent navigating on
-      // its own, even when it lands on the same month.
-      requestedViewRef.current = next;
       if (view === undefined) setInternalView(next);
       onViewChange?.(next);
     },
@@ -175,13 +179,12 @@ export function Calendar({
   const focusIntentRef = useRef<FocusIntent | null>(null);
 
   /**
-   * A page request only applies when the month it asks for is the one we requested through
-   * `onViewChange` — the parent echoing it back. A parent that rejects the page and later shows
-   * that month for its own reasons (month picker, deep link) must not inherit the hidden commit.
+   * A page request applies once the month it asks for renders. `onViewChange(view: Date)` gives
+   * the parent no way to return a token, so the landed month *is* the acknowledgement: comparing
+   * object identity would treat a parent that normalises its dates (`setView(startOfMonth(d))`,
+   * router round-trips) as a rejection and silently drop the page.
    */
-  const pageLanded = (request: PendingPage): boolean =>
-    monthKeyOf(request.target) === monthKey &&
-    (view === undefined || requestedViewRef.current === view);
+  const pageLanded = (request: PendingPage): boolean => monthKeyOf(request.target) === monthKey;
 
   useEffect(() => {
     // An accepted page key applies its own cursor (and focus) below; a rejected one never
@@ -208,7 +211,6 @@ export function Calendar({
     if (pageLanded(pendingPage)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingPage(null);
-      requestedViewRef.current = null;
       // Re-validate against the props as they are now: the selection or `isDisabled` may have
       // changed while the parent was deciding whether to show the month.
       const { cursor: next, select } = resolvePage(pendingPage, isDisabled, value, valueKey);
@@ -221,17 +223,17 @@ export function Calendar({
       if (select) onChange?.(select);
       return;
     }
-    // The request lives for exactly one `onViewChange` round trip: it is dropped when the view
-    // settles on any other month (the parent rejected or overrode it) as well as when the target
-    // month is already rendered without carrying our commit. `pageMonth` re-arms it for a repeat.
-    if (monthKey !== pendingPage.fromMonthKey || monthKeyOf(pendingPage.target) === monthKey) {
-      setPendingPage(null);
-      requestedViewRef.current = null;
-    }
-    // `view` is a dependency so a controlled parent answering with the same month still runs the
-    // landing check above: without it the request would sit armed until some later month change.
+    // Keep the request while the rendered month is still between the pressed month and the target:
+    // a parent may apply a stack of requests one commit at a time (November, then December), and
+    // dropping on the first commit would lose the newer one. Any other month means the parent
+    // rejected or overrode the page.
+    const now = monthIndex(currentView);
+    const from = monthIndex(pendingPage.from);
+    const to = monthIndex(pendingPage.target);
+    const onTheWay = pendingPage.step > 0 ? now >= from && now < to : now <= from && now > to;
+    if (!onTheWay) setPendingPage(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingPage, monthKey, view]);
+  }, [pendingPage, monthKey]);
 
   /** True when the last commit focused an element whose own label already names the month. */
   const focusNamesMonthRef = useRef(false);
@@ -365,15 +367,27 @@ export function Calendar({
   };
 
   /** PageUp/PageDown: request the month; cursor/selection land once that month renders. */
-  const pageMonth = (delta: number) => {
+  const pageMonth = (delta: 1 | -1) => {
     // Key repeat while the request is still waiting stacks up: two PageDowns ask for two
     // months ahead, starting from the month the wait already targets.
-    const waiting = pendingPage && pendingPage.fromMonthKey === monthKey ? pendingPage : null;
+    const waiting = pendingPage && sameMonth(pendingPage.from, currentView) ? pendingPage : null;
     const from = waiting ? waiting.target : currentView;
     const targetView = new Date(from.getFullYear(), from.getMonth() + delta, 1);
+    // Paging forward and back returns to the month already on screen: there is nothing to wait
+    // for, and committing the anchor again would report a selection the user never changed.
+    if (sameMonth(targetView, currentView)) {
+      cancelIntent();
+      return;
+    }
     // A closed current month has no tab stop; its cursor day still carries the page anchor.
     const day = waiting ? waiting.anchorDay : (tabStop?.getDate() ?? cursor.getDate());
-    setPendingPage({ fromMonthKey: monthKey, target: targetView, anchorDay: day, valueKey });
+    setPendingPage({
+      from: currentView,
+      target: targetView,
+      step: delta,
+      anchorDay: day,
+      valueKey,
+    });
     setView(targetView);
   };
 

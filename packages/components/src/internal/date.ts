@@ -52,7 +52,7 @@ export function daysInMonth(year: number, month: number): number {
 /** Leading blank cells before day 1, with Monday as the first column. */
 export function firstDayOffset(year: number, month: number): number {
   const dow = new Date(year, month, 1).getDay();
-  return (dow + 6) % 7;
+  return (dow + 6) % DAYS_PER_WEEK;
 }
 
 export function addDays(d: Date, n: number): Date {

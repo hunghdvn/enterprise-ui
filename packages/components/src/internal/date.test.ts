@@ -10,6 +10,7 @@ import {
   isoKey,
   monthKeyOf,
   sameDay,
+  sameMonth,
   startOfDay,
 } from './date';
 
@@ -46,6 +47,15 @@ test('monthKeyOf keeps the month 0-based and unpadded', () => {
   expect(monthKeyOf(new Date(2026, 0, 1))).toBe('2026-0');
   expect(monthKeyOf(new Date(2025, 11, 31))).toBe('2025-11');
   expect(monthKeyOf(new Date(2027, 2, 15))).toBe('2027-2');
+});
+
+test('sameMonth ignores the day and the time but not the year', () => {
+  expect(sameMonth(new Date(2026, 9, 1), new Date(2026, 9, 31, 23, 59))).toBe(true);
+  expect(sameMonth(new Date(2026, 9, 31), new Date(2026, 10, 1))).toBe(false);
+  // December 2025 and December 2026 share a month number: dropping the year check would match
+  expect(sameMonth(new Date(2025, 11, 15), new Date(2026, 11, 15))).toBe(false);
+  expect(sameMonth(null, new Date(2026, 9, 1))).toBe(false);
+  expect(sameMonth(new Date(2026, 9, 1), undefined)).toBe(false);
 });
 
 test('daysInMonth handles 30/31-day months and leap years', () => {

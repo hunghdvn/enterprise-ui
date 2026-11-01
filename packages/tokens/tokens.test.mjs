@@ -120,30 +120,6 @@ if (offenders.length > 0) {
   throw new Error('hardcoded colors in component css:\n' + offenders.join('\n'));
 }
 
-// jsdom cannot compute `color-mix`, so the "blocked selection" contract is pinned at source level:
-// a selected-but-disabled day must not keep the full primary fill (it reads as a live selection and
-// its 45%-opacity white text sits at ~2.8:1), and it needs a fallback for engines without
-// `color-mix` because dropping the declaration alone would restore exactly that fill.
-{
-  const calendarCss = readFileSync(`${componentsSrc}/Calendar/Calendar.module.css`, 'utf8');
-  const rule = calendarCss.match(/\.day-disabled\.day-selected\s*\{([^}]*)\}/);
-  if (!rule) throw new Error('Calendar css: .day-disabled.day-selected rule is missing');
-  const [, body] = rule;
-  if (!/background:\s*color-mix\([^)]*var\(--color-blue-600\)/.test(body)) {
-    throw new Error('Calendar css: blocked selection must mute the primary fill with color-mix');
-  }
-  if (!/color:\s*var\(--text\)/.test(body)) {
-    throw new Error('Calendar css: blocked selection must use the body text colour');
-  }
-  if (!/@supports not \(background: color-mix\(/.test(calendarCss)) {
-    throw new Error('Calendar css: blocked selection needs a no-color-mix fallback');
-  }
-  const today = calendarCss.match(/\.day-disabled\.day-today\.day-selected::after\s*\{([^}]*)\}/);
-  if (!today || !/var\(--today-ring\)/.test(today[1])) {
-    throw new Error('Calendar css: today dot on a blocked selection must use --today-ring');
-  }
-}
-
 // Every component rendering data-size must style both variants.
 const sized = [];
 for (const file of walk(componentsSrc)) {

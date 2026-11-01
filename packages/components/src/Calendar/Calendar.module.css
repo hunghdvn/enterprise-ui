@@ -158,10 +158,10 @@
   border-color: var(--on-primary);
 }
 
-/* A blocked selection is no longer a filled primary surface, so white would vanish: use the
-   ring token itself, which keeps the "today" signal at full strength on the muted fill. */
+/* blue-300 stays light in both themes, so the today dot needs the dark text colour here instead
+   of the theme ring, which is light in dark mode. */
 .day-disabled.day-today.day-selected::after {
-  border-color: var(--today-ring);
+  border-color: var(--color-blue-800);
 }
 
 @media (forced-colors: active) {
@@ -183,24 +183,19 @@
 
 /* A disabled day that is also selected must still read as blocked: dimming only the text left the
    full-strength blue fill looking like a live selection (white on blue-600 at 45% opacity is
-   ~2.8:1). The fill is muted with `color-mix`, keeping the today dot at full strength. */
+   ~2.8:1). A soft blue-300 fill with blue-800 text keeps ~5.7:1 on both themes, and the matching
+   dashed outline gives the cell a 5.7:1 boundary against its own fill (the fill alone is only
+   ~1.8:1 against the grid). Neither needs `color-mix`. */
 .day-disabled.day-selected {
-  background: color-mix(in srgb, var(--color-blue-600) 38%, var(--surface));
-  color: var(--text);
+  background: var(--color-blue-300);
+  color: var(--color-blue-800);
+  outline: 2px dashed var(--color-blue-800);
+  outline-offset: -2px;
 }
 
 .day-disabled.day-selected .day-num,
 .day-disabled.day-selected .day-events {
-  opacity: 0.55;
-}
-
-/* `color-mix` is Baseline 2023; without it the fill above is dropped and blue-600 would read as a
-   live selection again, so fall back to the muted surface instead. */
-@supports not (background: color-mix(in srgb, red 50%, blue)) {
-  .day-disabled.day-selected {
-    background: var(--surface-muted);
-    color: var(--text-muted);
-  }
+  opacity: 1;
 }
 
 .day-num {
@@ -232,7 +227,8 @@
   color: var(--on-primary);
 }
 
-/* A blocked selection is no longer a filled primary surface, so its events use muted text. */
+/* Blocked selection is a light blue-300 fill in both themes, so its events take the same dark
+   blue-800 as the day number instead of the muted grey (which sits near 3:1 on that fill). */
 .day-disabled.day-selected .day-event {
-  color: var(--text-muted);
+  color: var(--color-blue-800);
 }
