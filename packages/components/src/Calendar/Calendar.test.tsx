@@ -1,9 +1,12 @@
+/// <reference types="node" />
 import { fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { useEffect, useRef, useState } from 'react';
+import { cssRule } from '../internal/cssRule';
 import { formatDay } from '../internal/date';
 import { Calendar } from './Calendar';
+import styles from './Calendar.module.css';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -37,9 +40,10 @@ const OCT_15 = new Date(2026, 9, 15);
 const OCT_31 = new Date(2026, 9, 31);
 
 /**
- * A controlled parent that never applies a view by itself: it only records what `onViewChange`
- * asked for, so a test decides when (and whether) a page request lands. Requests are kept in
- * order so a test can apply an older one on purpose — the stale and out-of-order cases.
+ * A controlled parent that records what `onViewChange` asked for and applies a request only when a
+ * button says so (or, with `auto`, one commit later). Requests are kept in order so a test can
+ * apply an older one on purpose — the stale and out-of-order cases — and `useRequestId` echoes the
+ * request id back through `viewRequestId` for the strict landing path.
  */
 function DeferredCalendar({
   onChange,
@@ -47,6 +51,7 @@ function DeferredCalendar({
   isDisabled,
   auto = false,
   initialView = new Date(2026, 9, 1),
+  useRequestId = false,
 }: {
   onChange: (date: Date) => void;
   value?: Date | null;
@@ -54,24 +59,29 @@ function DeferredCalendar({
   /** Apply every request as it arrives, without a click (a debounced/router parent). */
   auto?: boolean;
   initialView?: Date;
+  /** Echo the request id back through `viewRequestId` (the strict API). */
+  useRequestId?: boolean;
 }) {
   const [view, setView] = useState(initialView);
-  const [requested, setRequested] = useState<Date[]>([]);
+  const [requested, setRequested] = useState<{ view: Date; id: number }[]>([]);
+  const [appliedId, setAppliedId] = useState<number | undefined>(undefined);
   const last = requested[requested.length - 1];
-  const apply = (next: Date | undefined) => {
-    if (next) setView(next);
+  const apply = (next: Date | undefined, id: number | undefined) => {
+    if (next) {
+      setView(next);
+      if (id !== undefined) setAppliedId(id);
+    }
   };
   useEffect(() => {
-    // Modelling a debounced/router parent: the request lands one commit later.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (auto && last) setView(last);
+    if (auto && last) apply(last.view, last.id);
   }, [auto, last]);
   return (
     <>
-      <button type="button" onClick={() => apply(requested[0])}>
+      <button type="button" onClick={() => apply(requested[0]?.view, requested[0]?.id)}>
         áp dụng yêu cầu đầu
       </button>
-      <button type="button" onClick={() => apply(requested[requested.length - 1])}>
+      <button type="button" onClick={() => apply(last?.view, last?.id)}>
         áp dụng yêu cầu cuối
       </button>
       {/* Answers the last request with a different Date object for the same month. */}
@@ -79,20 +89,27 @@ function DeferredCalendar({
         type="button"
         onClick={() => {
           if (!last) return;
-          setView(new Date(last.getFullYear(), last.getMonth(), 1));
+          setView(new Date(last.view.getFullYear(), last.view.getMonth(), 1));
+          setAppliedId(last.id);
         }}
       >
         áp dụng bản sao
       </button>
-      {/* A month the component never asked for. */}
+      {/* A month the component never asked for: sets `view` directly, never touches the id. */}
       <button type="button" onClick={() => setView(new Date(2026, 8, 1))}>
         tự sang 9/2026
+      </button>
+      <button type="button" onClick={() => setView(new Date(2026, 10, 1))}>
+        tự sang 11/2026
       </button>
       <Calendar
         value={value}
         onChange={onChange}
         view={view}
-        onViewChange={(next) => setRequested((prev) => [...prev, next])}
+        viewRequestId={useRequestId ? (appliedId ?? 0) : undefined}
+        onViewChange={(next, requestId) =>
+          setRequested((prev) => [...prev, { view: next, id: requestId ?? 0 }])
+        }
         isDisabled={isDisabled}
       />
     </>
@@ -693,12 +710,12 @@ test('paging forward and back with no selection leaves nothing selected', () => 
   fireEvent.keyDown(grid, { key: 'PageDown' }); // asks for November
   fireEvent.keyDown(grid, { key: 'PageUp' }); // and back: the target is October again
   expect(onChange).not.toHaveBeenCalled();
-  // the net-zero press cancels the request outright, so the parent's parked November request is
-  // dead: showing that month on its own must not select anything either
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  // the net-zero press cancels the request and withdraws it from the parent's queue, so the
+  // parked November request is dead: draining it must not commit anything either
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu đầu' }));
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  // with `value = null` every cell is unselected, so the commit is only observable via onChange
   expect(onChange).not.toHaveBeenCalled();
-  expect(day(new Date(2026, 10, 15))).toHaveAttribute('aria-selected', 'false');
 });
 
 test('a stacked page request survives the parent applying the earlier one', () => {
@@ -1508,32 +1525,107 @@ test('view and value set together land the tab stop on the new value', () => {
 });
 
 /**
- * jsdom cannot evaluate `color-mix` or measure contrast, so the blocked-selection contract is
+ * jsdom cannot compute module-CSS styles or measure contrast, so the blocked-selection contract is
  * pinned at source level. It lives here (not in the tokens package) because it names this
  * component's own classes: renaming them must not turn the token suite red.
  */
 test('a blocked selection keeps a readable, visibly disabled style', () => {
   const css = readFileSync(join(import.meta.dirname, 'Calendar.module.css'), 'utf8');
-  const body = (selector: string): string => {
-    const at = css.indexOf(selector);
-    if (at === -1) throw new Error(`missing rule ${selector}`);
-    const open = css.indexOf('{', at);
-    return css.slice(open + 1, css.indexOf('}', open));
-  };
-  // blue-300 fill + blue-800 text is ~5.7:1 in both themes; blue-600 would look like a live pick
-  const selected = body('.day-disabled.day-selected {');
-  expect(selected).toMatch(/background:\s*var\(--color-blue-300\)/);
-  expect(selected).toMatch(/color:\s*var\(--color-blue-800\)/);
-  // the fill is only ~1.8:1 against the grid, so the cell needs a 3:1 boundary of its own
-  expect(selected).toMatch(/outline:\s*2px dashed var\(--color-blue-800\)/);
+  // the theme supplies a light blue-300/blue-800 pair in light mode and the muted surface/text in
+  // dark: an overridden rule must still win, hence the anchored, last-match parsing
+  const selected = cssRule(css, '.day-disabled.day-selected');
+  expect(selected).toMatch(/^\s*background:\s*var\(--surface-disabled[,)]/m);
+  expect(selected).toMatch(/^\s*color:\s*var\(--text-disabled[,)]/m);
+  // the fill is only ~1.8:1 against the light grid, so the cell needs a 3:1 boundary of its own
+  expect(selected).toMatch(/^\s*outline:\s*2px dashed var\(--text-disabled[,)]/m);
   // dimming the content on top of a muted fill is what pushed the number under 4.5:1
-  expect(body('.day-disabled.day-selected .day-num,')).toMatch(/opacity:\s*1\b/);
-  // blue-300 is light in dark mode too, so the theme ring would vanish on it
-  expect(body('.day-disabled.day-today.day-selected::after')).toMatch(
-    /border-color:\s*var\(--color-blue-800\)/,
+  expect(cssRule(css, '.day-disabled.day-selected .day-num')).toMatch(/opacity:\s*1\b/);
+  // the today dot reads the theme ring, so the dark-theme override reaches it
+  expect(cssRule(css, '.day-disabled.day-today.day-selected::after')).toMatch(
+    /^\s*border-color:\s*var\(--today-ring\)/m,
   );
-  // an event chip on the muted fill needs the same dark foreground as the day number
-  expect(body('.day-disabled.day-selected .day-event {')).toMatch(
-    /color:\s*var\(--color-blue-800\)/,
+  // an event chip on the muted fill takes the same theme-aware foreground as the day number
+  expect(cssRule(css, '.day-disabled.day-selected .day-event')).toMatch(
+    /^\s*color:\s*var\(--text-disabled[,)]/m,
   );
+  // forced colors strip the theme fills, so the live selection needs an outline cue of its own or
+  // only the blocked cell (with its dashed outline) would still look selected
+  expect(cssRule(css, '.day-selected')).toMatch(/^\s*outline:\s*2px solid CanvasText/m);
+});
+
+test('a disabled day that is also selected carries both state classes', () => {
+  render(<Calendar value={OCT_15} onChange={() => {}} isDisabled={(d) => d.getDate() === 15} />);
+  const cell = day(OCT_15);
+  // the CSS contract above is only meaningful if the component really applies both classes
+  expect(cell.className).toContain(styles['day-disabled']);
+  expect(cell.className).toContain(styles['day-selected']);
+});
+
+test('a page request is not committed when the parent opens the target month on its own', () => {
+  const onChange = vi.fn();
+  render(<DeferredCalendar onChange={onChange} useRequestId />);
+  const cell = day(OCT_15);
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  // parent ignores the request, then opens November via a month picker / deep link / preset
+  fireEvent.click(screen.getByRole('button', { name: 'tự sang 11/2026' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(day(new Date(2026, 10, 15))).toHaveAttribute('aria-selected', 'false');
+});
+
+test('a page request lands when the parent echoes the request id', () => {
+  const onChange = vi.fn();
+  render(<DeferredCalendar onChange={onChange} useRequestId />);
+  const cell = day(OCT_15);
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  // parent applies the request and echoes the id back through `viewRequestId`
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
+});
+
+test('a direction flip in a stacked request is not dropped', () => {
+  const onChange = vi.fn();
+  render(<DeferredCalendar onChange={onChange} />);
+  const cell = day(OCT_15);
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' }); // Nov
+  fireEvent.keyDown(cell, { key: 'PageDown' }); // Dec (stacked)
+  fireEvent.keyDown(cell, { key: 'PageUp' }); // Nov (flip)
+  // the flipped request (target 11, actual direction forward) must survive the parent applying
+  // the last one
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
+});
+
+test('a net-zero round trip withdraws the request so the parent drops it', () => {
+  const onChange = vi.fn();
+  render(<DeferredCalendar onChange={onChange} useRequestId />);
+  const grid = screen.getByRole('grid');
+  grid.focus();
+  fireEvent.keyDown(grid, { key: 'PageDown' }); // asks for November
+  fireEvent.keyDown(grid, { key: 'PageUp' }); // and back: the target is October again
+  // the net-zero press cancels the request and withdraws it from the parent's queue, so the
+  // parked November request is dead: applying it must not commit a selection the user never made
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(day(new Date(2026, 9, 15))).toHaveAttribute('aria-selected', 'true');
+});
+
+test('a page request lands on month-key alone without the request-id API (documented limitation)', () => {
+  const onChange = vi.fn();
+  // Backwards-compat parent: no `viewRequestId`, so a parent that ignores the request and later
+  // opens the target month on its own is indistinguishable from one that answered it. This is the
+  // documented limitation of the no-token fallback; the request-id API above closes the gap.
+  render(<DeferredCalendar onChange={onChange} />);
+  const cell = day(OCT_15);
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  fireEvent.click(screen.getByRole('button', { name: 'tự sang 11/2026' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(onChange).toHaveBeenCalledWith(new Date(2026, 10, 15));
 });

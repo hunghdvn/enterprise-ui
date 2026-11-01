@@ -139,19 +139,31 @@
   transition: background 0.12s;
 }
 
+.day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .day:hover:not(.day-start):not(.day-end) {
   background: var(--surface-muted);
 }
 
+/* A pad cell belongs to a neighbouring month: its colour comes from the button so a selected pad
+   still inherits the selection foreground, and only the number is dimmed. */
 .day-out {
   color: var(--text-muted);
+}
+
+.day-out .day-num {
   opacity: 0.45;
 }
 
-/* An endpoint can fall in a pad cell: the fill is what marks the range boundary, so only the
-   number is dimmed — fading the whole button made a picked endpoint look unselected. */
-.day-out.day-start,
-.day-out.day-end {
+/* A pad cell that carries an endpoint or rides inside the range reads like its in-month
+   counterpart, so the range band stays continuous and the endpoint stays prominent. */
+.day-out.day-in .day-num,
+.day-out.day-start .day-num,
+.day-out.day-end .day-num {
   opacity: 1;
 }
 

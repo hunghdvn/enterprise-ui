@@ -325,7 +325,7 @@ export function DateRangePicker({
                         )}
                         onClick={() => pickDay(d)}
                       >
-                        {d.getDate()}
+                        <span className={styles['day-num']}>{d.getDate()}</span>
                       </button>
                     );
                   })}

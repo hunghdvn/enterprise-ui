@@ -44,6 +44,11 @@ export function monthKeyOf(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}`;
 }
 
+/** `year * 12 + month`: month numbers must compare across year boundaries, `YYYY-M` strings cannot. */
+export function monthIndex(d: Date): number {
+  return d.getFullYear() * 12 + d.getMonth();
+}
+
 /** Number of days in a month (month is 0-based). */
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();

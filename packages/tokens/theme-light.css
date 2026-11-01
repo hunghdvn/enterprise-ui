@@ -16,4 +16,8 @@
      ~7:1 on white and blue-700 ~8.7:1; each must stay ≥3:1 on `--surface`. */
   --focus-ring: #1e47c4;
   --today-ring: #1e40af;
+  /* A blocked (disabled) selection must stay legible but not outshine a live blue-600 pick:
+     a light blue-300 tint with blue-800 text keeps ~5.7:1 in light mode. */
+  --surface-disabled: var(--color-blue-300);
+  --text-disabled: var(--color-blue-800);
 }

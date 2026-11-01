@@ -12,6 +12,7 @@ import {
   formatDay,
   formatMonth,
   isoKey,
+  monthIndex,
   monthKeyOf,
   sameDay,
   sameMonth,
@@ -57,7 +58,9 @@ function eventList(ev: ReactNode): ReactNode[] {
 
 /** A PageUp/PageDown request waiting for its target month to actually render. */
 interface PendingPage {
-  /** Month that was rendered when the key was pressed; scopes the request to that commit. */
+  /** Request id echoed by the parent via `viewRequestId` (strict landing). */
+  id: number;
+  /** Month that was rendered when the key was pressed. */
   from: Date;
   /** Month the request should land on; advances when the key repeats while it waits. */
   target: Date;
@@ -67,11 +70,6 @@ interface PendingPage {
   anchorDay: number;
   /** Selected day when the key was pressed; a newer selection wins over this request. */
   valueKey: string;
-}
-
-/** `year * 12 + month`: month keys must compare across year boundaries, `YYYY-M` strings cannot. */
-function monthIndex(d: Date): number {
-  return d.getFullYear() * 12 + d.getMonth();
 }
 
 /** Day or grid that should receive focus once the commit carrying it lands. */
@@ -105,8 +103,9 @@ function resolvePage(
   return { cursor, select };
 }
 
-/** Whole event lines that fit each cell; the rest stay in the accessible description. */
-export const CALENDAR_EVENT_LINES = { sm: 1, md: 2 } as const;
+/** Whole event lines that fit each cell; the rest stay in the accessible description. Internal:
+ *  the capacity is documented on the `events` prop rather than exported as API. */
+const CALENDAR_EVENT_LINES = { sm: 1, md: 2 } as const;
 
 /** Column count is set from `WEEKDAYS.length` so CSS geometry and key handling cannot drift. */
 const GRID_STYLE = { '--cal-cols': DAYS_PER_WEEK } as CSSProperties;
@@ -116,6 +115,7 @@ export function Calendar({
   onChange,
   view,
   onViewChange,
+  viewRequestId,
   events,
   isDisabled,
   size = 'sm',
@@ -125,6 +125,7 @@ export function Calendar({
   const uid = useId();
   const monthLabelId = `calendar-month-${uid.replace(/:/g, '')}`;
   const gridRef = useRef<HTMLDivElement>(null);
+  const pageRequestCounterRef = useRef(0);
 
   const [internalView, setInternalView] = useState<Date>(
     view ?? (value ? new Date(value.getFullYear(), value.getMonth(), 1) : new Date()),
@@ -140,9 +141,9 @@ export function Calendar({
   const monthKey = monthKeyOf(currentView);
 
   const setView = useCallback(
-    (next: Date) => {
+    (next: Date, requestId?: number) => {
       if (view === undefined) setInternalView(next);
-      onViewChange?.(next);
+      onViewChange?.(next, requestId);
     },
     [view, onViewChange],
   );
@@ -179,12 +180,22 @@ export function Calendar({
   const focusIntentRef = useRef<FocusIntent | null>(null);
 
   /**
-   * A page request applies once the month it asks for renders. `onViewChange(view: Date)` gives
-   * the parent no way to return a token, so the landed month *is* the acknowledgement: comparing
-   * object identity would treat a parent that normalises its dates (`setView(startOfMonth(d))`,
-   * router round-trips) as a rejection and silently drop the page.
+   * A page request lands when the month it asks for renders AND the parent echoed the matching
+   * request id. Without an id, a parent that ignores the request and later opens that month on
+   * its own (month picker/deep link) is indistinguishable from one that answered it, because
+   * `onViewChange(view: Date)` returns no token — that is the known backwards-compat
+   * limitation. The request-id API (`viewRequestId`) closes it: the parent sets `viewRequestId`
+   * to the id it applied, and leaves it untouched when it navigates independently.
    */
-  const pageLanded = (request: PendingPage): boolean => monthKeyOf(request.target) === monthKey;
+  const usesRequestIdApi = viewRequestId !== undefined;
+
+  const pageLanded = (request: PendingPage): boolean => {
+    if (monthKeyOf(request.target) !== monthKey) return false;
+    if (usesRequestIdApi) {
+      return viewRequestId === request.id;
+    }
+    return true;
+  };
 
   useEffect(() => {
     // An accepted page key applies its own cursor (and focus) below; a rejected one never
@@ -371,24 +382,30 @@ export function Calendar({
     // Key repeat while the request is still waiting stacks up: two PageDowns ask for two
     // months ahead, starting from the month the wait already targets.
     const waiting = pendingPage && sameMonth(pendingPage.from, currentView) ? pendingPage : null;
-    const from = waiting ? waiting.target : currentView;
-    const targetView = new Date(from.getFullYear(), from.getMonth() + delta, 1);
+    const baseFrom = waiting ? waiting.target : currentView;
+    const targetView = new Date(baseFrom.getFullYear(), baseFrom.getMonth() + delta, 1);
     // Paging forward and back returns to the month already on screen: there is nothing to wait
     // for, and committing the anchor again would report a selection the user never changed.
+    // Withdraw the parked request too, so a parent that drains its queue does not land on the
+    // forward month the user already cancelled.
     if (sameMonth(targetView, currentView)) {
       cancelIntent();
+      setView(currentView);
       return;
     }
     // A closed current month has no tab stop; its cursor day still carries the page anchor.
     const day = waiting ? waiting.anchorDay : (tabStop?.getDate() ?? cursor.getDate());
+    const id = ++pageRequestCounterRef.current;
+    const moveStep = monthIndex(targetView) >= monthIndex(currentView) ? 1 : -1;
     setPendingPage({
+      id,
       from: currentView,
       target: targetView,
-      step: delta,
+      step: moveStep,
       anchorDay: day,
       valueKey,
     });
-    setView(targetView);
+    setView(targetView, id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {

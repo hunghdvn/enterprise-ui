@@ -1,5 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const readTokenFile = (name) =>
   readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
@@ -99,42 +98,7 @@ for (const [theme, source, selector, tokens] of themeRings) {
   assertThemeTokens(theme, source, selector, tokens);
 }
 
-// AGENTS.md: "*.module.css plus var(--…) tokens — never hardcode hex in components".
-const componentsSrc = fileURLToPath(new URL('../components/src', import.meta.url));
-function walk(dir, out = []) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = `${dir}/${entry.name}`;
-    if (entry.isDirectory()) walk(full, out);
-    else if (entry.name.endsWith('.module.css') || entry.name.endsWith('.tsx')) out.push(full);
-  }
-  return out;
-}
-
-const offenders = [];
-for (const file of walk(componentsSrc)) {
-  if (!file.endsWith('.module.css')) continue;
-  const hexes = readFileSync(file, 'utf8').match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
-  for (const hex of hexes) offenders.push(`${file}: ${hex}`);
-}
-if (offenders.length > 0) {
-  throw new Error('hardcoded colors in component css:\n' + offenders.join('\n'));
-}
-
-// Every component rendering data-size must style both variants.
-const sized = [];
-for (const file of walk(componentsSrc)) {
-  if (!file.endsWith('.tsx')) continue;
-  if (readFileSync(file, 'utf8').includes('data-size={size}'))
-    sized.push(file.replace(/\.tsx$/, '.module.css'));
-}
-if (sized.length === 0) throw new Error('no size-aware components found');
-for (const file of sized) {
-  const cssText = readFileSync(file, 'utf8');
-  for (const size of ['sm', 'md']) {
-    if (!cssText.includes(`[data-size='${size}']`)) {
-      throw new Error(`${file} does not style size="${size}"`);
-    }
-  }
-}
+// Component-source conventions (no hardcoded hex, both data-size variants styled) live in the
+// components package: the tokens suite is pure CSS variables and must not read component sources.
 
 console.log('tokens ok');
