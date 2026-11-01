@@ -4,7 +4,13 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src", "vitest.config.ts", "vitest.setup.ts", "vite.config.ts"],
+  "include": [
+    "src",
+    "scripts/geometry-hash.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "vite.config.ts"
+  ],
   /* Component source must not see node globals; tests get them from tsconfig.test.json. */
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
