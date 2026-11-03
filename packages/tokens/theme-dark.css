@@ -17,8 +17,9 @@
   --focus-ring: #93c5fd;
   --today-ring: #93c5fd;
   /* The light blue-300 blocked fill would be the brightest cell in dark mode, reading as a live
-     pick; keep the blocked state on the muted surface instead. `--text` keeps the day number and
-     event chips above AA on that fill (~10.9:1) without outshining the live blue pick. */
-  --surface-disabled: var(--surface-muted);
-  --text-disabled: var(--text);
+     pick; the muted surface carries the blocked state instead. Body text keeps the day number and
+     event chips above AA on it (~9.9:1). The fill, not a dimmer foreground, is what keeps the
+     blocked cell from outshining the live blue pick. */
+  --blocked-selection-bg: var(--surface-muted);
+  --blocked-selection-text: var(--text);
 }

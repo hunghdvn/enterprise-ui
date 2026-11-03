@@ -45,8 +45,8 @@ const THEME: TokenDoc[] = [
   { name: '--scrim', value: 'Light rgba(15, 23, 42, 0.45) · Dark rgba(2, 6, 23, 0.65)' },
   { name: '--focus-ring', value: 'Light #1e47c4 · Dark #93c5fd' },
   { name: '--today-ring', value: 'Light #1e40af · Dark #93c5fd' },
-  { name: '--surface-disabled', value: 'Light #93c5fd · Dark #334155' },
-  { name: '--text-disabled', value: 'Light #1e3a8a · Dark #f8fafc' },
+  { name: '--blocked-selection-bg', value: 'Light #93c5fd · Dark #334155' },
+  { name: '--blocked-selection-text', value: 'Light #1e3a8a · Dark #f8fafc' },
 ];
 
 const DENSITY: TokenDoc[] = [
@@ -110,7 +110,7 @@ const CONTRAST_PAIRS: { label: string; values: { theme: string; ratio: string }[
     ],
   },
   {
-    label: '--text-disabled trên --surface-disabled',
+    label: '--blocked-selection-text trên --blocked-selection-bg',
     values: [
       { theme: 'Light', ratio: contrast('#1e3a8a', '#93c5fd') },
       { theme: 'Dark', ratio: contrast('#f8fafc', '#334155') },

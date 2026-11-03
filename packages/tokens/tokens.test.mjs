@@ -30,8 +30,6 @@ const must = [
   '--scrim',
   '--focus-ring: var(--color-blue-600)',
   '--today-ring: var(--color-blue-700)',
-  '--surface-disabled: var(--color-blue-300)',
-  '--text-disabled: var(--color-blue-800)',
   '[data-theme="dark"]',
   '[data-density="compact"]',
 ];
@@ -72,7 +70,9 @@ function assertThemeTokens(theme, source, selector, tokens) {
   const block = themeBlockBody(source, selector);
   if (block === null) throw new Error(`${theme} theme block not found`);
   for (const [name, value] of Object.entries(tokens)) {
-    if (!new RegExp(`${name}:\\s*${value}\\b`).test(block)) {
+    // Values include var(--token); its parentheses are regex syntax and must match literally.
+    const literal = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!new RegExp(`${name}:\\s*${literal}(?![\\w-])`).test(block)) {
       throw new Error(`${theme} theme must reset ${name} to ${value}`);
     }
   }
@@ -95,34 +95,34 @@ try {
   missingReported = /block not found/.test(error.message);
 }
 if (!missingReported) throw new Error('theme guard does not report a missing theme block');
+// var() values must be matched literally instead of throwing on their parentheses.
+try {
+  assertThemeTokens('probe', ':root { --probe: var(--token) }', ':root', {
+    '--probe': 'var(--token)',
+  });
+} catch {
+  throw new Error('theme guard does not match var() values');
+}
 
 for (const [theme, source, selector, tokens] of themeRings) {
   assertThemeTokens(theme, source, selector, tokens);
 }
 
-// The blocked-selection pair needs a :root base (custom themes inherit it) and a per-theme
-// override: the dark fill is the muted surface and its text is the body colour, because the light
-// blue-300 fill would outshine a live pick in dark mode.
-const rootCss = readTokenFile('tokens.css');
-for (const decl of [
-  '--surface-disabled: var(--color-blue-300)',
-  '--text-disabled: var(--color-blue-800)',
-]) {
-  if (!rootCss.includes(decl)) throw new Error(':root must define ' + decl);
-}
-const themeDisabled = [
-  [
-    'light',
-    lightCss,
-    ['--surface-disabled: var(--color-blue-300)', '--text-disabled: var(--color-blue-800)'],
-  ],
-  ['dark', darkCss, ['--surface-disabled: var(--surface-muted)', '--text-disabled: var(--text)']],
-];
-for (const [theme, source, decls] of themeDisabled) {
-  for (const decl of decls) {
-    if (!source.includes(decl)) throw new Error(`${theme} theme must declare ${decl}`);
-  }
-}
+// The blocked-selection pair has a :root base (custom themes inherit it) and a per-theme
+// override. Both are checked inside their own block, so a declaration moved into a comment,
+// another selector or an @media block cannot satisfy the guard.
+const blockedPair = {
+  '--blocked-selection-bg': 'var(--color-blue-300)',
+  '--blocked-selection-text': 'var(--color-blue-800)',
+};
+assertThemeTokens('root', readTokenFile('tokens.css'), ':root', blockedPair);
+assertThemeTokens('light', lightCss, '[data-theme="light"]', blockedPair);
+// Dark: the muted surface (not the bright blue-300 fill) carries the blocked state, and body
+// text keeps the day number and event chips above AA on it.
+assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
+  '--blocked-selection-bg': 'var(--surface-muted)',
+  '--blocked-selection-text': 'var(--text)',
+});
 
 // Component-source conventions (no hardcoded hex, both data-size variants styled) live in the
 // components package: the tokens suite is pure CSS variables and must not read component sources.

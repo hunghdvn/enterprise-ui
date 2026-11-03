@@ -3,9 +3,17 @@ import type { ReactNode } from 'react';
 export interface CalendarProps {
   /** Selected date (controlled). */
   value?: Date | null;
+  /**
+   * Called with a day when the user commits it: click, Enter/Space, or an arrow/Home/End move.
+   * PageUp/PageDown never call it; they only change the viewed month.
+   */
   onChange?: (date: Date) => void;
   /** Viewed month (controlled). Defaults to value's month or today. */
   view?: Date;
+  /**
+   * Called with the first day of the month when the user asks for another month (chevrons or
+   * PageUp/PageDown). The selection is untouched; the parent must apply the month to move it.
+   */
   onViewChange?: (view: Date) => void;
   /**
    * Events keyed by ISO date (YYYY-MM-DD). A single node renders one line; an array renders one

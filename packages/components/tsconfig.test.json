@@ -1,15 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    /* Tests use node:fs to pin CSS contracts; the src program below stays node-free. */
+    /* Tests use node:fs to pin CSS contracts; the src program stays node-free. `include` is
+       inherited so the two programs cannot drift. */
     "types": ["vitest/globals", "node"]
   },
-  "include": [
-    "src",
-    "scripts/geometry-hash.ts",
-    "vitest.config.ts",
-    "vitest.setup.ts",
-    "vite.config.ts"
-  ],
+  /* Re-include the tests that the base config excludes. */
   "exclude": []
 }

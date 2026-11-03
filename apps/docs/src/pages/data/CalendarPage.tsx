@@ -7,9 +7,24 @@ import type { PropDoc } from '../../components/PropsTable';
 
 const props: PropDoc[] = [
   { name: 'value', type: 'Date | null', description: 'Ngày đang chọn (controlled).' },
-  { name: 'onChange', type: '(date: Date) => void', description: 'Báo khi chọn ngày.' },
-  { name: 'view', type: 'Date', description: 'Tháng đang xem (controlled).' },
-  { name: 'onViewChange', type: '(view: Date) => void', description: 'Báo khi đổi tháng.' },
+  {
+    name: 'onChange',
+    type: '(date: Date) => void',
+    description:
+      'Gọi khi người dùng chốt một ngày: click, Enter/Space, hoặc phím mũi tên/Home/End. PageUp/PageDown không gọi.',
+  },
+  {
+    name: 'view',
+    type: 'Date',
+    description:
+      'Tháng đang xem (controlled). Parent phải áp onViewChange thì tháng mới đổi; ngày đang chọn giữ nguyên.',
+  },
+  {
+    name: 'onViewChange',
+    type: '(view: Date) => void',
+    description:
+      'Gọi với ngày đầu tháng khi người dùng đổi tháng (chevron hoặc PageUp/PageDown); không đổi ngày đang chọn.',
+  },
   {
     name: 'events',
     type: 'Record<string, ReactNode>',
@@ -53,6 +68,27 @@ export default function CalendarPage() {
       <DemoPlayground>
         <Calendar value={date} onChange={setDate} view={view} onViewChange={setView} />
       </DemoPlayground>
+      <p>
+        PageUp/PageDown chỉ đổi tháng đang xem và giữ nguyên ngày đã chọn; dùng Enter, click hoặc
+        phím mũi tên để chốt ngày.
+      </p>
+      <h2>Keyboard</h2>
+      <ul>
+        <li>
+          <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>: di chuyển và chọn ngày kế tiếp, bỏ
+          qua ngày bị vô hiệu hoá.
+        </li>
+        <li>
+          <kbd>Home</kbd> / <kbd>End</kbd>: ngày đầu/cuối của tháng đang hiển thị.
+        </li>
+        <li>
+          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng, con trỏ giữ ngày tương ứng;
+          không chọn ngày.
+        </li>
+        <li>
+          <kbd>Enter</kbd> / <kbd>Space</kbd>: chọn ngày đang focus.
+        </li>
+      </ul>
       <h2>Code</h2>
       <CodeBlock code={code} />
       <h2>Props</h2>

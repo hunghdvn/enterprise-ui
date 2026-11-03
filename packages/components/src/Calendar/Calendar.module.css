@@ -188,15 +188,15 @@
   opacity: 0.45;
 }
 
-/* A disabled day that is also selected must still read as blocked AND stay dimmer than a live
-   blue-600 pick in both themes. `--surface-disabled`/`--text-disabled` are defined in `:root`
-   (light pair, for custom themes) and overridden per theme; dark keeps `--text` on the muted
-   surface so the number and event chips stay above AA. The dashed outline keeps a 3:1 boundary
-   against the fill (the fill alone is only ~1.8:1 against the light grid). */
+/* A disabled day that is also selected must still read as blocked in both themes.
+   `--blocked-selection-bg`/`--blocked-selection-text` are defined in `:root` (light defaults, for
+   custom themes) and overridden per theme; dark pairs the muted surface with body text so the
+   number and event chips stay above AA. The dashed outline keeps a 3:1 boundary against the fill
+   (the fill alone is only ~1.8:1 against the light grid). */
 .day-disabled.day-selected {
-  background: var(--surface-disabled);
-  color: var(--text-disabled);
-  outline: 2px dashed var(--text-disabled);
+  background: var(--blocked-selection-bg);
+  color: var(--blocked-selection-text);
+  outline: 2px dashed var(--blocked-selection-text);
   outline-offset: -2px;
 }
 
@@ -236,5 +236,5 @@
 
 /* Event chips on the blocked fill take the same theme-aware foreground as the day number. */
 .day-disabled.day-selected .day-event {
-  color: var(--text-disabled);
+  color: var(--blocked-selection-text);
 }
