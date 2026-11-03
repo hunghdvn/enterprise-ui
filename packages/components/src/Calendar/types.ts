@@ -13,9 +13,9 @@ export interface CalendarProps {
   /**
    * Called with the first day of the month when the user asks to change it: chevrons, Page keys,
    * or an arrow crossing a month boundary (which also commits its day through `onChange`). A
-   * controlled parent should apply the exact object it receives — the component uses identity to
-   * tell its own request from external navigation. A page round trip that withdraws a queued
-   * month re-emits the visible one so a last-wins parent can cancel the request.
+   * parent that renders one of the months the calendar asked for acks the request (the Date may
+   * be recreated); rendering any other month cancels it. A page round trip that withdraws a
+   * queued month re-emits the visible one so a last-wins parent can cancel the request.
    */
   onViewChange?: (view: Date) => void;
   /**

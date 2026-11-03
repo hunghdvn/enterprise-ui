@@ -123,6 +123,16 @@ try {
   multilinePassed = true;
 } catch {}
 if (multilinePassed) throw new Error('theme guard accepts a multi-line commented declaration');
+// Two comments: a strip without the global flag removes only the first and leaves the second
+// (which holds the declaration) to satisfy the guard.
+let twoCommentsPassed = false;
+try {
+  assertThemeTokens('probe', ':root {\n  /* first */\n  /* --probe: #111 */\n}', ':root', {
+    '--probe': '#111',
+  });
+  twoCommentsPassed = true;
+} catch {}
+if (twoCommentsPassed) throw new Error('theme guard strips only the first comment');
 // Comments may contain a closing brace; stripping them before slicing keeps the block intact.
 try {
   assertThemeTokens('probe', ':root { /* } */ --probe: #111 }', ':root', { '--probe': '#111' });
