@@ -23,7 +23,7 @@ const props: PropDoc[] = [
     name: 'onViewChange',
     type: '(view: Date) => void',
     description:
-      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc phím mũi tên vượt ranh giới tháng. Page chỉ đổi tháng; phím mũi tên vượt tháng cũng chốt ngày qua onChange. view bên ngoài đổi tháng hiển thị nhưng không phát callback này. Một vòng PageDown/PageUp huỷ request sẽ phát lại tháng đang hiển thị để parent áp thay đổi muộn có thể huỷ.',
+      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc mũi tên vượt ranh giới (mũi tên vượt tháng cũng chốt ngày qua onChange). view bên ngoài không phát callback này. Parent nên áp lại chính object nhận được — component dùng identity để phân biệt request của mình với điều hướng ngoài.',
   },
   {
     name: 'events',
@@ -71,8 +71,9 @@ export default function CalendarPage() {
       <h2>Keyboard</h2>
       <ul>
         <li>
-          <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>: di chuyển và chốt ngày kế tiếp, bỏ
-          qua ngày bị vô hiệu hoá; vượt ranh giới tháng thì đổi tháng và phát onViewChange.
+          <kbd>←</kbd> <kbd>→</kbd>: chốt ngày trước/sau; <kbd>↑</kbd> <kbd>↓</kbd>: chốt ngày cách
+          một tuần (7 ngày), bỏ qua ngày bị vô hiệu hoá. Vượt ranh giới tháng thì đổi tháng và phát
+          onViewChange.
         </li>
         <li>
           <kbd>Home</kbd> / <kbd>End</kbd>: ngày enabled đầu/cuối của tháng đang hiển thị (bỏ qua
@@ -80,7 +81,10 @@ export default function CalendarPage() {
         </li>
         <li>
           <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng, con trỏ giữ ngày tương ứng và
-          focus theo sau; không chốt ngày. Bấm ngược lại để huỷ request đang chờ.
+          focus theo ngày đó khi tháng render; nếu tháng đích bị vô hiệu hoá toàn bộ, focus vào
+          grid. Không chốt ngày. Bấm ngược lại huỷ tháng vừa xin với parent last-wins; parent xếp
+          hàng FIFO vẫn render các tháng đã phát theo thứ tự hàng đợi, và lần bấm sau tính từ tháng
+          đang hiển thị.
         </li>
         <li>
           <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus; khi focus ở chính grid, chỉ

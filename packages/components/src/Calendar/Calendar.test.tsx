@@ -68,6 +68,10 @@ function DeferredCalendar({
       <button type="button" onClick={() => setView(new Date(2026, 8, 1))}>
         tự sang 9/2026
       </button>
+      {/* Back to the month the request started from, with the router's own object. */}
+      <button type="button" onClick={() => setView(new Date(2026, 9, 1))}>
+        tự về 10/2026
+      </button>
       <span data-testid="last-request">
         {requested ? `${requested.getFullYear()}-${requested.getMonth() + 1}` : ''}
       </span>
@@ -77,17 +81,11 @@ function DeferredCalendar({
 }
 
 /**
- * A controlled parent that queues every requested month and applies one per click. Models a
- * router that drains page requests over several commits; `last-request` exposes what the latest
- * key press asked for.
+ * A controlled parent that queues every requested month and applies one per click (or two in one
+ * commit). Models a router that drains page requests over several commits; `last-request` exposes
+ * what the latest key press asked for.
  */
-function QueuedCalendar({
-  onChange = () => {},
-  value = OCT_15,
-}: {
-  onChange?: (date: Date) => void;
-  value?: Date | null;
-}) {
+function QueuedCalendar({ value = OCT_15 }: { value?: Date | null }) {
   const [view, setView] = useState(new Date(2026, 9, 1));
   const [queue, setQueue] = useState<Date[]>([]);
   const last = queue[queue.length - 1];
@@ -104,9 +102,21 @@ function QueuedCalendar({
       >
         nhả một tháng
       </button>
-      {/* A month the calendar never asked for, inside a queued page path. */}
-      <button type="button" onClick={() => setView(new Date(2026, 11, 1))}>
-        tự sang 12/2026
+      <button
+        type="button"
+        onClick={() => {
+          const [, second, ...rest] = queue;
+          if (!second) return;
+          setQueue(rest);
+          // The parent applied both requests without committing in between.
+          setView(second);
+        }}
+      >
+        nhả hai tháng
+      </button>
+      {/* The very next month, but as the router's own object, not an echo of our request. */}
+      <button type="button" onClick={() => setView(new Date(2026, 10, 1))}>
+        tự sang 11/2026
       </button>
       <span data-testid="queue">
         {queue.map((m) => `${m.getFullYear()}-${m.getMonth() + 1}`).join(',')}
@@ -114,12 +124,7 @@ function QueuedCalendar({
       <span data-testid="last-request">
         {last ? `${last.getFullYear()}-${last.getMonth() + 1}` : ''}
       </span>
-      <Calendar
-        value={value}
-        onChange={onChange}
-        view={view}
-        onViewChange={(next) => setQueue((q) => [...q, next])}
-      />
+      <Calendar value={value} view={view} onViewChange={(next) => setQueue((q) => [...q, next])} />
     </>
   );
 }
@@ -687,15 +692,39 @@ test('a page round trip clears the request so the next press starts from the vis
   expect(screen.getByTestId('last-request')).toHaveTextContent('2026-11');
 });
 
-test('a page round trip leaves focus on the mounted day', () => {
+test('a net-zero round trip keeps focus when a fifo parent still drains the refused month', () => {
+  render(<QueuedCalendar value={OCT_31} />);
+  const cell = day(OCT_31);
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  fireEvent.keyDown(cell, { key: 'PageUp' });
+  // The view has not changed yet, so the focused day stays mounted and keeps focus.
+  expect(document.activeElement).toBe(cell);
+  // A fifo parent still drains the withdrawn November first: the day unmounts, and the handoff
+  // must move focus into the rendered month instead of dropping it on <body>.
+  fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  // Then the withdrawal month lands back and focus returns to the selection.
+  fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-10-31');
+});
+
+test('a landed request does not revive when an external view returns to its month', () => {
   render(<DeferredCalendar onChange={() => {}} />);
   const cell = day(OCT_15);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  fireEvent.keyDown(cell, { key: 'PageUp' });
-  // The month never changed, so the focused day is still mounted and must keep focus; the
-  // withdrawn month is the parent's to cancel.
-  expect(document.activeElement).toBe(cell);
+  // Apply November: the request landed and must end there.
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  // The router navigates back to October with its own object.
+  fireEvent.click(screen.getByRole('button', { name: 'tự về 10/2026' }));
+  expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
+  fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageDown' });
+  // A revived November request would use its target as the base and ask for December.
+  expect(screen.getByTestId('last-request')).toHaveTextContent('2026-11');
 });
 
 test('a page direction flip keeps the latest press', () => {
@@ -831,7 +860,7 @@ test('a draining parent lands every queued month, not just the first', () => {
   expect(document.activeElement).toHaveAttribute('data-date', '2027-01-25');
 });
 
-test('a page reversal after a partial drain moves back from the visible month', () => {
+test('a page reversal after a partial drain ends on the visible month', () => {
   render(<QueuedCalendar />);
   const cell = day(OCT_15);
   cell.focus();
@@ -843,8 +872,33 @@ test('a page reversal after a partial drain moves back from the visible month', 
   fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
   expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
   fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageUp' });
-  // December is visible: PageUp must ask for November, not withdraw into December and stop.
+  // December is visible: PageUp asks for November, not a withdrawal into December.
   expect(screen.getByTestId('last-request')).toHaveTextContent('2026-11');
+  // The fifo parent still holds January, so it renders first; the handoff must survive it (the
+  // already-emitted month is ours, not external navigation) and settle on November at the end.
+  fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
+  expect(monthHeading()).toMatch(/tháng 1 năm 2027/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2027-01-15');
+  fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-15');
+});
+
+test('a coalesced drain keeps the request for the months still queued', () => {
+  render(<QueuedCalendar value={new Date(2026, 9, 25)} />);
+  const cell = day(new Date(2026, 9, 25));
+  cell.focus();
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  fireEvent.keyDown(cell, { key: 'PageDown' });
+  // The parent applies November and December in one commit; the handoff must still run for the
+  // month it landed on, and January must clear the request afterwards.
+  fireEvent.click(screen.getByRole('button', { name: 'nhả hai tháng' }));
+  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-12-25');
+  fireEvent.click(screen.getByRole('button', { name: 'nhả một tháng' }));
+  expect(monthHeading()).toMatch(/tháng 1 năm 2027/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2027-01-25');
 });
 
 test('an external month change does not inherit a queued page handoff', () => {
@@ -854,19 +908,18 @@ test('an external month change does not inherit a queued page handoff', () => {
   fireEvent.keyDown(cell, { key: 'PageDown' });
   fireEvent.keyDown(cell, { key: 'PageDown' });
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  // The router opens December itself. It is inside the October→January path but not the next
-  // month the last commit asked for, so it is external navigation and must not take focus.
   (document.activeElement as HTMLElement).blur();
-  fireEvent.click(screen.getByRole('button', { name: 'tự sang 12/2026' }));
-  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
+  // The router opens the very next month, but with its own object rather than our echo.
+  fireEvent.click(screen.getByRole('button', { name: 'tự sang 11/2026' }));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toBe(document.body);
   fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageDown' });
-  // The visible month is December, so the next page is January; the stale January target must
-  // not turn this into February.
-  expect(screen.getByTestId('last-request')).toHaveTextContent('2027-1');
+  // The visible month is November, so the next page is December; the stale January target must
+  // not turn this into February. The queue tail cannot prove a new emission, so assert the log.
+  expect(screen.getByTestId('queue')).toHaveTextContent('2026-11,2026-12,2027-1,2026-12');
 });
 
-test('a backward drain keeps the page handoff through the on-the-way month', () => {
+test('a backward drain keeps the page handoff through the queued months', () => {
   render(<QueuedCalendar value={OCT_31} />);
   const cell = day(OCT_31);
   cell.focus();
@@ -911,22 +964,36 @@ test('grid Enter keeps the queued page request', () => {
   expect(screen.getByTestId('last-request')).toHaveTextContent('2026-12');
 });
 
-test('an arrow that crosses a month boundary also asks the parent to show it', () => {
+test('an arrow that crosses a month asks for the month, not the committed day', () => {
   const onChange = vi.fn();
   const onViewChange = vi.fn();
   render(
     <Calendar
-      value={new Date(2026, 9, 31)}
+      value={new Date(2026, 9, 28)}
       onChange={onChange}
       view={new Date(2026, 9, 1)}
       onViewChange={onViewChange}
     />,
   );
+  const cell = day(new Date(2026, 9, 28));
+  cell.focus();
+  // A week down from 28/10 lands on 4/11: the commit keeps that day while the view request must
+  // be the first of the month, so only a mid-month crossing tells the two apart.
+  fireEvent.keyDown(cell, { key: 'ArrowDown' });
+  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 10, 4));
+  expect(onViewChange).toHaveBeenLastCalledWith(new Date(2026, 10, 1));
+});
+
+test('an arrow crossing into an accepted month keeps focus on the committed day', () => {
+  const onChange = vi.fn();
+  render(<Calendar value={new Date(2026, 9, 31)} onChange={onChange} />);
   const cell = day(new Date(2026, 9, 31));
   cell.focus();
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
-  expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 10, 1));
-  expect(onViewChange).toHaveBeenLastCalledWith(new Date(2026, 10, 1));
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  // 31/10 unmounts with the month; the one-shot focus intent must move focus to 1/11 instead
+  // of letting it fall to <body>.
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-01');
 });
 
 test('Home and End commit the first/last enabled day of the visible month', () => {

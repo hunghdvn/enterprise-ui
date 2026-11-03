@@ -113,6 +113,16 @@ try {
   commentedPassed = true;
 } catch {}
 if (commentedPassed) throw new Error('theme guard accepts a commented-out declaration');
+// A multi-line comment must be stripped exactly like a single-line one; a `.`-based strip would
+// pass the probe above but let any commented declaration spanning lines satisfy the guard.
+let multilinePassed = false;
+try {
+  assertThemeTokens('probe', ':root {\n  /* --probe: #111\n     --other: #222 */\n}', ':root', {
+    '--probe': '#111',
+  });
+  multilinePassed = true;
+} catch {}
+if (multilinePassed) throw new Error('theme guard accepts a multi-line commented declaration');
 // Comments may contain a closing brace; stripping them before slicing keeps the block intact.
 try {
   assertThemeTokens('probe', ':root { /* } */ --probe: #111 }', ':root', { '--probe': '#111' });

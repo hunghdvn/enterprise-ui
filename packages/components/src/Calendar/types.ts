@@ -5,18 +5,17 @@ export interface CalendarProps {
   value?: Date | null;
   /**
    * Called with a day when the user commits it: click, Enter/Space, or an arrow/Home/End move.
-   * PageUp/PageDown never call it; they only change the viewed month.
+   * PageUp/PageDown change the viewed month instead.
    */
   onChange?: (date: Date) => void;
   /** Viewed month (controlled). Defaults to value's month or today. */
   view?: Date;
   /**
-   * Called with the first day of the month when the user asks to change it: chevrons,
-   * PageUp/PageDown, or an arrow key crossing a month boundary. Page keys leave the selection
-   * untouched; an arrow that crosses a boundary also commits its day through `onChange`. An
-   * external `view` change moves the calendar without calling this handler. A page round trip
-   * that withdraws a queued request re-emits the current month so a parent that applies view
-   * changes in a later commit can cancel it.
+   * Called with the first day of the month when the user asks to change it: chevrons, Page keys,
+   * or an arrow crossing a month boundary (which also commits its day through `onChange`). A
+   * controlled parent should apply the exact object it receives — the component uses identity to
+   * tell its own request from external navigation. A page round trip that withdraws a queued
+   * month re-emits the visible one so a last-wins parent can cancel the request.
    */
   onViewChange?: (view: Date) => void;
   /**

@@ -67,19 +67,20 @@ function eventList(ev: ReactNode): ReactNode[] {
   return list.filter((item) => item != null && item !== false && item !== true && item !== '');
 }
 
-/** Day that should receive focus once the commit carrying it lands. */
-type FocusIntent = { key: string; previousKey: string };
-
 /**
- * A month a page key asked for that has not rendered yet. Kept as the base for the next press
- * while the month it started from is still visible, so a parent that applies view changes in a
- * later commit does not collapse repeated keys into one month. A net-zero round trip withdraws it.
+ * A chain of page-key months the parent has not finished rendering. It is the base for the next
+ * press while the month it started from is still visible, so a parent that applies view changes
+ * in a later commit does not collapse repeated keys into one month. A net-zero press marks the
+ * chain `withdrawn` instead of dropping it: a FIFO parent still drains the refused months first,
+ * and the landing handoff has to survive them so focus never falls to `<body>`.
  */
 interface PageRequest {
-  /** Month rendered when the first press was made; the queue is only a base while it is visible. */
+  /** Month visible when the chain's base was set; the chain only grows while it is still shown. */
   from: Date;
-  /** Latest month the page keys asked for. */
+  /** Newest month a page key asked for. */
   target: Date;
+  /** True once a press withdrew the chain; the parent may still render its earlier months. */
+  withdrawn: boolean;
 }
 
 /** Whole event lines that fit each cell; the rest stay in the accessible description. Internal:
@@ -116,8 +117,17 @@ export function Calendar({
   const month = currentView.getMonth();
   const monthKey = monthKeyOf(currentView);
 
+  /**
+   * Exact months handed to `onViewChange`, newest last (bounded). A controlled `view` that is one
+   * of these objects is the parent applying our navigation; any other object is external (router,
+   * month picker) even when it lands on the same month, and must not inherit the page handoff.
+   */
+  const emittedViewsRef = useRef<Date[]>([]);
   const setView = useCallback(
     (next: Date) => {
+      const emitted = emittedViewsRef.current;
+      emitted.push(next);
+      if (emitted.length > 16) emitted.splice(0, emitted.length - 16);
       if (view === undefined) setInternalView(next);
       onViewChange?.(next);
     },
@@ -149,8 +159,8 @@ export function Calendar({
 
   // Reposition the cursor once a month change has actually rendered: a chevron, a page key or an
   // external `view` all land here, while a controlled parent that rejects the change does not.
-  /** The one focus handoff still waiting for the commit that carries it. */
-  const focusIntentRef = useRef<FocusIntent | null>(null);
+  /** One-shot: a keyboard day move asks focus to follow the cursor in the commit carrying it. */
+  const focusIntentRef = useRef(false);
   /** The page request the parent has not rendered yet (if any). */
   const pageRequestRef = useRef<PageRequest | null>(null);
 
@@ -169,38 +179,23 @@ export function Calendar({
 
   /** True when the last commit focused an element whose own label already names the month. */
   const focusNamesMonthRef = useRef(false);
-  /** True when the focus effect just made a real focus move in this commit. */
-  const focusMovedRef = useRef(false);
   const cursorTime = cursor.getTime();
   useEffect(() => {
     focusNamesMonthRef.current = false;
-    focusMovedRef.current = false;
     const grid = gridRef.current;
     if (!grid) return;
 
-    const intent = focusIntentRef.current;
     const cursorKey = isoKey(cursor);
 
-    let target: string | null = null;
-    if (intent) {
-      if (intent.key === cursorKey) {
-        focusIntentRef.current = null;
-        target = intent.key;
-      } else if (cursorKey === intent.previousKey) {
-        // A controlled `view` can render before the cursor update that carries this intent;
-        // keep the intent for the next commit.
-        return;
-      } else {
-        // The cursor settled on another day (a parent snapped/clamped the selection). Follow
-        // the day that actually won instead of leaving an intent that mutes every later month.
-        focusIntentRef.current = null;
-        target = cursorKey;
-      }
-    }
     // Honour focus moves requested by keyboard navigation; otherwise only follow the cursor
     // while focus already lives in the grid, so external value changes never steal it. `body`
     // counts as "lost focus" because the previously focused day may have re-rendered away;
     // focus on another control (a chevron, a dialog) is left alone.
+    let target: string | null = null;
+    if (focusIntentRef.current) {
+      focusIntentRef.current = false;
+      target = cursorKey;
+    }
     const active = document.activeElement;
     const focusInside = grid.contains(active);
     if (!focusInside && target === null) return;
@@ -211,37 +206,30 @@ export function Calendar({
       el.focus({ preventScroll: true });
       // A day button reused for the same day number keeps focus without firing a focus event,
       // so its new label is never spoken: only a real focus move may suppress the month status.
-      const moved = !alreadyFocused && document.activeElement === el;
-      focusMovedRef.current = moved;
-      focusNamesMonthRef.current = moved;
+      focusNamesMonthRef.current = !alreadyFocused && document.activeElement === el;
     }
-    // A grid that already holds focus is not a focus move, so the month is still announced.
+    // Focus staying on the grid is not a day-label move, so the flag above stays false and the
+    // month announcement is not suppressed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursorTime, year, month]);
 
-  /** Month of the previous commit, so a landing can require the next month in sequence. */
-  const lastRenderedMonthRef = useRef(currentView);
-  // A page key moves the view under a focused day. Once the requested month renders, put focus
-  // back into the grid unless the parent focused something of its own (a dialog opened from
-  // `onViewChange`). This is also how a page into a fully disabled month hands focus to the grid
-  // instead of leaving it on `<body>`. Runs after the focus effect so the announcement decision
-  // below sees any handoff it made.
+  // A page key moves the view under a focused day. Once a month we handed to `onViewChange`
+  // renders (a FIFO parent may render several, oldest first), put focus back into the grid
+  // unless the parent focused something of its own (a dialog opened from `onViewChange`). This
+  // is also how a page into a fully disabled month hands focus to the grid instead of leaving it
+  // on `<body>`. Runs after the focus effect so the announcement decision below sees the handoff.
   useEffect(() => {
     const request = pageRequestRef.current;
     if (!request) return;
-    const now = monthStart(currentView);
-    const target = monthStart(request.target);
-    const from = monthStart(lastRenderedMonthRef.current);
-    const step = target.getTime() > from.getTime() ? 1 : -1;
-    const next = new Date(from.getFullYear(), from.getMonth() + step, 1);
-    // A parent may apply a stack of page requests one commit at a time. Only the next month on
-    // the way to the target belongs to the queue; any other jump is external navigation and must
-    // not inherit the page handoff (focus or announcement).
-    if (!sameMonth(now, target) && !sameMonth(now, next)) {
-      pageRequestRef.current = null;
-      return;
-    }
-    if (sameMonth(now, target)) pageRequestRef.current = null;
+    const emitted = emittedViewsRef.current;
+    // Identity is the only signal available: a controlled `view` that is one of the objects we
+    // emitted is the parent applying our navigation, any other object is the parent navigating
+    // on its own, even when it lands on a month we asked for. External commits keep the request
+    // (the user may still be on their way back to `from`) but must not inherit its handoff.
+    if (!emitted.includes(currentView)) return;
+    // The newest emission completes the chain; older echoes may still be followed by the rest
+    // of a fifo queue or by the withdrawal month.
+    if (emitted[emitted.length - 1] === currentView) pageRequestRef.current = null;
     const grid = gridRef.current;
     if (!grid) return;
     const active = document.activeElement;
@@ -254,9 +242,8 @@ export function Calendar({
     if (targetEl && active === targetEl) {
       // React keys the cells by day number, so the same button is often reused for the same day
       // in the new month. It keeps focus without a focus event, so its new label is not read and
-      // the month status must speak instead. If the focus effect just moved focus to this same
-      // day, its label already names the month and the flag it set stays authoritative.
-      if (!focusMovedRef.current) focusNamesMonthRef.current = false;
+      // the month status must speak instead. The focus effect above already decided the flag:
+      // it is true only when that commit really moved focus to this day.
       return;
     }
     // A day button reused for the same day number in the new month keeps focus (jsdom and
@@ -275,19 +262,15 @@ export function Calendar({
     focusNamesMonthRef.current = !alreadyFocused && ariaLabel === undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey]);
-  useEffect(() => {
-    lastRenderedMonthRef.current = currentView;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthKey]);
 
   const [monthAnnouncement, setMonthAnnouncement] = useState('');
   // Announce the month that is actually rendered (covers chevrons, Page keys and external `view`).
   const announcedRef = useRef(monthKey);
   useEffect(() => {
     if (announcedRef.current === monthKey) return;
-    // A focus handoff may land in the next commit; the handoff records whether a day label will
-    // name the month, so decide after it so the duplicate message can be suppressed.
-    if (focusIntentRef.current !== null) return;
+    // The focus effect consumes its one-shot intent in the commit that carries it; if it could
+    // not run (no grid yet), defer this decision so a day label can still suppress the message.
+    if (focusIntentRef.current) return;
     announcedRef.current = monthKey;
     // Keyboard day navigation moves focus to the day, whose label already carries the month;
     // a second polite message would make screen readers read the month twice.
@@ -311,37 +294,20 @@ export function Calendar({
       ? cursor
       : nearestEnabled(year, month, cursor.getDate(), isDisabled);
 
-  /** Drop the focus handoff a direct day selection supersedes. */
-  const clearFocusIntent = () => {
-    focusIntentRef.current = null;
-  };
-
-  /** A chevron starts a fresh view navigation, so it also drops any queued page request. */
-  const cancelPending = () => {
-    clearFocusIntent();
-    pageRequestRef.current = null;
-  };
-
   const changeMonth = (target: Date) => {
-    // A chevron is a fresh navigation: it drops any pending page/focus handoff. The month effect
-    // above moves the cursor after the new month has rendered; moving it here would also move it
-    // when a controlled parent rejects the change.
-    cancelPending();
+    // A chevron is a fresh navigation: it drops any queued page request. The month effect above
+    // moves the cursor after the new month has rendered; moving it here would also move it when
+    // a controlled parent rejects the change.
+    pageRequestRef.current = null;
     setView(target);
   };
 
   const setCursorIntent = (next: Date) => {
-    // A day move drops a stale focus handoff but keeps a queued page: the parent may still apply
-    // it, and the landing effect must restore focus into the month it opens.
-    clearFocusIntent();
-    const intent = { key: isoKey(next), previousKey: isoKey(cursor) };
-    if (sameMonth(next, currentView)) {
-      if (next.getTime() !== cursor.getTime()) focusIntentRef.current = intent;
-      setCursor(next);
-      return;
-    }
-    focusIntentRef.current = intent;
-    setView(monthStart(next));
+    // A day move keeps a queued page (the parent may still apply it) and asks the focus effect
+    // to follow the cursor even if the previously focused day re-rendered away.
+    if (next.getTime() === cursor.getTime()) return;
+    focusIntentRef.current = true;
+    if (!sameMonth(next, currentView)) setView(monthStart(next));
     setCursor(next);
   };
 
@@ -365,20 +331,21 @@ export function Calendar({
     // Trust the queued target only while the parent has not rendered any month yet: once the
     // visible month moves, the user is paging from what they see. Keeping a stale target would
     // swallow a reversal after a partial drain or skip a month opened from outside.
-    const pending = request && sameMonth(currentView, request.from) ? request : null;
+    const pending =
+      request && !request.withdrawn && sameMonth(currentView, request.from) ? request : null;
     const base = pending?.target ?? currentView;
     const target = new Date(base.getFullYear(), base.getMonth() + delta, 1);
 
     if (sameMonth(target, currentView)) {
-      // Net zero: ask again for the month that is still shown so a last-wins parent can withdraw
-      // the queued months. The visible month does not change, so the focused day stays put; the
-      // request is dropped so the next press starts from the visible month.
-      pageRequestRef.current = null;
+      // Net zero: emit the visible month again so a last-wins parent can withdraw the queued one.
+      // The chain is kept as `withdrawn` because a FIFO parent drains the refused months first:
+      // the landing handoff must survive them instead of dropping focus on `<body>`.
+      if (request) pageRequestRef.current = { ...request, withdrawn: true };
       setView(monthStart(currentView));
       return;
     }
 
-    pageRequestRef.current = { from: currentView, target };
+    pageRequestRef.current = { from: currentView, target, withdrawn: false };
     setView(target);
   };
 
@@ -437,7 +404,6 @@ export function Calendar({
       case ' ':
         if (e.target !== e.currentTarget) return;
         if (!sameMonth(cursor, currentView)) return;
-        clearFocusIntent();
         if (!isDisabled?.(cursor)) onChange?.(cursor);
         e.preventDefault();
         handled = true;
@@ -556,9 +522,8 @@ export function Calendar({
                     )}
                     onClick={() => {
                       if (!disabled) {
-                        // A click is a direct selection: it drops a stale focus handoff but
-                        // leaves a queued page request for its landing handoff.
-                        clearFocusIntent();
+                        // A click is a direct selection; a queued page request stays for its
+                        // landing handoff.
                         setCursor(date);
                         onChange?.(date);
                       }
