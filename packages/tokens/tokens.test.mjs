@@ -57,8 +57,11 @@ const themeRings = [
 /**
  * Body of the first `{…}` after `selector`. Slicing from the selector to EOF would also match a
  * token declared outside the block, which is exactly the nesting regression this guards against.
+ * Comments are stripped first so a commented-out declaration cannot satisfy the guard and a
+ * brace inside a comment cannot close the block early.
  */
-function themeBlockBody(source, selector) {
+function themeBlockBody(rawSource, selector) {
+  const source = rawSource.replace(/\/\*[\s\S]*?\*\//g, '');
   const selectorAt = source.indexOf(selector);
   if (selectorAt === -1) return null;
   const open = source.indexOf('{', selectorAt);
@@ -103,6 +106,26 @@ try {
 } catch {
   throw new Error('theme guard does not match var() values');
 }
+// A commented-out declaration must not satisfy the guard (the exact dark-theme regression).
+let commentedPassed = false;
+try {
+  assertThemeTokens('probe', ':root { /* --probe: #111 */ }', ':root', { '--probe': '#111' });
+  commentedPassed = true;
+} catch {}
+if (commentedPassed) throw new Error('theme guard accepts a commented-out declaration');
+// Comments may contain a closing brace; stripping them before slicing keeps the block intact.
+try {
+  assertThemeTokens('probe', ':root { /* } */ --probe: #111 }', ':root', { '--probe': '#111' });
+} catch {
+  throw new Error('theme guard lets a brace inside a comment close the block');
+}
+// A value must end at a boundary: #111 must not match #1111.
+let boundaryPassed = false;
+try {
+  assertThemeTokens('probe', ':root { --probe: #1111 }', ':root', { '--probe': '#111' });
+  boundaryPassed = true;
+} catch {}
+if (boundaryPassed) throw new Error('theme guard ignores the value boundary');
 
 for (const [theme, source, selector, tokens] of themeRings) {
   assertThemeTokens(theme, source, selector, tokens);

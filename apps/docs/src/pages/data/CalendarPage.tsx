@@ -11,19 +11,19 @@ const props: PropDoc[] = [
     name: 'onChange',
     type: '(date: Date) => void',
     description:
-      'Gọi khi người dùng chốt một ngày: click, Enter/Space, hoặc phím mũi tên/Home/End. PageUp/PageDown không gọi.',
+      'Gọi khi người dùng chốt một ngày: click, Enter/Space, phím mũi tên, hoặc Home/End. PageUp/PageDown không gọi.',
   },
   {
     name: 'view',
     type: 'Date',
     description:
-      'Tháng đang xem (controlled). Parent phải áp onViewChange thì tháng mới đổi; ngày đang chọn giữ nguyên.',
+      'Tháng đang xem (controlled). Mặc định theo value hoặc hôm nay; parent phải áp onViewChange thì tháng mới đổi.',
   },
   {
     name: 'onViewChange',
     type: '(view: Date) => void',
     description:
-      'Gọi với ngày đầu tháng khi người dùng đổi tháng (chevron hoặc PageUp/PageDown); không đổi ngày đang chọn.',
+      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc phím mũi tên vượt ranh giới tháng. Page chỉ đổi tháng; phím mũi tên vượt tháng cũng chốt ngày qua onChange. view bên ngoài đổi tháng hiển thị nhưng không phát callback này. Một vòng PageDown/PageUp huỷ request sẽ phát lại tháng đang hiển thị để parent áp thay đổi muộn có thể huỷ.',
   },
   {
     name: 'events',
@@ -68,25 +68,23 @@ export default function CalendarPage() {
       <DemoPlayground>
         <Calendar value={date} onChange={setDate} view={view} onViewChange={setView} />
       </DemoPlayground>
-      <p>
-        PageUp/PageDown chỉ đổi tháng đang xem và giữ nguyên ngày đã chọn; dùng Enter, click hoặc
-        phím mũi tên để chốt ngày.
-      </p>
       <h2>Keyboard</h2>
       <ul>
         <li>
-          <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>: di chuyển và chọn ngày kế tiếp, bỏ
-          qua ngày bị vô hiệu hoá.
+          <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>: di chuyển và chốt ngày kế tiếp, bỏ
+          qua ngày bị vô hiệu hoá; vượt ranh giới tháng thì đổi tháng và phát onViewChange.
         </li>
         <li>
-          <kbd>Home</kbd> / <kbd>End</kbd>: ngày đầu/cuối của tháng đang hiển thị.
+          <kbd>Home</kbd> / <kbd>End</kbd>: ngày enabled đầu/cuối của tháng đang hiển thị (bỏ qua
+          ngày bị vô hiệu hoá) và chốt ngày đó.
         </li>
         <li>
-          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng, con trỏ giữ ngày tương ứng;
-          không chọn ngày.
+          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng, con trỏ giữ ngày tương ứng và
+          focus theo sau; không chốt ngày. Bấm ngược lại để huỷ request đang chờ.
         </li>
         <li>
-          <kbd>Enter</kbd> / <kbd>Space</kbd>: chọn ngày đang focus.
+          <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus; khi focus ở chính grid, chỉ
+          chốt con trỏ nếu nó đang ở tháng hiển thị và không bị vô hiệu hoá.
         </li>
       </ul>
       <h2>Code</h2>

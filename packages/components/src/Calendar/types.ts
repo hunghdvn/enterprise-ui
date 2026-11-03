@@ -11,8 +11,12 @@ export interface CalendarProps {
   /** Viewed month (controlled). Defaults to value's month or today. */
   view?: Date;
   /**
-   * Called with the first day of the month when the user asks for another month (chevrons or
-   * PageUp/PageDown). The selection is untouched; the parent must apply the month to move it.
+   * Called with the first day of the month when the user asks to change it: chevrons,
+   * PageUp/PageDown, or an arrow key crossing a month boundary. Page keys leave the selection
+   * untouched; an arrow that crosses a boundary also commits its day through `onChange`. An
+   * external `view` change moves the calendar without calling this handler. A page round trip
+   * that withdraws a queued request re-emits the current month so a parent that applies view
+   * changes in a later commit can cancel it.
    */
   onViewChange?: (view: Date) => void;
   /**

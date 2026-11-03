@@ -39,6 +39,11 @@ export function sameMonth(a: Date | null | undefined, b: Date | null | undefined
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
+/** First day of `d`'s month, at local midnight. */
+export function monthStart(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
 /** `YYYY-M` identity of a month (0-based, unpadded) used by Calendar's view state. */
 export function monthKeyOf(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}`;
