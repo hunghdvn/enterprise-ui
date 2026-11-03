@@ -23,7 +23,7 @@ const props: PropDoc[] = [
     name: 'onViewChange',
     type: '(view: Date) => void',
     description:
-      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc mũi tên vượt ranh giới (mũi tên vượt tháng cũng chốt ngày qua onChange). view bên ngoài không phát callback này. Parent render đúng tháng đã xin — kể cả Date được tạo lại — là ack request; render tháng khác sẽ huỷ. Một vòng PageDown/PageUp huỷ request phát lại tháng đang hiển thị, nên parent mirror route/analytics sẽ nhận thêm callback cho tháng không đổi.',
+      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc mũi tên vượt ranh giới (mũi tên vượt tháng cũng chốt ngày qua onChange). view bên ngoài không phát callback này. Mọi yêu cầu tính từ tháng đang render, như mọi input controlled: parent áp view trễ (router, transition) thì các lần bấm trước khi tháng mới render đều xin cùng một tháng kế bên.',
   },
   {
     name: 'events',
@@ -80,13 +80,12 @@ export default function CalendarPage() {
           ngày bị vô hiệu hoá) và chốt ngày đó.
         </li>
         <li>
-          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng; con trỏ giữ ngày tương ứng
-          nhưng nhảy qua ngày bị vô hiệu hoá (chặn cuối tuần: 15/10 PageDown → 16/11). Focus theo
-          ngày đó khi tháng render; nếu tháng đích bị vô hiệu hoá toàn bộ, focus vào grid — trừ khi
-          parent đã tự focus chỗ khác trong onViewChange. Không chốt ngày. Khi request còn chờ, các
-          lần bấm cộng dồn từ tháng đã xin; sau khi parent render một tháng hoặc request bị huỷ, lần
-          bấm tính từ tháng đang hiển thị. Bấm ngược lại huỷ request với parent last-wins; parent
-          xếp hàng FIFO vẫn render các tháng đã phát theo thứ tự hàng đợi.
+          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng so với tháng đang hiển thị;
+          con trỏ giữ ngày tương ứng nhưng nhảy qua ngày bị vô hiệu hoá (chặn cuối tuần: 15/10
+          PageDown → 16/11). Không chốt ngày. Khi tháng mới render mà focus đang ở trong lưới — kể
+          cả khi parent tự điều hướng — focus theo ngày đó; tháng bị vô hiệu hoá toàn bộ thì focus
+          vào grid. Focus đã rời lưới (control khác, dialog parent mở trong onViewChange) thì giữ
+          nguyên.
         </li>
         <li>
           <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus; khi focus ở chính grid, chỉ

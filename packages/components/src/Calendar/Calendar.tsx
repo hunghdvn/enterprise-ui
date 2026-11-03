@@ -50,14 +50,20 @@ function nearestEnabled(
   return scanMonth(y, m, start, 1, isDisabled) ?? scanMonth(y, m, start, -1, isDisabled);
 }
 
-/** Day a month render settles on: the selection when it lives in that month, else the cursor day. */
+/**
+ * Day a month render settles on: the cursor when it already sits in that month, else the selection
+ * when it lives there, else the cursor's day-of-month (clamped, skipping disabled days).
+ */
 function settleDay(
   value: Date | null,
   cursor: Date,
   monthView: Date,
   isDisabled?: (d: Date) => boolean,
 ): Date | null {
-  const day = value && sameMonth(value, monthView) ? value.getDate() : cursor.getDate();
+  const day =
+    !sameMonth(cursor, monthView) && value && sameMonth(value, monthView)
+      ? value.getDate()
+      : cursor.getDate();
   return nearestEnabled(monthView.getFullYear(), monthView.getMonth(), day, isDisabled);
 }
 
@@ -69,22 +75,6 @@ function eventList(ev: ReactNode): ReactNode[] {
 
 /** Day that should receive focus once the commit carrying it lands. */
 type FocusIntent = { key: string; previousKey: string };
-
-/**
- * A chain of page-key months the parent has not finished rendering. It is the base for the next
- * press while the month it started from is still visible, so a parent that applies view changes
- * in a later commit does not collapse repeated keys into one month. `expected` scopes provenance
- * to this chain: any commit on one of those months is the parent applying it (even when the Date
- * was recreated), and the newest one completes the chain.
- */
-interface PageRequest {
-  /** Month visible when the chain's base was set; the chain only grows while it is still shown. */
-  from: Date;
-  /** Newest month a page key asked for; with a withdrawal, the month a FIFO parent may still drain. */
-  target: Date;
-  /** Month keys this chain emitted, oldest first. The last one completes it. */
-  expected: string[];
-}
 
 /** Whole event lines that fit each cell; the rest stay in the accessible description. Internal:
  *  the capacity is documented on the `events` prop rather than exported as API. */
@@ -151,13 +141,16 @@ export function Calendar({
     setInternalView((prev) => (sameMonth(prev, value) ? prev : monthStart(value)));
   }, [valueKey, value, view]);
 
-  // Reposition the cursor once a month change has actually rendered: a chevron, a page key or an
-  // external `view` all land here, while a controlled parent that rejects the change does not.
   /** Day that should receive focus once the commit carrying it lands. */
   const focusIntentRef = useRef<FocusIntent | null>(null);
-  /** The page request the parent has not rendered yet (if any). */
-  const pageRequestRef = useRef<PageRequest | null>(null);
+  /**
+   * The grid owns focus: a day or the grid itself holds it, or a render removed/disabled the day
+   * that held it. Moving to another control, the page or another window gives it up.
+   */
+  const gridOwnsFocusRef = useRef(false);
 
+  // Reposition the cursor once a month change has actually rendered: a chevron, a page key or an
+  // external `view` all land here, while a controlled parent that rejects the change does not.
   useEffect(() => {
     if (sameMonth(cursor, currentView)) return;
     // Keep the day-of-month so paging away and back never loses it; a selection in the month
@@ -219,25 +212,18 @@ export function Calendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursorTime, year, month]);
 
-  // A page key moves the view under a focused day. Once a month the chain asked for renders — a
-  // FIFO parent may render several, oldest first — put focus back into the grid unless the parent
-  // focused something of its own (a dialog opened from `onViewChange`). This is also how a page
-  // into a fully disabled month hands focus to the grid instead of leaving it on `<body>`. Runs
-  // after the focus effect so the announcement decision below sees the handoff. Depends on the
-  // view object too: a parent can apply a month on the same key without changing `monthKey`.
+  // A new month renders under a grid that owns focus — a page key, a request the parent applied
+  // later, or the parent navigating on its own. Keep focus in the grid on the day the cursor
+  // settles on, unless the parent focused something of its own (a dialog opened from
+  // `onViewChange`); the day that held focus may have unmounted with the old month, so `<body>`
+  // counts as lost. A fully disabled month hands focus to the grid itself. No provenance is
+  // needed: who changed the month does not matter, only that focus was ours. Keyed on the month,
+  // so a parent re-rendering the same month with a new Date is not a landing. Runs after the
+  // focus effect so the announcement decision below sees the handoff.
   useEffect(() => {
-    const request = pageRequestRef.current;
-    if (!request) return;
-    const key = monthKeyOf(currentView);
-    // Provenance is scoped to this chain and compared by month key, so a parent that stores
-    // `{year, month}` or clones the Date still acks; any other month is the parent navigating on
-    // its own and cancels the chain without inheriting its handoff.
-    if (!request.expected.includes(key)) {
-      pageRequestRef.current = null;
-      return;
-    }
-    // The newest month the chain asked for (or its withdrawal) completes it.
-    if (request.expected[request.expected.length - 1] === key) pageRequestRef.current = null;
+    if (!gridOwnsFocusRef.current) return;
+    // A keyboard day move carries its own destination; the focus effect lands it.
+    if (focusIntentRef.current) return;
     const grid = gridRef.current;
     if (!grid) return;
     const active = document.activeElement;
@@ -269,7 +255,7 @@ export function Calendar({
     // A grid that already held focus (two closed months in a row) must still speak the new month.
     focusNamesMonthRef.current = !alreadyFocused && ariaLabel === undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthKey, currentView]);
+  }, [monthKey]);
 
   const [monthAnnouncement, setMonthAnnouncement] = useState('');
   // Announce the month that is actually rendered (covers chevrons, Page keys and external `view`).
@@ -303,17 +289,9 @@ export function Calendar({
       ? cursor
       : nearestEnabled(year, month, cursor.getDate(), isDisabled);
 
-  const changeMonth = (target: Date) => {
-    // A chevron is a fresh navigation: it drops any queued page request. The month effect above
-    // moves the cursor after the new month has rendered; moving it here would also move it when
-    // a controlled parent rejects the change.
-    pageRequestRef.current = null;
-    setView(target);
-  };
-
   const setCursorIntent = (next: Date) => {
-    // A day move keeps a queued page (the parent may still apply it) and hands the focus effect
-    // the destination so it can follow the cursor even if the focused day re-rendered away.
+    // Hand the focus effect the destination so it can follow the cursor even if the focused day
+    // re-rendered away.
     if (next.getTime() === cursor.getTime()) return;
     focusIntentRef.current = { key: isoKey(next), previousKey: isoKey(cursor) };
     if (!sameMonth(next, currentView)) setView(monthStart(next));
@@ -326,51 +304,34 @@ export function Calendar({
   };
 
   /**
-   * PageUp/PageDown: move the view one month. The roving cursor keeps its day-of-month (clamped,
-   * skipping disabled days) and focus follows it once that month renders; the selection is
-   * untouched — Enter, click or an arrow key commits a day.
+   * PageUp/PageDown: ask for the month before/after the one on screen. The roving cursor keeps its
+   * day-of-month (clamped, skipping disabled days) and focus follows it once that month renders;
+   * the selection is untouched — Enter, click or an arrow key commits a day. Like the chevrons,
+   * a press is relative to the rendered month, the same contract as any controlled input: a
+   * parent that applies `view` later sees each press as a request for the month next to the one
+   * still shown.
    */
   const pageMonth = (delta: 1 | -1) => {
     // A page key is pressed inside the grid, so parking the cursor on the visible tab stop keeps
     // the day-of-month from a hidden disabled/off-month cursor day.
     const anchor = tabStop ?? cursor;
     if (anchor.getTime() !== cursor.getTime()) setCursor(anchor);
+    setView(new Date(year, month + delta, 1));
+  };
 
-    const request = pageRequestRef.current;
-    // Trust the queued target only while the parent has not rendered any month yet: once the
-    // visible month moves, the user is paging from what they see. A chain whose newest key is the
-    // withdrawal month (not its target) has been withdrawn and never grows from its target.
-    const newest = request?.expected[request.expected.length - 1];
-    const pending =
-      request && newest === monthKeyOf(request.target) && sameMonth(currentView, request.from)
-        ? request
-        : null;
-    const base = pending?.target ?? currentView;
-    const target = new Date(base.getFullYear(), base.getMonth() + delta, 1);
+  const handleGridFocus = () => {
+    gridOwnsFocusRef.current = true;
+  };
 
-    if (pending && sameMonth(target, currentView)) {
-      // Net zero: emit the visible month again so a last-wins parent can withdraw the queued one,
-      // and remember it as the chain's newest key because a FIFO parent drains the refused months
-      // first: the landing handoff must survive them instead of dropping focus on `<body>`.
-      pageRequestRef.current = {
-        ...pending,
-        expected: [...pending.expected, monthKeyOf(currentView)],
-      };
-      setView(monthStart(currentView));
-      return;
-    }
-
-    const targetKey = monthKeyOf(target);
-    pageRequestRef.current = pending
-      ? { ...pending, target, expected: [...pending.expected, targetKey] }
-      : {
-          from: currentView,
-          target,
-          // Keep what an earlier chain already asked for: a FIFO parent may still drain those
-          // months after this new press, and they are ours, not external navigation.
-          expected: [...(request?.expected ?? []), targetKey],
-        };
-    setView(target);
+  const handleGridBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget;
+    if (next && e.currentTarget.contains(next)) return;
+    // Focus that leaves for nowhere because a render removed or disabled the focused day is still
+    // the grid's to hand back; a blur to another control, the page or the window is the user's.
+    const from = e.target;
+    const lostToRender = !from.isConnected || (from instanceof HTMLButtonElement && from.disabled);
+    if (next === null && lostToRender) return;
+    gridOwnsFocusRef.current = false;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -470,7 +431,7 @@ export function Calendar({
           type="button"
           className={styles.nav}
           aria-label="Tháng trước"
-          onClick={() => changeMonth(new Date(year, month - 1, 1))}
+          onClick={() => setView(new Date(year, month - 1, 1))}
         >
           <Icon name="chevron-left" size={14} />
         </button>
@@ -484,7 +445,7 @@ export function Calendar({
           type="button"
           className={styles.nav}
           aria-label="Tháng sau"
-          onClick={() => changeMonth(new Date(year, month + 1, 1))}
+          onClick={() => setView(new Date(year, month + 1, 1))}
         >
           <Icon name="chevron-right" size={14} />
         </button>
@@ -497,6 +458,8 @@ export function Calendar({
         aria-labelledby={ariaLabel ? undefined : monthLabelId}
         tabIndex={tabStop ? -1 : 0}
         onKeyDown={handleKeyDown}
+        onFocus={handleGridFocus}
+        onBlur={handleGridBlur}
       >
         <div className={styles['weekday-row']} role="row">
           {WEEKDAYS.map((w) => (
@@ -546,8 +509,6 @@ export function Calendar({
                     )}
                     onClick={() => {
                       if (!disabled) {
-                        // A click is a direct selection; a queued page request stays for its
-                        // landing handoff.
                         setCursor(date);
                         onChange?.(date);
                       }

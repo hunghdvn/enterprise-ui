@@ -12,10 +12,10 @@ export interface CalendarProps {
   view?: Date;
   /**
    * Called with the first day of the month when the user asks to change it: chevrons, Page keys,
-   * or an arrow crossing a month boundary (which also commits its day through `onChange`). A
-   * parent that renders one of the months the calendar asked for acks the request (the Date may
-   * be recreated); rendering any other month cancels it. A page round trip that withdraws a
-   * queued month re-emits the visible one so a last-wins parent can cancel the request.
+   * or an arrow crossing a month boundary (which also commits its day through `onChange`). Each
+   * request is relative to the month currently rendered, as with any controlled input: a parent
+   * that applies `view` later sees every press made before it renders ask for the same
+   * neighbouring month.
    */
   onViewChange?: (view: Date) => void;
   /**
