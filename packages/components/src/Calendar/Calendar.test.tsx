@@ -12,6 +12,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/**
+ * jsdom has no PointerEvent, so `fireEvent.pointerDown` falls back to a plain Event and drops
+ * `button`. A MouseEvent subclass gives the calendar's pointer listener the real shape.
+ */
+class TestPointerEvent extends MouseEvent {
+  readonly pointerType: string;
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerType = init.pointerType ?? 'mouse';
+  }
+}
+const nativePointerEvent = Object.getOwnPropertyDescriptor(window, 'PointerEvent');
+beforeAll(() => {
+  if (!nativePointerEvent) {
+    Object.defineProperty(window, 'PointerEvent', { value: TestPointerEvent, configurable: true });
+  }
+});
+afterAll(() => {
+  if (!nativePointerEvent) Reflect.deleteProperty(window, 'PointerEvent');
+});
+
 /** Text of the month heading the grid is labelled by (the status region repeats the month). */
 function monthHeading(): string {
   const grid = screen.getByRole('grid');
@@ -652,18 +673,30 @@ function TimedRouterCalendar({
   isDisabled?: (date: Date) => boolean;
 }) {
   const [view, setView] = useState(new Date(2026, 9, 1));
+  const [steps, setSteps] = useState(0);
   useEffect(() => {
-    const timers = route.map((month, i) => setTimeout(() => setView(month), (i + 1) * 1000));
+    const timers = route.map((month, i) =>
+      setTimeout(
+        () => {
+          setView(month);
+          setSteps(i + 1);
+        },
+        (i + 1) * 1000,
+      ),
+    );
     return () => timers.forEach(clearTimeout);
   }, [route]);
   return (
-    <Calendar
-      value={OCT_31}
-      onChange={() => {}}
-      view={view}
-      onViewChange={setView}
-      isDisabled={isDisabled}
-    />
+    <>
+      <span data-testid="route-steps">{steps}</span>
+      <Calendar
+        value={OCT_31}
+        onChange={() => {}}
+        view={view}
+        onViewChange={setView}
+        isDisabled={isDisabled}
+      />
+    </>
   );
 }
 
@@ -739,6 +772,9 @@ test('a same-month re-render with a new Date moves no focus', () => {
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(moves).toEqual([]);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-24');
+  // The press did ask for December: it lands a second later.
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
 });
 
 test('each month a parent renders while the grid holds focus keeps focus in the grid', () => {
@@ -762,6 +798,8 @@ test('a parent that renders the same month again moves no focus', () => {
   advance(1000);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
   expect(focusMoves(() => advance(1000))).toEqual([]);
+  // The router did apply the second November.
+  expect(screen.getByTestId('route-steps')).toHaveTextContent(/^2$/);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
@@ -841,6 +879,58 @@ function disableFocusedDay() {
   // focusout by hand. Losing focus this way is the render's doing, not the user leaving the grid.
   fireEvent.focusOut(cell);
 }
+
+/**
+ * Models Chromium around a day disabled under focus: the commit's `disabled` write blurs the
+ * focused node, and focus() on a disabled button does nothing (so React cannot restore it). Focus
+ * ends on <body> while the grid still owns it; jsdom alone would keep focus on the disabled
+ * button. Call the returned function to undo both patches.
+ */
+function blurOnDisable(): () => void {
+  const setAttribute = Element.prototype.setAttribute;
+  const focus = HTMLElement.prototype.focus;
+  const attr = vi.spyOn(Element.prototype, 'setAttribute').mockImplementation(function (
+    this: Element,
+    name: string,
+    value: string,
+  ) {
+    if (name === 'disabled' && this === document.activeElement) (this as HTMLElement).blur();
+    setAttribute.call(this, name, value);
+  });
+  const refuse = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    if (this instanceof HTMLButtonElement && this.disabled) return;
+    focus.call(this, options);
+  });
+  return () => {
+    attr.mockRestore();
+    refuse.mockRestore();
+  };
+}
+
+test('focus entering another control gives up focus kept through a disabled day', () => {
+  vi.useFakeTimers();
+  const restore = blurOnDisable();
+  try {
+    const { rerender } = render(<TimedRouterCalendar route={TO_NOV} />);
+    day(OCT_31).focus();
+    rerender(
+      <TimedRouterCalendar route={TO_NOV} isDisabled={(d) => d.getTime() === OCT_31.getTime()} />,
+    );
+    expect(document.activeElement).toBe(document.body);
+    // From <body> there is no grid blur left to see: only the focusin on the next control tells.
+    const chevron = screen.getByRole('button', { name: 'Tháng trước' });
+    chevron.focus();
+    chevron.blur();
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toBe(document.body);
+  } finally {
+    restore();
+  }
+});
 
 test('a day disabled under focus does not make the grid give up focus', () => {
   disableFocusedDay();
@@ -923,7 +1013,7 @@ test('a parent that snaps the arrow selection moves focus to the day that won', 
   expect(document.activeElement).toHaveAttribute('data-date', '2026-10-20');
 });
 
-test('a move a parent snaps back to its starting day leaves no intent to mute the next month', () => {
+test('a move a parent snaps back to its starting day does not mute the next month', () => {
   function Harness() {
     const [value, setValue] = useState<Date | null>(new Date(2026, 9, 10));
     return (
@@ -947,8 +1037,71 @@ test('a move a parent snaps back to its starting day leaves no intent to mute th
   const next = screen.getByRole('button', { name: 'Tháng sau' });
   next.focus();
   fireEvent.click(next);
-  // November is closed, so the cursor stays put; a leftover intent would mute this message.
+  // November is closed, so the cursor stays put; the month must still be announced.
   expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 11 năm 2026');
+});
+
+test('a parent that drops focus in onChange keeps it dropped', () => {
+  function Harness() {
+    const [value, setValue] = useState<Date | null>(new Date(2026, 9, 10));
+    return (
+      <Calendar
+        value={value}
+        // The parent refuses the 16th, keeps the 15th and takes focus off the calendar.
+        onChange={(d) => {
+          if (d.getDate() !== 16) return;
+          (document.activeElement as HTMLElement | null)?.blur();
+          setValue(new Date(2026, 9, 15));
+        }}
+      />
+    );
+  }
+  render(<Harness />);
+  const cell = day(new Date(2026, 9, 15));
+  cell.focus();
+  fireEvent.click(cell);
+  fireEvent.keyDown(cell, { key: 'ArrowRight' });
+  expect(document.activeElement).toBe(document.body);
+});
+
+test('a pointer press inside the grid keeps grid ownership', () => {
+  vi.useFakeTimers();
+  render(<TimedRouterCalendar route={TO_NOV} />);
+  day(OCT_31).focus();
+  // A press on a blank cell is still inside the grid (the browser's own blur, if any, is judged
+  // by the grid's blur handler, not by this press).
+  const blank = screen
+    .getByRole('grid')
+    .querySelector<HTMLElement>('[role="gridcell"][aria-hidden="true"]');
+  expect(blank).not.toBeNull();
+  fireEvent.pointerDown(blank as HTMLElement);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+test('a landing whose focus call does not take still announces the month', () => {
+  vi.useFakeTimers();
+  const focus = HTMLElement.prototype.focus;
+  // An inert or hidden ancestor makes focus() a no-op; jsdom has no inert, so model it on 30/11.
+  const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    if (this.dataset.date === '2026-11-30') return;
+    focus.call(this, options);
+  });
+  try {
+    render(<TimedRouterCalendar route={TO_NOV} />);
+    day(OCT_31).focus();
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toBe(document.body);
+    // No day label was read, so the live region must name the month.
+    expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 11 năm 2026');
+  } finally {
+    spy.mockRestore();
+  }
 });
 
 test('a parent that clones the view Date still gets the landing handoff', () => {
@@ -1908,5 +2061,3 @@ test('a parent onFocus stopPropagation does not hide grid ownership', () => {
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
-
-

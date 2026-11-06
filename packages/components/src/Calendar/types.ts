@@ -10,7 +10,8 @@ export interface CalendarProps {
   onChange?: (date: Date) => void;
   /**
    * Viewed month (controlled). Defaults to value's month or today. While the grid holds keyboard
-   * focus, a newly rendered month — from the user or from the parent — moves focus to its day.
+   * focus, a newly rendered month — from the user or from the parent — moves focus to the day the
+   * cursor settles on, or to the grid when that month has no enabled day.
    */
   view?: Date;
   /**
@@ -19,6 +20,7 @@ export interface CalendarProps {
    * request is relative to the month currently rendered, as with any controlled input: if the
    * parent applies `view` later, repeated presses before it renders ask for the same neighbouring
    * month, and a press the other way asks for the month on the other side (it cancels nothing).
+   * Arrow keys and Home/End likewise start from the day shown in the grid.
    */
   onViewChange?: (view: Date) => void;
   /**
