@@ -3,7 +3,11 @@ import type { ReactNode } from 'react';
 /** Route-level statuses the template ships defaults for. */
 export type ErrorStatus = 403 | 404 | 500;
 
-/** Landmark wrapper for the page content. Use `div` when the page already has a `main`. */
+/**
+ * Landmark wrapper for the page content. Default `main` is right for a standalone route and
+ * for AppShell (its content area is a plain `div`). Use `div` only when the page already
+ * renders its own `main` (the docs), and `section` for a named region inside a longer page.
+ */
 export type ErrorPageLandmark = 'main' | 'div' | 'section';
 
 export interface ErrorPageProps {
@@ -23,7 +27,11 @@ export interface ErrorPageProps {
   actions?: ReactNode;
   /** Heading level (default 1; use 3 inside a modal whose title is already an h2). */
   level?: 1 | 2 | 3;
-  /** Wrapper element; default `main`. */
+  /**
+   * Wrapper element; default `main`. Keep `main` inside AppShell — its content area is a
+   * `div`, so the page would otherwise lose its main landmark. Use `div` only when the page
+   * already renders its own `main` (the docs demos), `section` for a named region.
+   */
   as?: ErrorPageLandmark;
   /**
    * Fill the viewport height (default true); set false when embedding in a page or modal.

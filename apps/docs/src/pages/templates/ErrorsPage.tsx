@@ -49,7 +49,7 @@ const errorProps: PropDoc[] = [
     type: "'main' | 'div' | 'section'",
     default: "'main'",
     description:
-      'Landmark của trang, được đặt aria-labelledby trỏ tới tiêu đề nên section cũng thành region. Dùng div khi trang đã có main (docs, app shell) để tránh nhiều main.',
+      'Landmark của trang. Mặc định main đúng cho route độc lập và cho AppShell (vùng nội dung của AppShell là div, nên giữ main mới có landmark). Chỉ dùng div khi trang đã tự render main (các demo docs), section khi cần một region có tên trong trang dài. Chỉ main/section được đặt aria-labelledby trỏ tới tiêu đề — div là generic nên ARIA 1.2 cấm thuộc tính này.',
   },
   {
     name: 'fill',
@@ -152,10 +152,12 @@ export default function ErrorsPage() {
         </div>
       </DemoPlayground>
       <p className={styles.note}>
-        Cả ba demo dùng as=&quot;div&quot; và fill=&#123;false&#125; vì trang docs đã có một main và
-        khung preview tự quản chiều cao. Với route độc lập (không có header) để mặc định fill; bên
-        trong AppShell hoặc modal luôn truyền fill=&#123;false&#125; — 100dvh nằm dưới header sẽ
-        luôn sinh scrollbar.
+        Cả ba demo dùng as=&quot;div&quot; và fill=&#123;false&#125; vì trang docs đã tự render một
+        main, và khung preview tự quản chiều cao. Với route độc lập (không header) để mặc định
+        as=&quot;main&quot; + fill. Bên trong AppShell thì giữ nguyên as=&quot;main&quot; (vùng nội
+        dung của AppShell là div, đổi sang div sẽ mất landmark) và chỉ truyền fill=&#123;false&#125;
+        — 100dvh nằm dưới header luôn sinh scrollbar. Modal cũng dùng fill=&#123;false&#125;, và
+        level=&#123;3&#125; nếu tiêu đề modal đã là h2.
       </p>
       <h2 className={styles.sectionTitle}>Code</h2>
       <CodeBlock code={code} />

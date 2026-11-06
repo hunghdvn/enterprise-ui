@@ -78,12 +78,14 @@ Behavior:
 - An unsupported `status` (e.g. `502` arriving from an API through a cast) falls
   back to the 500 defaults instead of throwing: a fallback page that crashes
   takes the route or the error boundary with it.
-- The root exposes `data-status` and `data-fill`; the numeric code is real text
-  (not CSS content), so it can be read, selected and copied.
-- The heading carries a `useId()` id and the root points `aria-labelledby` at
-  it, so `as="section"` becomes a named `region` landmark instead of an
-  unnamed `<section>` that screen readers skip in landmark navigation. This is
-  harmless on `main`.
+- The root exposes `data-status`, `data-tone` and `data-fill`; the numeric code is
+  real text (not CSS content), so it can be read, selected and copied.
+- The heading carries a `useId()` id and the root points `aria-labelledby` at it
+  **only when the wrapper is a landmark that can carry a name** (`main`/`section`),
+  so `as="section"` becomes a named `region` landmark instead of an unnamed
+  `<section>` that screen readers skip. On `as="div"` the attribute is omitted: a
+  `<div>` with no role is `generic`, and ARIA 1.2 prohibits `aria-labelledby`
+  there (axe `aria-prohibited-attr`).
 - `title` falls back to the status default when it is null/empty/`true`.
   `description` uses the default only when the prop is `undefined`; `null`/`''`
   hides the paragraph. `icon` uses the default only when `undefined`; `null`
@@ -93,10 +95,13 @@ Behavior:
   renders no wrapper with its top margin. The component never invents a "retry"
   or "go home" action; the caller decides which recovery actions exist.
 - `as` defaults to `'main'` and `level` to `1`. `as="div" | "section"` drops the
-  main landmark when embedded. `fill` defaults to true (`min-height: 100dvh`);
-  `fill={false}` lets the caller size the frame. Inside AppShell or any layout
-  that already renders a header, pass `fill={false}`: a `100dvh` root under a
-  header always scrolls.
+  main landmark when embedded. `main` is correct both for a standalone route and
+  for AppShell — AppShell's content area is a plain `div`, so switching to `div`
+  there would leave the page with no main landmark at all; the docs pass `div`
+  only because the docs page renders its own `<main>`. `fill` defaults to true
+  (`min-height: 100dvh`); `fill={false}` lets the caller size the frame. Inside
+  AppShell or any layout that already renders a header, pass `fill={false}`: a
+  `100dvh` root under a header always scrolls.
 - `.root` is `box-sizing: border-box` and carries the padding. Without it the
   default full-page error is `100dvh + 64px` tall and always shows a
   scrollbar; the inline axis overflows by 40px once a caller sets a width.
@@ -105,17 +110,22 @@ Behavior:
   shrink-to-fit parent (inline-block, a flex item without a width, an absolutely
   positioned box without a width) must give it an explicit width; normal block
   and grid/flex-stretch parents need nothing.
-- The status code and icon use `--action-text`; `status={500}` switches them to
-  `--danger-emphasis` (light `#dc2626`, dark `#f87171`). Meaning is always
-  carried by the code and title text too, never by colour alone.
+- The status code and icon use `--action-text`; the danger cue is driven by
+  `data-tone="danger"`, set for `status={500}` **and** for the unsupported-status
+  fallback path, so a 502 shows the 500 copy with the 500 colour instead of
+  informational blue. Danger uses `--danger-emphasis` (light `#dc2626`, dark
+  `#f87171`). Meaning is always carried by the code and title text too, never by
+  colour alone.
 
 ## 5. A11y
 
 - One `h1` by default (`level={2}` under a page heading, `level={3}` inside a
   modal whose title is already an `h2`); the docs page owns the single `<main>`
   and mounts each demo with `as="div"`.
-- The root is labelled by the heading (`aria-labelledby` + `useId`), so
-  `as="section"` is a named `region` rather than an unnamed section.
+- The root is labelled by the heading (`aria-labelledby` + `useId`) on `main`
+  and `section`, so `as="section"` is a named `region` rather than an unnamed
+  section; the attribute is omitted on `as="div"` because ARIA 1.2 prohibits it
+  on a `generic` element.
 - The icon is decorative (`aria-hidden` via `Icon`); the status code is exposed
   as text before the heading, so assistive tech hears "404" then the title.
 - No `role="alert"`/live region: a route-level error is navigation, not an
@@ -131,14 +141,17 @@ Behavior:
 
 - `ErrorPage.test.tsx`: each status renders its default code/title/description
   and `data-icon`; unsupported status falls back to 500; icon is `aria-hidden`;
-  no alert role; wrapper is labelled by the heading; title/description/icon
+  no alert role; wrapper is labelled by the heading on `main`/`section` and has
+  no `aria-labelledby`/`aria-label` on `as="div"`; title/description/icon
   overrides; `description=""`/`null` and `icon={null}` remove the wrappers
   (`querySelectorAll('p')` is just the code, no `[data-icon]`); `title` null,
   `''` and `true` all fall back; actions render only when present and an empty
   array renders no wrapper; `level` 2 and 3; `as="div"` drops main; `fill` data
   hook plus the `min-height` declaration; `.root` is `border-box`; container
-  query instead of media query; 500 uses `--danger-emphasis` on both `.icon` and
-  `.code`, other statuses use `--action-text`.
+  query instead of media query; `data-tone` is `danger` for 500 and for the
+  unsupported-status fallback, `info` for 403/404; the danger rule uses
+  `--danger-emphasis` on both `.icon` and `.code`, other statuses use
+  `--action-text`.
 - `internal/isPresent.test.ts`: `true` and `[]` are absent, a non-empty array is
   present.
 - Docs page: three tabs render 403 / 404 / 500 compositions; one code snippet

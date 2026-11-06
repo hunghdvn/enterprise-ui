@@ -50,6 +50,9 @@ export function ErrorPage({
   const Title = HEADING[level];
   const Landmark = as;
   const headingId = useId();
+  // Keyed on the resolved copy, not the raw status: a 502 gets the 500 title and must
+  // therefore get the 500 danger cue too.
+  const danger = status === 500 || DEFAULTS[status] === undefined;
   const resolvedTitle = isPresent(title) ? title : defaults.title;
   // Only `undefined` means "use the default"; null/'' deliberately hides the paragraph.
   const resolvedDescription = description === undefined ? defaults.description : description;
@@ -58,9 +61,11 @@ export function ErrorPage({
   return (
     <Landmark
       className={cx(styles.root, className)}
-      // A bare <section> is not a landmark; naming it turns it into a region.
-      aria-labelledby={headingId}
+      // A bare <section> is not a landmark; naming it turns it into a region. A `div`
+      // has no role, and ARIA 1.2 prohibits aria-labelledby on role=generic.
+      aria-labelledby={as === 'div' ? undefined : headingId}
       data-status={status}
+      data-tone={danger ? 'danger' : 'info'}
       data-fill={fill ? 'true' : 'false'}
     >
       <div className={styles.inner}>

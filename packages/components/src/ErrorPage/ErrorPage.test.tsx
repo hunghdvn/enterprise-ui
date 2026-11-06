@@ -65,6 +65,39 @@ test('the heading is the label of the wrapper landmark', () => {
   );
 });
 
+test('as="div" is a generic element, so it carries no aria-labelledby', () => {
+  // ARIA 1.2 prohibits aria-label/aria-labelledby on role=generic; axe flags it
+  // as `aria-prohibited-attr`. This is the recommended embedded usage.
+  const { container, rerender } = render(<ErrorPage status={404} as="div" />);
+
+  const root = container.firstElementChild as HTMLElement;
+  expect(root.tagName).toBe('DIV');
+  expect(root).not.toHaveAttribute('aria-labelledby');
+  expect(root).not.toHaveAttribute('aria-label');
+  // The heading keeps its id; only the wrapper stops pointing at it.
+  expect(screen.getByRole('heading')).toHaveAttribute('id');
+
+  rerender(<ErrorPage status={404} as="section" />);
+  expect(container.firstElementChild).toHaveAttribute('aria-labelledby');
+  expect(screen.getByRole('region', { name: 'Không tìm thấy trang' })).toBeInTheDocument();
+});
+
+test('the danger cue follows the resolved copy, not the raw status', () => {
+  const { container, rerender } = render(<ErrorPage status={403} />);
+  expect(container.firstElementChild).toHaveAttribute('data-tone', 'info');
+
+  rerender(<ErrorPage status={404} />);
+  expect(container.firstElementChild).toHaveAttribute('data-tone', 'info');
+
+  rerender(<ErrorPage status={500} />);
+  expect(container.firstElementChild).toHaveAttribute('data-tone', 'danger');
+
+  // A 502 falls back to the 500 copy, so it must not stay informational blue.
+  rerender(<ErrorPage status={502 as never} />);
+  expect(container.firstElementChild).toHaveAttribute('data-status', '502');
+  expect(container.firstElementChild).toHaveAttribute('data-tone', 'danger');
+});
+
 test('overrides the copy, icon and actions and merges className', () => {
   const onClick = vi.fn();
   const { container } = render(
@@ -179,9 +212,9 @@ test('500 uses the theme-aware danger cue; 403/404 stay informational', () => {
   expect(cssRule(base, '.icon')).toContain('var(--action-text)');
   expect(cssRule(base, '.code')).toContain('var(--action-text)');
 
-  // Read the shared body of the 500 selector list and assert the status code is covered too —
-  // the icon alone turning red would leave the number in the informational blue.
-  const danger = cssRule(css, ".root[data-status='500'] .code");
+  // Read the shared body of the danger selector list and assert the status code is covered
+  // too — the icon alone turning red would leave the number in the informational blue.
+  const danger = cssRule(css, ".root[data-tone='danger'] .code");
   expect(danger).toContain('var(--danger-emphasis)');
-  expect(cssRule(css, ".root[data-status='500'] .icon")).toBe(danger);
+  expect(cssRule(css, ".root[data-tone='danger'] .icon")).toBe(danger);
 });

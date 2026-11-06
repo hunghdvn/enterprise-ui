@@ -81,9 +81,10 @@
   margin-top: 8px;
 }
 
-/* Only the server error uses the danger cue; 403/404 are informational. */
-.root[data-status='500'] .icon,
-.root[data-status='500'] .code {
+/* Only the server error uses the danger cue; 403/404 are informational. Driven by
+   the resolved tone, so an unsupported status that falls back to 500 copy is red too. */
+.root[data-tone='danger'] .icon,
+.root[data-tone='danger'] .code {
   color: var(--danger-emphasis);
 }
 
