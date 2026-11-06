@@ -73,8 +73,8 @@ function eventList(ev: ReactNode): ReactNode[] {
   return list.filter((item) => item != null && item !== false && item !== true && item !== '');
 }
 
-/** Day that should receive focus once the commit carrying it lands. */
-type FocusIntent = { key: string; previousKey: string };
+/** A keyboard move in flight: focus follows the cursor once it has left `previousKey`. */
+type FocusIntent = { previousKey: string };
 
 /** Whole event lines that fit each cell; the rest stay in the accessible description. Internal:
  *  the capacity is documented on the `events` prop rather than exported as API. */
@@ -123,15 +123,20 @@ export function Calendar({
   const total = daysInMonth(year, month);
 
   const [cursor, setCursor] = useState<Date>(() => startOfDay(value ?? new Date()));
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Follow a new selection in the render that brings it rather than in an effect one commit
+  // later, so no commit pairs the new `value` with a stale cursor (a month landing would focus
+  // the stale day first and then move again). Keyed on the day, not the object, so a parent that
+  // re-creates `value` on every render does not reset the cursor after each page or arrow.
+  const valueKey = value ? isoKey(value) : '';
+  const [cursorValueKey, setCursorValueKey] = useState(valueKey);
+  if (cursorValueKey !== valueKey) {
+    setCursorValueKey(valueKey);
     if (value) setCursor(startOfDay(value));
-  }, [value]);
+  }
 
   // Follow an external selection: a new `value` brings its month into view (unless the view is
   // controlled). Guarding on the day key — not the object identity — keeps a parent that
   // re-creates `value` on every render from yanking the viewer back after paging.
-  const valueKey = value ? isoKey(value) : '';
   const lastValueKeyRef = useRef(valueKey);
   useEffect(() => {
     if (lastValueKeyRef.current === valueKey) return;
@@ -141,20 +146,50 @@ export function Calendar({
     setInternalView((prev) => (sameMonth(prev, value) ? prev : monthStart(value)));
   }, [valueKey, value, view]);
 
-  /** Day that should receive focus once the commit carrying it lands. */
+  /** A keyboard move whose cursor commit has not landed yet. */
   const focusIntentRef = useRef<FocusIntent | null>(null);
   /**
-   * The grid owns focus: a day or the grid itself holds it, or a render removed/disabled the day
-   * that held it. Moving to another control, the page or another window gives it up.
+   * Bumped with every keyboard move so the focus effect runs in the commit that carries it, even
+   * when a parent's snap leaves the cursor on the day it started from.
+   */
+  const [moveCount, setMoveCount] = useState(0);
+  /**
+   * Whether keyboard focus belongs to the grid. Focus entering the grid sets it. It survives the
+   * focused day unmounting with its month or being disabled under focus, so the landing below can
+   * hand focus back. Any sign the user went elsewhere gives it up: focus entering another element,
+   * a blur to the page (`handleGridBlur`), a pointer press outside the grid, or the window losing
+   * focus.
    */
   const gridOwnsFocusRef = useRef(false);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const inGrid = (target: EventTarget | null) => target instanceof Node && grid.contains(target);
+    const onFocusIn = (e: FocusEvent) => {
+      gridOwnsFocusRef.current = inGrid(e.target);
+    };
+    const onPointerDown = (e: Event) => {
+      if (!inGrid(e.target)) gridOwnsFocusRef.current = false;
+    };
+    const onWindowBlur = () => {
+      gridOwnsFocusRef.current = false;
+    };
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('blur', onWindowBlur);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('blur', onWindowBlur);
+    };
+  }, []);
 
   // Reposition the cursor once a month change has actually rendered: a chevron, a page key or an
   // external `view` all land here, while a controlled parent that rejects the change does not.
   useEffect(() => {
     if (sameMonth(cursor, currentView)) return;
-    // Keep the day-of-month so paging away and back never loses it; a selection in the month
-    // being shown wins (view and value set together).
+    // Keep the day-of-month so paging away and back never loses it, unless the selection lives
+    // in the month being shown (see `settleDay`).
     const next = settleDay(value, cursor, currentView, isDisabled);
     // A fully disabled month has no focusable day: leave the cursor (and its day-of-month)
     // where it is and let `tabStop` fall back to the grid instead of clamping into it.
@@ -175,21 +210,15 @@ export function Calendar({
     const intent = focusIntentRef.current;
     const cursorKey = isoKey(cursor);
 
-    let target: string | null = null;
+    let followMove = false;
     if (intent) {
-      if (intent.key === cursorKey) {
-        focusIntentRef.current = null;
-        target = intent.key;
-      } else if (cursorKey === intent.previousKey) {
-        // A parent can render the new `view` before the cursor update that carries the intent
-        // (flushSync, a sync external store); keep it for the next commit.
-        return;
-      } else {
-        // The cursor settled on another day (a parent snapped/clamped the selection). Follow
-        // the day that actually won instead of leaving an intent that mutes every later month.
-        focusIntentRef.current = null;
-        target = cursorKey;
-      }
+      // A parent can render the crossing month before the cursor update that carries the move
+      // (flushSync, a sync external store): the cursor still sits outside it, so wait one commit.
+      if (cursorKey === intent.previousKey && !sameMonth(cursor, currentView)) return;
+      // Otherwise the move is settled — on the requested day, or on whatever day a parent
+      // snapped the selection to (even back to the start) — and focus follows the day that won.
+      focusIntentRef.current = null;
+      followMove = true;
     }
     // Honour focus moves requested by keyboard navigation; otherwise only follow the cursor
     // while focus already lives in the grid, so external value changes never steal it. `body`
@@ -197,9 +226,9 @@ export function Calendar({
     // focus on another control (a chevron, a dialog) is left alone.
     const active = document.activeElement;
     const focusInside = grid.contains(active);
-    if (!focusInside && target === null) return;
+    if (!focusInside && !followMove) return;
     if (!focusInside && active !== null && active !== document.body) return;
-    const el = grid.querySelector<HTMLButtonElement>(`[data-date="${target ?? cursorKey}"]`);
+    const el = grid.querySelector<HTMLButtonElement>(`[data-date="${cursorKey}"]`);
     if (el && !el.disabled) {
       const alreadyFocused = document.activeElement === el;
       el.focus({ preventScroll: true });
@@ -210,7 +239,7 @@ export function Calendar({
     // The flag is true only when this effect really moved focus to a day (or followed a keyboard
     // move into one); focus staying on the grid leaves it false so the month is still announced.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursorTime, year, month]);
+  }, [cursorTime, year, month, moveCount]);
 
   // A new month renders under a grid that owns focus — a page key, a request the parent applied
   // later, or the parent navigating on its own. Keep focus in the grid on the day the cursor
@@ -245,15 +274,17 @@ export function Calendar({
     if (active !== document.body && !grid.contains(active)) return;
     if (targetEl) {
       targetEl.focus({ preventScroll: true });
-      // A real focus move reads the day label, which already names the month.
-      focusNamesMonthRef.current = true;
+      // A real focus move reads the day label, which already names the month; a focus call that
+      // did not take (an inert or hidden ancestor) must leave the month status to speak.
+      focusNamesMonthRef.current = document.activeElement === targetEl;
       return;
     }
     // A fully disabled month has no day to focus: the grid itself is the only tab stop left.
     const alreadyFocused = active === grid;
     grid.focus({ preventScroll: true });
     // A grid that already held focus (two closed months in a row) must still speak the new month.
-    focusNamesMonthRef.current = !alreadyFocused && ariaLabel === undefined;
+    focusNamesMonthRef.current =
+      !alreadyFocused && document.activeElement === grid && ariaLabel === undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthKey]);
 
@@ -293,7 +324,8 @@ export function Calendar({
     // Hand the focus effect the destination so it can follow the cursor even if the focused day
     // re-rendered away.
     if (next.getTime() === cursor.getTime()) return;
-    focusIntentRef.current = { key: isoKey(next), previousKey: isoKey(cursor) };
+    focusIntentRef.current = { previousKey: isoKey(cursor) };
+    setMoveCount((n) => n + 1);
     if (!sameMonth(next, currentView)) setView(monthStart(next));
     setCursor(next);
   };
@@ -304,12 +336,12 @@ export function Calendar({
   };
 
   /**
-   * PageUp/PageDown: ask for the month before/after the one on screen. The roving cursor keeps its
-   * day-of-month (clamped, skipping disabled days) and focus follows it once that month renders;
-   * the selection is untouched — Enter, click or an arrow key commits a day. Like the chevrons,
-   * a press is relative to the rendered month, the same contract as any controlled input: a
-   * parent that applies `view` later sees each press as a request for the month next to the one
-   * still shown.
+   * PageUp/PageDown: ask for the month before/after the one on screen. Once that month renders
+   * the cursor settles on the same day-of-month (clamped, skipping disabled days) — or on the
+   * selection when it lives there — and focus follows it; the selection is untouched: Enter,
+   * click or an arrow key commits a day. Like the chevrons, a press is relative to the rendered
+   * month, the same contract as any controlled input: a parent that applies `view` later sees
+   * each press as a request for the month next to the one still shown, in that press's direction.
    */
   const pageMonth = (delta: 1 | -1) => {
     // A page key is pressed inside the grid, so parking the cursor on the visible tab stop keeps
@@ -319,18 +351,16 @@ export function Calendar({
     setView(new Date(year, month + delta, 1));
   };
 
-  const handleGridFocus = () => {
-    gridOwnsFocusRef.current = true;
-  };
-
+  /**
+   * A blur from the grid to the page. Chromium blurs a focused day while a commit removes or
+   * disables it, with the node still connected at that moment; React drops the focus events its
+   * own commit fires, so those never reach this handler. A blur outside a render does.
+   */
   const handleGridBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    const next = e.relatedTarget;
-    if (next && e.currentTarget.contains(next)) return;
-    // Focus that leaves for nowhere because a render removed or disabled the focused day is still
-    // the grid's to hand back; a blur to another control, the page or the window is the user's.
-    const from = e.target;
-    const lostToRender = !from.isConnected || (from instanceof HTMLButtonElement && from.disabled);
-    if (next === null && lostToRender) return;
+    // A move to another element is settled by that element's focusin.
+    if (e.relatedTarget) return;
+    // A browser that blurs a disabled day after the commit is still the render's doing.
+    if (e.target instanceof HTMLButtonElement && e.target.disabled) return;
     gridOwnsFocusRef.current = false;
   };
 
@@ -458,7 +488,6 @@ export function Calendar({
         aria-labelledby={ariaLabel ? undefined : monthLabelId}
         tabIndex={tabStop ? -1 : 0}
         onKeyDown={handleKeyDown}
-        onFocus={handleGridFocus}
         onBlur={handleGridBlur}
       >
         <div className={styles['weekday-row']} role="row">

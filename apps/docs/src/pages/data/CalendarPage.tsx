@@ -17,13 +17,13 @@ const props: PropDoc[] = [
     name: 'view',
     type: 'Date',
     description:
-      'Tháng đang xem (controlled). Mặc định theo value hoặc hôm nay; parent phải áp onViewChange thì tháng mới đổi.',
+      'Tháng đang xem (controlled). Mặc định theo value hoặc hôm nay; parent phải áp onViewChange thì tháng mới đổi. Khi lưới đang giữ focus, tháng mới render — kể cả do parent tự điều hướng — chuyển focus sang ngày tương ứng (xem Keyboard).',
   },
   {
     name: 'onViewChange',
     type: '(view: Date) => void',
     description:
-      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc mũi tên vượt ranh giới (mũi tên vượt tháng cũng chốt ngày qua onChange). view bên ngoài không phát callback này. Mọi yêu cầu tính từ tháng đang render, như mọi input controlled: parent áp view trễ (router, transition) thì các lần bấm trước khi tháng mới render đều xin cùng một tháng kế bên.',
+      'Gọi với ngày đầu tháng khi người dùng đổi tháng: chevron, PageUp/PageDown, hoặc mũi tên vượt ranh giới (mũi tên vượt tháng cũng chốt ngày qua onChange). view bên ngoài không phát callback này. Mỗi yêu cầu tính từ tháng đang render, như mọi input controlled: nếu parent áp view trễ (router, transition), bấm PageDown nhiều lần trước khi tháng mới render vẫn chỉ xin tháng sau, còn PageDown rồi PageUp xin tháng sau rồi tháng trước — không huỷ nhau.',
   },
   {
     name: 'events',
@@ -80,12 +80,16 @@ export default function CalendarPage() {
           ngày bị vô hiệu hoá) và chốt ngày đó.
         </li>
         <li>
-          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng so với tháng đang hiển thị;
-          con trỏ giữ ngày tương ứng nhưng nhảy qua ngày bị vô hiệu hoá (chặn cuối tuần: 15/10
-          PageDown → 16/11). Không chốt ngày. Khi tháng mới render mà focus đang ở trong lưới — kể
-          cả khi parent tự điều hướng — focus theo ngày đó; tháng bị vô hiệu hoá toàn bộ thì focus
-          vào grid. Focus đã rời lưới (control khác, dialog parent mở trong onViewChange) thì giữ
-          nguyên.
+          <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng so với tháng đang hiển thị
+          (parent áp view trễ: xem onViewChange). Không chốt ngày. Khi tháng mới render, con trỏ về
+          cùng ngày trong tháng, kẹp theo số ngày và nhảy qua ngày bị vô hiệu hoá (chặn cuối tuần:
+          15/10 PageDown → 16/11) — hoặc về ngày đang chọn nếu ngày đó nằm trong tháng mới.
+        </li>
+        <li>
+          Focus: khi tháng đổi lúc lưới đang giữ focus — kể cả khi ngày đang focus biến mất cùng
+          tháng cũ, hoặc parent tự điều hướng — focus chuyển sang ngày con trỏ dừng; tháng bị vô
+          hiệu hoá toàn bộ thì focus vào grid. Focus đã rời lưới (sang control khác, nhấn chuột ra
+          ngoài lưới, rời cửa sổ, dialog parent mở trong onViewChange) thì giữ nguyên.
         </li>
         <li>
           <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus; khi focus ở chính grid, chỉ

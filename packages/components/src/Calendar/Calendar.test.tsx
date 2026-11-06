@@ -35,24 +35,28 @@ function tabStop(): HTMLElement {
   return stops[0];
 }
 
-/** Stable `value` for tests that re-render: a fresh object each render would reset the cursor. */
 const OCT_15 = new Date(2026, 9, 15);
 const OCT_31 = new Date(2026, 9, 31);
 
 /**
- * A controlled parent that keeps the latest month the component asked for and applies it only
- * when a button says so (or, with `auto`, one commit later). Page keys never commit a selection,
- * so this harness only has to move `view` and expose what was requested.
+ * A controlled parent that keeps the latest month the component asked for and applies it when a
+ * button says so, one commit later (`auto`), or after a delay (`applyAfter`). `value` is a fixed
+ * prop — the harness never applies `onChange` — so tests can tell the cursor from the selection.
+ * A real click moves focus to the button it hits, so tests that assert where focus lands apply
+ * through `auto`/`applyAfter`; the button suits tests about the view and the requests.
  */
 function DeferredCalendar({
   onChange,
   value = OCT_15,
   auto = false,
+  applyAfter,
 }: {
   onChange: (date: Date) => void;
   value?: Date | null;
-  /** Apply every request as it arrives, without a click (a debounced/router parent). */
+  /** Apply every request as it arrives, without a click (a router parent). */
   auto?: boolean;
+  /** Apply the latest request this many ms after it arrives (a debounced router). */
+  applyAfter?: number;
 }) {
   const [view, setView] = useState(new Date(2026, 9, 1));
   const [requested, setRequested] = useState<Date | null>(null);
@@ -60,6 +64,11 @@ function DeferredCalendar({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (auto && requested) setView(requested);
   }, [auto, requested]);
+  useEffect(() => {
+    if (applyAfter === undefined || !requested) return;
+    const timer = setTimeout(() => setView(requested), applyAfter);
+    return () => clearTimeout(timer);
+  }, [applyAfter, requested]);
   return (
     <>
       <button type="button" onClick={() => requested && setView(requested)}>
@@ -600,8 +609,9 @@ test('repeated page keys move one month per rendered commit', () => {
 });
 
 /**
- * A controlled parent that stores `{year, month}` and builds a fresh `view` Date on every render,
- * applying the latest request only when asked. `render lại` re-renders it without navigating.
+ * A controlled parent that stores `{year, month}` and builds a fresh `view` Date on every render
+ * (each `onViewChange` re-renders it), applying the latest request a second later like a debounced
+ * router.
  */
 function RebuildingCalendar({
   value = OCT_31,
@@ -612,43 +622,40 @@ function RebuildingCalendar({
 }) {
   const [shown, setShown] = useState(start);
   const [requested, setRequested] = useState<Date | null>(null);
-  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!requested) return;
+    const timer = setTimeout(
+      () => setShown({ y: requested.getFullYear(), m: requested.getMonth() }),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [requested]);
   return (
-    <>
-      <button type="button" onClick={() => setTick((t) => t + 1)}>
-        render lại
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          requested && setShown({ y: requested.getFullYear(), m: requested.getMonth() })
-        }
-      >
-        áp dụng
-      </button>
-      <Calendar
-        value={value}
-        onChange={() => {}}
-        view={new Date(shown.y, shown.m, 1)}
-        onViewChange={setRequested}
-      />
-    </>
+    <Calendar
+      value={value}
+      onChange={() => {}}
+      view={new Date(shown.y, shown.m, 1)}
+      onViewChange={setRequested}
+    />
   );
 }
 
-/** A parent whose router opens `to` on its own a second after mount (no key press involved). */
+/**
+ * A parent whose router opens each month of `route` on its own, one per second, with no key
+ * press involved. Pass a stable array: a new one restarts the route.
+ */
 function TimedRouterCalendar({
-  to,
+  route,
   isDisabled,
 }: {
-  to: Date;
+  route: Date[];
   isDisabled?: (date: Date) => boolean;
 }) {
   const [view, setView] = useState(new Date(2026, 9, 1));
   useEffect(() => {
-    const timer = setTimeout(() => setView(to), 1000);
-    return () => clearTimeout(timer);
-  }, [to]);
+    const timers = route.map((month, i) => setTimeout(() => setView(month), (i + 1) * 1000));
+    return () => timers.forEach(clearTimeout);
+  }, [route]);
   return (
     <Calendar
       value={OCT_31}
@@ -661,8 +668,29 @@ function TimedRouterCalendar({
 }
 
 const NOV_1 = new Date(2026, 10, 1);
+const TO_NOV = [NOV_1];
 
-test('page keys page from the rendered month while the parent defers', () => {
+/** Advances the fake clock inside `act` so the renders and effects the timers cause flush. */
+function advance(ms: number) {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
+/** The `data-date` of every element that received focus while `run` executed. */
+function focusMoves(run: () => void): (string | undefined)[] {
+  const moves: (string | undefined)[] = [];
+  const record = (e: FocusEvent) => moves.push((e.target as HTMLElement).dataset.date);
+  document.addEventListener('focusin', record);
+  try {
+    run();
+  } finally {
+    document.removeEventListener('focusin', record);
+  }
+  return moves;
+}
+
+test('page keys and chevrons ask relative to the rendered month while the parent defers', () => {
   render(<DeferredCalendar onChange={() => {}} />);
   const cell = day(OCT_15);
   cell.focus();
@@ -670,92 +698,182 @@ test('page keys page from the rendered month while the parent defers', () => {
   fireEvent.keyDown(cell, { key: 'PageDown' });
   // October is still on screen, so every press asks for the month after it.
   expect(screen.getByTestId('last-request')).toHaveTextContent(/^2026-11$/);
+  // The opposite direction asks for the month before October; it does not cancel November.
   fireEvent.keyDown(cell, { key: 'PageUp' });
   expect(screen.getByTestId('last-request')).toHaveTextContent(/^2026-9$/);
+  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  expect(monthHeading()).toMatch(/tháng 9 năm 2026/i);
+  // Chevrons follow the same rule: from September, both clicks ask for October.
+  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tháng sau' }));
+  expect(screen.getByTestId('last-request')).toHaveTextContent(/^2026-10$/);
 });
 
 test('a parent that re-creates the visible month keeps the landing handoff', () => {
+  vi.useFakeTimers();
   render(<RebuildingCalendar />);
   const cell = day(OCT_31);
   cell.focus();
+  // The request re-renders the parent, which passes a new Date for October before November lands.
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  // The parent re-renders October with a new Date before it applies November.
-  fireEvent.click(screen.getByRole('button', { name: 'render lại' }));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng' }));
+  expect(document.activeElement).toBe(cell);
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   // 31/10 unmounted with October: focus lands on 30/11 instead of falling to <body>.
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
-  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'PageDown' });
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng' }));
-  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
-  expect(document.activeElement).toHaveAttribute('data-date', '2026-12-30');
 });
 
-test('re-rendering the visible month leaves focus on the day the user moved to', () => {
+test('a same-month re-render with a new Date moves no focus', () => {
+  vi.useFakeTimers();
   const NOV_20 = new Date(2026, 10, 20);
   render(<RebuildingCalendar value={NOV_20} start={{ y: 2026, m: 10 }} />);
-  const cell = day(NOV_20);
-  cell.focus();
+  day(NOV_20).focus();
   for (let i = 0; i < 4; i++) {
     fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'ArrowRight' });
   }
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-24');
-  // A page is pending and the parent re-renders November: nothing landed, so focus stays put.
-  fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'PageDown' });
-  fireEvent.click(screen.getByRole('button', { name: 'render lại' }));
+  // PageDown re-renders the parent with a new Date for November; December has not landed.
+  const moves = focusMoves(() =>
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'PageDown' }),
+  );
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(moves).toEqual([]);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-24');
 });
 
-test('a month the parent opens on its own keeps focus in the grid', () => {
+test('each month a parent renders while the grid holds focus keeps focus in the grid', () => {
   vi.useFakeTimers();
-  render(<TimedRouterCalendar to={NOV_1} />);
+  render(<TimedRouterCalendar route={[NOV_1, new Date(2026, 11, 1)]} />);
   day(OCT_31).focus();
-  act(() => {
-    vi.advanceTimersByTime(1000);
-  });
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   // 31/10 unmounted with October while the grid held focus: focus lands on 30/11, not <body>.
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-12-30');
+});
+
+test('a parent that renders the same month again moves no focus', () => {
+  vi.useFakeTimers();
+  // A FIFO router drains a duplicate request for November with its own Date object.
+  render(<TimedRouterCalendar route={[NOV_1, new Date(2026, 10, 1)]} />);
+  day(OCT_31).focus();
+  advance(1000);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  expect(focusMoves(() => advance(1000))).toEqual([]);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
 test('a month the parent opens after the user left the grid does not take focus', () => {
   vi.useFakeTimers();
-  render(<TimedRouterCalendar to={NOV_1} />);
+  render(<TimedRouterCalendar route={TO_NOV} />);
   const cell = day(OCT_31);
   cell.focus();
   cell.blur();
-  act(() => {
-    vi.advanceTimersByTime(1000);
-  });
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toBe(document.body);
 });
 
-test('a day disabled under focus does not make the grid give up focus', () => {
+/**
+ * Makes every DOM removal blur the focused node it takes away first, as Chromium does while React
+ * removes it: the focusout fires with the node still connected and enabled, focus already on
+ * <body>. jsdom only drops focus silently. Restore the returned spy when done.
+ */
+function blurOnRemoval() {
+  const removeChild = Node.prototype.removeChild;
+  return vi.spyOn(Node.prototype, 'removeChild').mockImplementation(function <T extends Node>(
+    this: Node,
+    child: T,
+  ): T {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && child.contains(active)) active.blur();
+    return removeChild.call(this, child) as T;
+  });
+}
+
+test('the blur a browser sends while a render removes the focused day keeps focus in the grid', () => {
   vi.useFakeTimers();
-  const { rerender } = render(<TimedRouterCalendar to={NOV_1} />);
+  const removal = blurOnRemoval();
+  try {
+    render(<TimedRouterCalendar route={[NOV_1, new Date(2026, 11, 1)]} />);
+    day(OCT_31).focus();
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+    // The grid still owns focus afterwards: the next month the parent opens keeps it too.
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
+    expect(document.activeElement).toHaveAttribute('data-date', '2026-12-30');
+  } finally {
+    removal.mockRestore();
+  }
+});
+
+test('focus that moved to another control is not pulled back after that control lets go', () => {
+  vi.useFakeTimers();
+  render(
+    <>
+      <TimedRouterCalendar route={TO_NOV} />
+      <button type="button">Bộ lọc</button>
+    </>,
+  );
+  day(OCT_31).focus();
+  const other = screen.getByRole('button', { name: 'Bộ lọc' });
+  other.focus();
+  other.blur();
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toBe(document.body);
+});
+
+/** Focuses 31/10, then disables it the way a parent would, with the blur a browser may send. */
+function disableFocusedDay() {
+  vi.useFakeTimers();
+  const { rerender } = render(<TimedRouterCalendar route={TO_NOV} />);
   const cell = day(OCT_31);
   cell.focus();
-  rerender(<TimedRouterCalendar to={NOV_1} isDisabled={(d) => d.getTime() === OCT_31.getTime()} />);
-  // Browsers may blur a focused control once it is disabled; jsdom does not, so send that blur by
-  // hand. Losing focus this way is the render's doing, not the user leaving the grid.
-  fireEvent.blur(cell);
-  act(() => {
-    vi.advanceTimersByTime(1000);
-  });
+  rerender(
+    <TimedRouterCalendar route={TO_NOV} isDisabled={(d) => d.getTime() === OCT_31.getTime()} />,
+  );
+  // A browser may blur a focused control after it is disabled; jsdom does not, so send that
+  // focusout by hand. Losing focus this way is the render's doing, not the user leaving the grid.
+  fireEvent.focusOut(cell);
+}
+
+test('a day disabled under focus does not make the grid give up focus', () => {
+  disableFocusedDay();
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
+test('a pointer press outside the grid gives up focus kept through a disabled day', () => {
+  disableFocusedDay();
+  fireEvent.pointerDown(document.body);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toBe(document.body);
+});
+
+test('the window losing focus gives up focus kept through a disabled day', () => {
+  disableFocusedDay();
+  fireEvent.blur(window);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toBe(document.body);
+});
+
 test('an arrow before the parent applies a page keeps focus on the moved day when it lands', () => {
-  render(<DeferredCalendar onChange={() => {}} />);
+  vi.useFakeTimers();
+  render(<DeferredCalendar onChange={() => {}} applyAfter={1000} />);
   const cell = day(OCT_15);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
   // The arrow moves the cursor to 16/10 while October is still on screen.
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-16');
 });
@@ -805,6 +923,34 @@ test('a parent that snaps the arrow selection moves focus to the day that won', 
   expect(document.activeElement).toHaveAttribute('data-date', '2026-10-20');
 });
 
+test('a move a parent snaps back to its starting day leaves no intent to mute the next month', () => {
+  function Harness() {
+    const [value, setValue] = useState<Date | null>(new Date(2026, 9, 10));
+    return (
+      <Calendar
+        value={value}
+        // The parent refuses the 16th and selects the 15th instead; other picks it ignores.
+        onChange={(d) => {
+          if (d.getDate() === 16) setValue(new Date(2026, 9, 15));
+        }}
+        isDisabled={(d) => d.getMonth() === 10}
+      />
+    );
+  }
+  render(<Harness />);
+  const cell = day(new Date(2026, 9, 15));
+  cell.focus();
+  fireEvent.click(cell);
+  fireEvent.keyDown(cell, { key: 'ArrowRight' });
+  // The snap put the cursor back on the 15th, where the move started: the move is settled.
+  expect(document.activeElement).toBe(cell);
+  const next = screen.getByRole('button', { name: 'Tháng sau' });
+  next.focus();
+  fireEvent.click(next);
+  // November is closed, so the cursor stays put; a leftover intent would mute this message.
+  expect(screen.getByRole('status')).toHaveTextContent('Đã chuyển sang tháng 11 năm 2026');
+});
+
 test('a parent that clones the view Date still gets the landing handoff', () => {
   function Harness() {
     const [view, setView] = useState(new Date(2026, 9, 1));
@@ -825,35 +971,58 @@ test('a parent that clones the view Date still gets the landing handoff', () => 
   // The handoff keys on the rendered month, not on the Date object the calendar emitted: the day
   // that unmounted (31/11 does not exist) still gets focus back.
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
-  fireEvent.keyDown(screen.getByRole('grid'), { key: 'PageDown' });
-  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
-  expect(document.activeElement).toHaveAttribute('data-date', '2026-12-30');
 });
 
 test('an arrow crossing the parent applies later lands focus on the crossed-to day', () => {
-  render(<DeferredCalendar onChange={() => {}} value={OCT_31} />);
+  vi.useFakeTimers();
+  render(<DeferredCalendar onChange={() => {}} value={OCT_31} applyAfter={1000} />);
   const cell = day(OCT_31);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
   expect(screen.getByTestId('last-request')).toHaveTextContent('2026-11');
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   // The cursor already sits on 1/11, so the landing follows it rather than the 31st.
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-01');
 });
 
 test('a landing follows the cursor already in that month, not a selection elsewhere in it', () => {
-  // The parent keeps 2/11 selected and applies view requests only when asked.
-  render(<DeferredCalendar onChange={() => {}} value={new Date(2026, 10, 2)} />);
+  vi.useFakeTimers();
+  // The parent keeps 2/11 selected and applies view requests a second later.
+  render(<DeferredCalendar onChange={() => {}} value={new Date(2026, 10, 2)} applyAfter={1000} />);
   const cell = day(OCT_31);
   cell.focus();
   fireEvent.click(cell);
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   // The cursor already moved to 1/11; focusing the selected 2/11 would split focus from the tab stop.
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-01');
   expect(tabStop()).toHaveAttribute('data-date', '2026-11-01');
+});
+
+test('a new selection that arrives with its month lands focus on it once', () => {
+  vi.useFakeTimers();
+  function Harness() {
+    const [view, setView] = useState(new Date(2026, 9, 1));
+    const [value, setValue] = useState<Date | null>(OCT_15);
+    useEffect(() => {
+      // The parent selects 2/11 while October stays on screen, then opens November with 20/11.
+      const first = setTimeout(() => setValue(new Date(2026, 10, 2)), 1000);
+      const second = setTimeout(() => {
+        setView(NOV_1);
+        setValue(new Date(2026, 10, 20));
+      }, 2000);
+      return () => [first, second].forEach(clearTimeout);
+    }, []);
+    return <Calendar value={value} onChange={setValue} view={view} onViewChange={setView} />;
+  }
+  render(<Harness />);
+  day(OCT_31).focus();
+  advance(1000);
+  // Straight to 20/11: a cursor still on 2/11 from the earlier selection must not be focused first.
+  expect(focusMoves(() => advance(1000))).toEqual(['2026-11-20']);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-20');
 });
 
 test('a parent that renders the crossing month before the cursor still gets focus', () => {
@@ -871,29 +1040,29 @@ test('a parent that renders the crossing month before the cursor still gets focu
   render(<Harness />);
   const cell = day(OCT_31);
   cell.focus();
-  const focused: (string | undefined)[] = [];
-  const record = (e: FocusEvent) => focused.push((e.target as HTMLElement).dataset.date);
-  document.addEventListener('focusin', record);
-  fireEvent.keyDown(cell, { key: 'ArrowRight' });
-  document.removeEventListener('focusin', record);
+  const moves = focusMoves(() => fireEvent.keyDown(cell, { key: 'ArrowRight' }));
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  // The view committed before the cursor did; the intent must survive that commit and land on 1/11.
+  // The view committed before the cursor did; the intent must survive that commit and land on 1/11
+  // straight away, with no stop on 30/11 for a screen reader to read first.
+  expect(moves).toEqual(['2026-11-01']);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-01');
-  // Straight to 1/11: no stop on 30/11 for a screen reader to read first.
-  expect(focused).toEqual(['2026-11-01']);
   // The day label names November, so the status must not say the month a second time.
   expect(screen.getByRole('status')).toHaveTextContent(/^$/);
 });
 
 test('a click before the parent applies a page keeps its day-of-month when it lands', () => {
+  vi.useFakeTimers();
   const onChange = vi.fn();
-  render(<DeferredCalendar onChange={onChange} />);
+  render(<DeferredCalendar onChange={onChange} applyAfter={1000} />);
   const cell = day(OCT_15);
   cell.focus();
   fireEvent.keyDown(cell, { key: 'PageDown' });
-  fireEvent.click(day(new Date(2026, 9, 20)));
+  // A real click focuses the day it selects.
+  const clicked = day(new Date(2026, 9, 20));
+  clicked.focus();
+  fireEvent.click(clicked);
   expect(onChange).toHaveBeenLastCalledWith(new Date(2026, 9, 20));
-  fireEvent.click(screen.getByRole('button', { name: 'áp dụng yêu cầu cuối' }));
+  advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-20');
 });
@@ -1035,21 +1204,6 @@ test('dropping the controlled view keeps arrows anchored to the rendered month',
   // base is the visible October day, not the March value
   expect(monthHeading()).toMatch(/tháng 10 năm 2026/i);
   expect(day(new Date(2026, 9, 11))).toHaveAttribute('aria-selected', 'true');
-});
-
-test('stale focus intent does not pull focus back after a later click', () => {
-  function Harness() {
-    const [v, setV] = useState<Date | null>(new Date(2026, 9, 1));
-    return <Calendar value={v} onChange={setV} view={new Date(2026, 9, 1)} />;
-  }
-  render(<Harness />);
-  const grid = screen.getByRole('grid');
-  grid.focus();
-  // Home resolves to the current cursor → no cursor change, so no pending intent may survive
-  fireEvent.keyDown(grid, { key: 'Home' });
-  const cell20 = day(new Date(2026, 9, 20));
-  fireEvent.click(cell20);
-  expect(document.activeElement).toBe(cell20);
 });
 
 test('an external value still brings its month into view after paging', () => {

@@ -8,14 +8,17 @@ export interface CalendarProps {
    * PageUp/PageDown change the viewed month instead.
    */
   onChange?: (date: Date) => void;
-  /** Viewed month (controlled). Defaults to value's month or today. */
+  /**
+   * Viewed month (controlled). Defaults to value's month or today. While the grid holds keyboard
+   * focus, a newly rendered month — from the user or from the parent — moves focus to its day.
+   */
   view?: Date;
   /**
    * Called with the first day of the month when the user asks to change it: chevrons, Page keys,
    * or an arrow crossing a month boundary (which also commits its day through `onChange`). Each
-   * request is relative to the month currently rendered, as with any controlled input: a parent
-   * that applies `view` later sees every press made before it renders ask for the same
-   * neighbouring month.
+   * request is relative to the month currently rendered, as with any controlled input: if the
+   * parent applies `view` later, repeated presses before it renders ask for the same neighbouring
+   * month, and a press the other way asks for the month on the other side (it cancels nothing).
    */
   onViewChange?: (view: Date) => void;
   /**
