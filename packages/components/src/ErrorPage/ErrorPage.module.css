@@ -2,6 +2,9 @@
   /* The page adapts to the width it actually receives (docs frame, modal, app
      shell), not to the viewport. */
   container-type: inline-size;
+  /* Padding sits on the min-height element, so border-box is what keeps a
+     full-page error from always showing a scrollbar (100dvh + padding). */
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

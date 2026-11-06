@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { cssRule } from '../internal/cssRule';
 import { ErrorPage } from './ErrorPage';
 
 const css = readFileSync(join(import.meta.dirname, 'ErrorPage.module.css'), 'utf8');
@@ -40,9 +41,28 @@ test.each(DEFAULTS)(
   },
 );
 
+test('an unsupported status falls back to the 500 copy instead of throwing', () => {
+  // Real call sites cast an API status: 502 must not take the error page down.
+  render(<ErrorPage status={502 as never} />);
+
+  expect(screen.getByText('502')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Đã xảy ra lỗi' })).toBeInTheDocument();
+  expect(screen.getByText(/Hệ thống gặp sự cố/)).toBeInTheDocument();
+});
+
 test('a route-level error is not an alert or a live region', () => {
   render(<ErrorPage status={500} />);
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('the heading is the label of the wrapper landmark', () => {
+  render(<ErrorPage status={404} as="section" />);
+
+  const region = screen.getByRole('region', { name: 'Không tìm thấy trang' });
+  expect(region).toBeInTheDocument();
+  expect(region.getAttribute('aria-labelledby')).toBe(
+    screen.getByRole('heading').getAttribute('id'),
+  );
 });
 
 test('overrides the copy, icon and actions and merges className', () => {
@@ -72,11 +92,12 @@ test('overrides the copy, icon and actions and merges className', () => {
   expect(onClick).toHaveBeenCalledTimes(1);
 });
 
-test('description="" or null hides the paragraph and icon={null} hides the icon', () => {
+test('description="" or null drops the paragraph wrapper entirely', () => {
   const { container, rerender } = render(<ErrorPage status={404} description="" icon={null} />);
 
-  expect(screen.queryByText(DEFAULTS[1][3])).toBeNull();
-  expect(container.querySelector('svg')).toBeNull();
+  // The code is the only <p> left: no empty description paragraph, no empty icon circle.
+  expect(container.querySelectorAll('p')).toHaveLength(1);
+  expect(container.querySelector('[data-icon]')).toBeNull();
   expect(screen.getByText('404')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeInTheDocument();
 
@@ -85,22 +106,32 @@ test('description="" or null hides the paragraph and icon={null} hides the icon'
   expect(screen.queryByText(DEFAULTS[1][3])).toBeNull();
 });
 
-test('a null/empty title falls back to the status default', () => {
-  render(<ErrorPage status={403} title={null} />);
+test('null, empty and true titles all fall back to the status default', () => {
+  const { rerender } = render(<ErrorPage status={403} title={null} />);
+  expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeInTheDocument();
+
+  // A missing i18n key arrives as '' and must not render an empty <h1>.
+  rerender(<ErrorPage status={403} title="" />);
+  expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeInTheDocument();
+
+  rerender(<ErrorPage status={403} title={true} />);
   expect(screen.getByRole('heading', { name: 'Không có quyền truy cập' })).toBeInTheDocument();
 });
 
 test('renders the title at the requested heading level', () => {
-  render(<ErrorPage status={500} level={2} />);
+  const { rerender } = render(<ErrorPage status={500} level={2} />);
   expect(screen.getByRole('heading', { level: 2, name: 'Đã xảy ra lỗi' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+
+  // Inside a modal whose title is already an h2, the page title drops to h3.
+  rerender(<ErrorPage status={500} level={3} />);
+  expect(screen.getByRole('heading', { level: 3, name: 'Đã xảy ra lỗi' })).toBeInTheDocument();
 });
 
 test('as="div" drops the main landmark and fill={false} opts out of the viewport height', () => {
   const { container, rerender } = render(<ErrorPage status={404} />);
   expect(screen.getByRole('main')).toBeInTheDocument();
   expect(container.firstElementChild).toHaveAttribute('data-fill', 'true');
-  expect(css).toContain(".root[data-fill='true']");
 
   rerender(<ErrorPage status={404} as="div" fill={false} />);
   expect(screen.queryByRole('main')).toBeNull();
@@ -108,7 +139,7 @@ test('as="div" drops the main landmark and fill={false} opts out of the viewport
   expect(container.firstElementChild?.tagName).toBe('DIV');
 });
 
-test('no actions wrapper renders without actions, even for a falsy number', () => {
+test('a falsy or empty-list actions slot renders no wrapper', () => {
   const { container, rerender } = render(<ErrorPage status={404} />);
   expect(container.querySelector('[class*="actions"]')).toBeNull();
 
@@ -116,6 +147,22 @@ test('no actions wrapper renders without actions, even for a falsy number', () =
   rerender(<ErrorPage status={404} actions={0} />);
   expect(container.querySelector('[class*="actions"]')).toBeNull();
   expect(screen.queryByText('0')).toBeNull();
+
+  // `options.map(...)` on an empty list is the realistic case: no stray margin row.
+  rerender(<ErrorPage status={404} actions={[]} />);
+  expect(container.querySelector('[class*="actions"]')).toBeNull();
+});
+
+test('the wrapper is border-box so a full-page error does not always scroll', () => {
+  const root = cssRule(css, '.root');
+  expect(root).toContain('box-sizing: border-box');
+  expect(root).toContain('padding: 32px 20px');
+});
+
+test('fill actually sets the viewport height', () => {
+  const fill = cssRule(css, ".root[data-fill='true']");
+  expect(fill).toContain('min-height: 100dvh');
+  expect(fill).toContain('min-height: 100vh');
 });
 
 test('the narrow layout follows the container width, not the viewport', () => {
@@ -125,11 +172,16 @@ test('the narrow layout follows the container width, not the viewport', () => {
 });
 
 test('500 uses the theme-aware danger cue; 403/404 stay informational', () => {
-  const icon = /\.icon\s*\{([^}]*)\}/s.exec(css)?.[1] ?? '';
-  const code = /\.code\s*\{([^}]*)\}/s.exec(css)?.[1] ?? '';
-  const danger = /\.root\[data-status='500'\]\s+\.icon,[\s\S]*?\{([^}]*)\}/s.exec(css)?.[1] ?? '';
+  // Read the base rules only: cssRule returns the last match, and the container
+  // query legitimately re-declares `.code`/`.title` (font-size, no colour).
+  const base = css.split('@container')[0];
 
-  expect(icon).toContain('var(--action-text)');
-  expect(code).toContain('var(--action-text)');
+  expect(cssRule(base, '.icon')).toContain('var(--action-text)');
+  expect(cssRule(base, '.code')).toContain('var(--action-text)');
+
+  // Read the shared body of the 500 selector list and assert the status code is covered too —
+  // the icon alone turning red would leave the number in the informational blue.
+  const danger = cssRule(css, ".root[data-status='500'] .code");
   expect(danger).toContain('var(--danger-emphasis)');
+  expect(cssRule(css, ".root[data-status='500'] .icon")).toBe(danger);
 });

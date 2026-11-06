@@ -45,9 +45,9 @@ export type ErrorStatus = 403 | 404 | 500;
 export type ErrorPageLandmark = 'main' | 'div' | 'section';
 
 export interface ErrorPageProps {
-  /** HTTP status; drives the default icon, title and description. */
+  /** HTTP status (required); drives the default icon, title and description. */
   status: ErrorStatus;
-  /** Override the default title; empty/null falls back to the default. */
+  /** Override the default title; null/empty/true falls back to the default. */
   title?: ReactNode;
   /** Override the default description; null or '' hides it. */
   description?: ReactNode;
@@ -55,8 +55,8 @@ export interface ErrorPageProps {
   icon?: ReactNode;
   /** Recovery actions (buttons/links); the caller owns navigation and retry. */
   actions?: ReactNode;
-  /** Heading level, default 1; use 2 when nested under a page heading. */
-  level?: 1 | 2;
+  /** Heading level, default 1; 3 for a modal whose title is already an h2. */
+  level?: 1 | 2 | 3;
   /** Landmark wrapper, default 'main'; use 'div' when the page already owns a main. */
   as?: ErrorPageLandmark;
   /** Fill the viewport height, default true; set false when embedding. */
@@ -75,16 +75,31 @@ Defaults:
 
 Behavior:
 
+- An unsupported `status` (e.g. `502` arriving from an API through a cast) falls
+  back to the 500 defaults instead of throwing: a fallback page that crashes
+  takes the route or the error boundary with it.
 - The root exposes `data-status` and `data-fill`; the numeric code is real text
   (not CSS content), so it can be read, selected and copied.
-- `title` falls back to the status default when it is null/empty. `description`
-  uses the default only when the prop is `undefined`; `null`/`''` hides the
-  paragraph. `icon` uses the default only when `undefined`; `null` hides it.
-- `actions` renders only when present. The component never invents a "retry" or
-  "go home" action; the caller decides which recovery actions exist.
+- The heading carries a `useId()` id and the root points `aria-labelledby` at
+  it, so `as="section"` becomes a named `region` landmark instead of an
+  unnamed `<section>` that screen readers skip in landmark navigation. This is
+  harmless on `main`.
+- `title` falls back to the status default when it is null/empty/`true`.
+  `description` uses the default only when the prop is `undefined`; `null`/`''`
+  hides the paragraph. `icon` uses the default only when `undefined`; `null`
+  hides it. Hiding also drops the wrapper, so no empty 52px circle or empty
+  paragraph remains.
+- `actions` renders only when present; an empty array (the `items.map(...)` case)
+  renders no wrapper with its top margin. The component never invents a "retry"
+  or "go home" action; the caller decides which recovery actions exist.
 - `as` defaults to `'main'` and `level` to `1`. `as="div" | "section"` drops the
   main landmark when embedded. `fill` defaults to true (`min-height: 100dvh`);
-  `fill={false}` lets the caller size the frame.
+  `fill={false}` lets the caller size the frame. Inside AppShell or any layout
+  that already renders a header, pass `fill={false}`: a `100dvh` root under a
+  header always scrolls.
+- `.root` is `box-sizing: border-box` and carries the padding. Without it the
+  default full-page error is `100dvh + 64px` tall and always shows a
+  scrollbar; the inline axis overflows by 40px once a caller sets a width.
 - The root is an inline-size container and the only width query is
   `@container (max-width: 480px)` (code/title scale down). Because of that, a
   shrink-to-fit parent (inline-block, a flex item without a width, an absolutely
@@ -96,8 +111,11 @@ Behavior:
 
 ## 5. A11y
 
-- One `h1` by default (`level={2}` for docs/nested screens); the docs page owns
-  the single `<main>` and mounts each demo with `as="div"`.
+- One `h1` by default (`level={2}` under a page heading, `level={3}` inside a
+  modal whose title is already an `h2`); the docs page owns the single `<main>`
+  and mounts each demo with `as="div"`.
+- The root is labelled by the heading (`aria-labelledby` + `useId`), so
+  `as="section"` is a named `region` rather than an unnamed section.
 - The icon is decorative (`aria-hidden` via `Icon`); the status code is exposed
   as text before the heading, so assistive tech hears "404" then the title.
 - No `role="alert"`/live region: a route-level error is navigation, not an
@@ -112,12 +130,17 @@ Behavior:
 ## 6. Tests (acceptance)
 
 - `ErrorPage.test.tsx`: each status renders its default code/title/description
-  and `data-icon`; icon is `aria-hidden`; no alert role; title/description/icon
-  overrides; `description=""` and `icon={null}` hide those slots; `title={null}`
-  falls back; actions render only when provided and clicks reach the caller;
-  `level`; `as="div"` drops main; `fill` data hook and CSS rule; className merge;
-  container query instead of media query; 500 uses `--danger-emphasis`, other
-  statuses use `--action-text`.
+  and `data-icon`; unsupported status falls back to 500; icon is `aria-hidden`;
+  no alert role; wrapper is labelled by the heading; title/description/icon
+  overrides; `description=""`/`null` and `icon={null}` remove the wrappers
+  (`querySelectorAll('p')` is just the code, no `[data-icon]`); `title` null,
+  `''` and `true` all fall back; actions render only when present and an empty
+  array renders no wrapper; `level` 2 and 3; `as="div"` drops main; `fill` data
+  hook plus the `min-height` declaration; `.root` is `border-box`; container
+  query instead of media query; 500 uses `--danger-emphasis` on both `.icon` and
+  `.code`, other statuses use `--action-text`.
+- `internal/isPresent.test.ts`: `true` and `[]` are absent, a non-empty array is
+  present.
 - Docs page: three tabs render 403 / 404 / 500 compositions; one code snippet
   typechecks; all demos use `as="div"` and `fill={false}` inside a sized frame.
 

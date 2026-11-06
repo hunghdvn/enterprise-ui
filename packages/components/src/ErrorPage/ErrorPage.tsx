@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Icon } from '../Icon';
 import type { IconName } from '../Icon';
 import { cx } from '../internal/cx';
@@ -30,6 +31,8 @@ const DEFAULTS: Record<ErrorStatus, ErrorDefaults> = {
   },
 };
 
+const HEADING = { 1: 'h1', 2: 'h2', 3: 'h3' } as const;
+
 export function ErrorPage({
   status,
   title,
@@ -41,9 +44,12 @@ export function ErrorPage({
   fill = true,
   className = '',
 }: ErrorPageProps) {
-  const defaults = DEFAULTS[status];
-  const Title: 'h1' | 'h2' = level === 1 ? 'h1' : 'h2';
+  // An unsupported status (401/502/503 arriving from an API through a cast) must not throw:
+  // the fallback page would take the route or the error boundary down with it.
+  const defaults = DEFAULTS[status] ?? DEFAULTS[500];
+  const Title = HEADING[level];
   const Landmark = as;
+  const headingId = useId();
   const resolvedTitle = isPresent(title) ? title : defaults.title;
   // Only `undefined` means "use the default"; null/'' deliberately hides the paragraph.
   const resolvedDescription = description === undefined ? defaults.description : description;
@@ -52,6 +58,8 @@ export function ErrorPage({
   return (
     <Landmark
       className={cx(styles.root, className)}
+      // A bare <section> is not a landmark; naming it turns it into a region.
+      aria-labelledby={headingId}
       data-status={status}
       data-fill={fill ? 'true' : 'false'}
     >
@@ -64,7 +72,9 @@ export function ErrorPage({
           )}
           <p className={styles.code}>{status}</p>
         </div>
-        <Title className={styles.title}>{resolvedTitle}</Title>
+        <Title className={styles.title} id={headingId}>
+          {resolvedTitle}
+        </Title>
         {isPresent(resolvedDescription) && (
           <p className={styles.description}>{resolvedDescription}</p>
         )}
