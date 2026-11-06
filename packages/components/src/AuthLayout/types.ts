@@ -21,7 +21,11 @@ export interface AuthLayoutProps {
   level?: 1 | 2;
   /** Wrapper element for the card column; default `main`. */
   as?: AuthLayoutLandmark;
-  /** Fill the viewport height (default true); set false when embedding in a page or modal. */
+  /**
+   * Fill the viewport height (default true); set false when embedding in a page or modal.
+   * The layout is an inline-size container: inside a shrink-to-fit parent (inline-block, a flex
+   * item without a width, an absolutely positioned box without a width) give it an explicit width.
+   */
   fill?: boolean;
   className?: string;
 }

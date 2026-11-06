@@ -85,8 +85,12 @@ Behavior:
   is centred; with an aside the grid shows the panel + card whenever the
   component itself is at least 769px wide (`@container`, not the viewport), so
   docs frames and modals do not squeeze the card. Narrower than that, the panel
-  is hidden and the card takes the full width. `fill` defaults to true
-  (`min-height: 100dvh`); `fill={false}` lets the caller size the frame.
+  is hidden and the card takes the full width; the card's narrow padding uses
+  the same container query. `fill` defaults to true (`min-height: 100dvh`);
+  `fill={false}` lets the caller size the frame. Because the root is an
+  inline-size container, a shrink-to-fit parent (inline-block, a flex item
+  without a width, an absolutely positioned box without a width) must give it
+  an explicit width; normal block and grid/flex-stretch parents need nothing.
 - The blue-600 aside re-scopes `--text`, `--text-muted`, `--action-text` and
   `--focus-ring` to light-on-blue values, so consumer links and focus rings
   stay visible (WCAG 1.4.11 / 2.4.7) instead of matching the panel.

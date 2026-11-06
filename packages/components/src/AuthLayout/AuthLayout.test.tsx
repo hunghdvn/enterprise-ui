@@ -120,3 +120,8 @@ test('the split layout follows the container width, not the viewport', () => {
   expect(css).toContain('@container (min-width: 769px)');
   expect(css).not.toContain('@media (min-width: 769px)');
 });
+
+test('the narrow card padding also follows the container width', () => {
+  expect(css).toContain('@container (max-width: 480px)');
+  expect(css).not.toContain('@media');
+});

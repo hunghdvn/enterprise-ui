@@ -64,7 +64,7 @@ const authProps: PropDoc[] = [
     type: 'boolean',
     default: 'true',
     description:
-      'Chiếm toàn bộ chiều cao viewport. Đặt false khi nhúng trong khung preview hoặc modal để tự quản chiều cao.',
+      'Chiếm toàn bộ chiều cao viewport. Đặt false khi nhúng trong khung preview hoặc modal để tự quản chiều cao. Layout là inline-size container: trong parent shrink-to-fit (inline-block, flex item không có width, absolute không có width) cần đặt width rõ ràng.',
   },
   { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ.' },
 ];
