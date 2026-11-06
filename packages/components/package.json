@@ -32,6 +32,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^16.0.0",
+    "@types/node": "^20.19.43",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
@@ -46,7 +47,7 @@
   },
   "scripts": {
     "test": "node scripts/gen-icon-types.mjs --check && node scripts/check-icon-provenance.mjs && vite-node scripts/gen-icon-manifest.mjs --check && vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "gen:icon-types": "node scripts/gen-icon-types.mjs",
     "gen:icon-manifest": "vite-node scripts/gen-icon-manifest.mjs",
     "build": "vite build && tsc -p tsconfig.build.json && node scripts/check-bundle-size.mjs"

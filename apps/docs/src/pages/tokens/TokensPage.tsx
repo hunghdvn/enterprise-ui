@@ -43,6 +43,10 @@ const THEME: TokenDoc[] = [
   { name: '--action-text', value: 'Light #1e47c4 · Dark #bfdbfe' },
   { name: '--nav-active-bg', value: 'Light #eff6ff · Dark #1e3a8a' },
   { name: '--scrim', value: 'Light rgba(15, 23, 42, 0.45) · Dark rgba(2, 6, 23, 0.65)' },
+  { name: '--focus-ring', value: 'Light #1e47c4 · Dark #93c5fd' },
+  { name: '--today-ring', value: 'Light #1e40af · Dark #93c5fd' },
+  { name: '--blocked-selection-bg', value: 'Light #93c5fd · Dark #334155' },
+  { name: '--blocked-selection-text', value: 'Light #1e3a8a · Dark #f8fafc' },
 ];
 
 const DENSITY: TokenDoc[] = [
@@ -103,6 +107,13 @@ const CONTRAST_PAIRS: { label: string; values: { theme: string; ratio: string }[
     values: [
       { theme: 'Light', ratio: contrast('#64748b', '#ffffff') },
       { theme: 'Dark', ratio: contrast('#94a3b8', '#1e293b') },
+    ],
+  },
+  {
+    label: '--blocked-selection-text trên --blocked-selection-bg',
+    values: [
+      { theme: 'Light', ratio: contrast('#1e3a8a', '#93c5fd') },
+      { theme: 'Dark', ratio: contrast('#f8fafc', '#334155') },
     ],
   },
   {

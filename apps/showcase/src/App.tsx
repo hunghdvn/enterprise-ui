@@ -11,6 +11,7 @@ import type { IconName } from '@enterprise-ui/components';
 import ListDemoPage from './pages/ListDemoPage';
 import OrderDetailDemoPage from './pages/OrderDetailDemoPage';
 import DashboardDemoPage from './pages/DashboardDemoPage';
+import CalendarDemoPage from './pages/CalendarDemoPage';
 import DataGridDemoPage from './pages/DataGridDemoPage';
 import TokensPage from './pages/TokensPage';
 import TabsDemoPage from './pages/TabsDemoPage';
@@ -71,6 +72,12 @@ const routes: Record<
     breadcrumb: 'Dashboard',
     icon: 'home',
     el: <DashboardDemoPage />,
+  },
+  calendar: {
+    label: 'Calendar',
+    breadcrumb: 'Calendar demo',
+    icon: 'calendar',
+    el: <CalendarDemoPage />,
   },
   stock: { label: 'Kho vận', breadcrumb: 'Đơn hàng bán', icon: 'download', el: <ListDemoPage /> },
   datagrid: {

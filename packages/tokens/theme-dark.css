@@ -13,4 +13,13 @@
   --action-text: #bfdbfe;
   --nav-active-bg: #1e3a8a;
   --scrim: rgba(2, 6, 23, 0.65);
+  /* Blue-600 falls to ~2.2:1 on the dark background; both rings use blue-300 instead. */
+  --focus-ring: #93c5fd;
+  --today-ring: #93c5fd;
+  /* The light blue-300 blocked fill would be the brightest cell in dark mode, reading as a live
+     pick; the muted surface carries the blocked state instead. Body text keeps the day number and
+     event chips above AA on it (~9.9:1). The fill, not a dimmer foreground, is what keeps the
+     blocked cell from outshining the live blue pick. */
+  --blocked-selection-bg: var(--surface-muted);
+  --blocked-selection-text: var(--text);
 }

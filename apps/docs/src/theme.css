@@ -15,3 +15,17 @@
     transition: none;
   }
 }
+
+/* Keyboard hints in prose pages; without this <kbd> falls back to the browser's Courier. */
+kbd {
+  display: inline-block;
+  padding: 0 4px;
+  border: 1px solid var(--text-muted);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+}

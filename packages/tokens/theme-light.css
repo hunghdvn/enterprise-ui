@@ -12,4 +12,12 @@
   --action-text: #1e47c4;
   --nav-active-bg: #eff6ff;
   --scrim: rgba(15, 23, 42, 0.45);
+  /* Light subtrees nest inside a dark page, so both rings must be reset here. Blue-600 is
+     ~7:1 on white and blue-700 ~8.7:1; each must stay ≥3:1 on `--surface`. */
+  --focus-ring: #1e47c4;
+  --today-ring: #1e40af;
+  /* A disabled day that is also selected must stay legible but not outshine a live blue-600
+     pick: a light blue-300 fill with blue-800 text keeps ~5.7:1 in light mode. */
+  --blocked-selection-bg: var(--color-blue-300);
+  --blocked-selection-text: var(--color-blue-800);
 }

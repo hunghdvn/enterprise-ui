@@ -4,7 +4,10 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    /* No ambient type packages: the package is browser-only, and hoisted @types/node would
+       otherwise let component source typecheck `process`/`Buffer` globals. */
+    "types": []
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

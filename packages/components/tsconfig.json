@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"]
+    /* Component source must not see test or node globals; tsconfig.test.json adds them. */
+    "types": []
   },
   "include": [
     "src",
@@ -10,5 +11,7 @@
     "vitest.config.ts",
     "vitest.setup.ts",
     "vite.config.ts"
-  ]
+  ],
+  /* Component source must not see node globals; tests get them from tsconfig.test.json. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
