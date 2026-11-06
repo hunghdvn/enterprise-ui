@@ -22,6 +22,8 @@ export { AuthLayout } from './AuthLayout/AuthLayout';
 export type { AuthLayoutProps } from './AuthLayout/types';
 export { LoginForm } from './LoginForm/LoginForm';
 export type { LoginFormProps, LoginFormValues } from './LoginForm/types';
+export { ErrorPage } from './ErrorPage/ErrorPage';
+export type { ErrorPageProps, ErrorPageLandmark, ErrorStatus } from './ErrorPage/types';
 export { Checkbox } from './Checkbox/Checkbox';
 export type { CheckboxProps } from './Checkbox/Checkbox';
 export { AppShell } from './AppShell/AppShell';

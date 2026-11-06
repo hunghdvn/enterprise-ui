@@ -1,0 +1,95 @@
+.root {
+  /* The page adapts to the width it actually receives (docs frame, modal, app
+     shell), not to the viewport. */
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 32px 20px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.root[data-fill='true'] {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.inner {
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--action-text);
+}
+
+.code {
+  margin: 0;
+  color: var(--action-text);
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 24px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.description {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Only the server error uses the danger cue; 403/404 are informational. */
+.root[data-status='500'] .icon,
+.root[data-status='500'] .code {
+  color: var(--danger-emphasis);
+}
+
+@container (max-width: 480px) {
+  .code {
+    font-size: 34px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+}
