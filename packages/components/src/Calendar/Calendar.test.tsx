@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { flushSync } from 'react-dom';
 import { join } from 'node:path';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cssBlock, cssRule } from '../internal/cssRule';
 import { formatDay } from '../internal/date';
 import { Calendar } from './Calendar';
@@ -1822,3 +1822,91 @@ test('a disabled day that is also selected carries both state classes', () => {
   expect(cell.className).toContain(styles['day-disabled']);
   expect(cell.className).toContain(styles['day-selected']);
 });
+
+// --- round-21 focus ownership regressions ---------------------------------------------------
+
+test('a window refocus keeps grid ownership for the next month', () => {
+  vi.useFakeTimers();
+  render(<TimedRouterCalendar route={TO_NOV} />);
+  day(OCT_31).focus();
+  fireEvent.blur(window);
+  // Returning from another app/window must re-arm ownership: the day still holds DOM focus.
+  fireEvent.focus(window);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+test('a non-primary pointer press outside keeps grid ownership', () => {
+  vi.useFakeTimers();
+  render(<TimedRouterCalendar route={TO_NOV} />);
+  day(OCT_31).focus();
+  // A right-click does not move keyboard focus, so it is not a user exit from the grid.
+  fireEvent.pointerDown(document.body, { button: 2 });
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+test('a browser focusin on body after disabling the focused day keeps the handoff', () => {
+  disableFocusedDay();
+  // A browser may focus <body> when the focused control becomes disabled. That focus is the
+  // render's doing, not the user leaving the grid.
+  fireEvent.focusIn(document.body);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+test('a browser focusin on body after a month removes the focused day keeps the handoff', () => {
+  vi.useFakeTimers();
+  render(<TimedRouterCalendar route={[NOV_1, new Date(2026, 11, 1)]} />);
+  day(OCT_31).focus();
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  // The browser's removal focus fixup may put focus on <body>; the grid still owns the handoff.
+  fireEvent.focusIn(document.body);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 12 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-12-30');
+});
+
+test('focus placed on a day from a parent layout effect is owned', () => {
+  vi.useFakeTimers();
+  function Harness() {
+    const wrap = useRef<HTMLDivElement>(null);
+    const [view, setView] = useState(new Date(2026, 9, 1));
+    useLayoutEffect(() => {
+      wrap.current?.querySelector<HTMLElement>('[data-date="2026-10-31"]')?.focus();
+    }, []);
+    useEffect(() => {
+      const timer = setTimeout(() => setView(NOV_1), 1000);
+      return () => clearTimeout(timer);
+    }, []);
+    return (
+      <div ref={wrap}>
+        <Calendar value={OCT_31} onChange={() => {}} view={view} />
+      </div>
+    );
+  }
+  render(<Harness />);
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+test('a parent onFocus stopPropagation does not hide grid ownership', () => {
+  vi.useFakeTimers();
+  render(
+    <div onFocus={(e) => e.stopPropagation()}>
+      <TimedRouterCalendar route={TO_NOV} />
+    </div>,
+  );
+  day(OCT_31).focus();
+  advance(1000);
+  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+});
+
+
