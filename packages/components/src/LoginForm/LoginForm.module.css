@@ -1,0 +1,59 @@
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger-emphasis);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.errorIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger-emphasis);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.meta[data-alone='true'] {
+  justify-content: flex-end;
+}
+
+.forgot {
+  font-size: 13px;
+}
+
+/* The slot accepts a link or a button; style both so the caller does not need its own reset. */
+.forgot :is(a, button) {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--action-text);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.forgot :is(a, button):hover {
+  text-decoration: underline;
+}
+
+.forgot :is(a, button):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.submit {
+  width: 100%;
+}

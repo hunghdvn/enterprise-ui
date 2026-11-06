@@ -1,0 +1,118 @@
+.root {
+  /* The split layout follows the width AuthLayout actually receives (docs frame, modal,
+     embedded re-auth), not the viewport. */
+  container-type: inline-size;
+  display: flex;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.root[data-fill='true'] {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+}
+
+.aside {
+  display: none;
+  min-width: 0;
+  padding: 40px;
+  background: var(--color-blue-600);
+  color: var(--on-primary);
+  /* The panel is always blue-600. Re-scope the semantic tokens so links and focus rings
+     handed in by the caller stay visible instead of matching the panel colour. */
+  --text: var(--on-primary);
+  --text-muted: var(--color-blue-100);
+  --action-text: var(--on-primary);
+  --focus-ring: var(--on-primary);
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 32px 20px;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.header {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.body {
+  display: grid;
+  gap: 16px;
+}
+
+.footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+@container (min-width: 769px) {
+  .root[data-layout='split'] .layout {
+    grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
+  }
+
+  .root[data-layout='split'] .aside {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    overflow: auto;
+  }
+}
+
+@container (max-width: 480px) {
+  .card {
+    padding: 24px 20px;
+  }
+}
