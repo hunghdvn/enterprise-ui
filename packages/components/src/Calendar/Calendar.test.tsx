@@ -939,20 +939,87 @@ test('a day disabled under focus does not make the grid give up focus', () => {
   expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
-test('a pointer press outside the grid gives up focus kept through a disabled day', () => {
-  disableFocusedDay();
-  fireEvent.pointerDown(document.body);
-  advance(1000);
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+/** Renders the router calendar, focuses 31/10 and disables it the way Chromium handles that. */
+function disableFocusedDayInChromium(): () => void {
+  vi.useFakeTimers();
+  const restore = blurOnDisable();
+  const { rerender } = render(<TimedRouterCalendar route={TO_NOV} />);
+  day(OCT_31).focus();
+  rerender(
+    <TimedRouterCalendar route={TO_NOV} isDisabled={(d) => d.getTime() === OCT_31.getTime()} />,
+  );
   expect(document.activeElement).toBe(document.body);
+  return restore;
+}
+
+test('a pointer press outside the grid gives up focus kept through a disabled day', () => {
+  const restore = disableFocusedDayInChromium();
+  try {
+    // Focus already sits on <body>, so no blur will follow: the press is the user moving on.
+    fireEvent.pointerDown(document.body);
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toBe(document.body);
+  } finally {
+    restore();
+  }
 });
 
-test('the window losing focus gives up focus kept through a disabled day', () => {
-  disableFocusedDay();
-  fireEvent.blur(window);
+test('a press inside the grid keeps focus kept through a disabled day', () => {
+  const restore = disableFocusedDayInChromium();
+  try {
+    // Pressing a blank cell is still working in the calendar, even with focus on <body>.
+    const blank = screen
+      .getByRole('grid')
+      .querySelector<HTMLElement>('[role="gridcell"][aria-hidden="true"]');
+    expect(blank).not.toBeNull();
+    fireEvent.pointerDown(blank as HTMLElement);
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  } finally {
+    restore();
+  }
+});
+
+test('a secondary press outside keeps focus kept through a disabled day', () => {
+  const restore = disableFocusedDayInChromium();
+  try {
+    // A right-click opens a menu and moves no focus.
+    fireEvent.pointerDown(document.body, { button: 2 });
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  } finally {
+    restore();
+  }
+});
+
+test('switching windows keeps focus kept through a disabled day', () => {
+  const restore = disableFocusedDayInChromium();
+  try {
+    // Leaving the window and coming back moves no focus inside the page.
+    fireEvent.blur(window);
+    fireEvent.focus(window);
+    advance(1000);
+    expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
+    expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
+  } finally {
+    restore();
+  }
+});
+
+test('a primary press outside that leaves focus on the day keeps grid ownership', () => {
+  vi.useFakeTimers();
+  render(<TimedRouterCalendar route={TO_NOV} />);
+  day(OCT_31).focus();
+  // A control that prevents the mousedown default (or a touch scroll) leaves focus on the day;
+  // a press that does move focus is seen by the grid's blur instead.
+  fireEvent.pointerDown(document.body);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-10-31');
   advance(1000);
   expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(document.activeElement).toBe(document.body);
+  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
 test('an arrow before the parent applies a page keeps focus on the moved day when it lands', () => {
@@ -1062,22 +1129,6 @@ test('a parent that drops focus in onChange keeps it dropped', () => {
   fireEvent.click(cell);
   fireEvent.keyDown(cell, { key: 'ArrowRight' });
   expect(document.activeElement).toBe(document.body);
-});
-
-test('a pointer press inside the grid keeps grid ownership', () => {
-  vi.useFakeTimers();
-  render(<TimedRouterCalendar route={TO_NOV} />);
-  day(OCT_31).focus();
-  // A press on a blank cell is still inside the grid (the browser's own blur, if any, is judged
-  // by the grid's blur handler, not by this press).
-  const blank = screen
-    .getByRole('grid')
-    .querySelector<HTMLElement>('[role="gridcell"][aria-hidden="true"]');
-  expect(blank).not.toBeNull();
-  fireEvent.pointerDown(blank as HTMLElement);
-  advance(1000);
-  expect(monthHeading()).toMatch(/tháng 11 năm 2026/i);
-  expect(document.activeElement).toHaveAttribute('data-date', '2026-11-30');
 });
 
 test('a landing whose focus call does not take still announces the month', () => {

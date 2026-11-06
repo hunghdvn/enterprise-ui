@@ -89,8 +89,10 @@ export default function CalendarPage() {
         <li>
           Focus: khi tháng đổi lúc lưới đang giữ focus — kể cả khi ngày đang focus biến mất cùng
           tháng cũ, hoặc parent tự điều hướng — focus chuyển sang ngày con trỏ dừng; tháng bị vô
-          hiệu hoá toàn bộ thì focus vào grid. Focus đã rời lưới (sang control khác, nhấn chuột ra
-          ngoài lưới, rời cửa sổ, dialog parent mở trong onViewChange) thì giữ nguyên.
+          hiệu hoá toàn bộ thì focus vào grid. Lưới chỉ thôi giữ focus khi người dùng đưa focus đi
+          chỗ khác: sang control khác (Tab, click, dialog parent mở trong onViewChange), hoặc click
+          làm trình duyệt bỏ focus về trang — kể cả click vào ô trống trong lưới. Click chuột phải
+          và chuyển cửa sổ rồi quay lại không tính.
         </li>
         <li>
           <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus; khi focus ở chính grid, chỉ

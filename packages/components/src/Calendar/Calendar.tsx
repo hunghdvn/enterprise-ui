@@ -147,10 +147,11 @@ export function Calendar({
    * Whether keyboard focus belongs to the grid. The grid's own focus event sets it
    * (`handleGridFocus`, which neither a wrapper's stopPropagation nor a parent focusing a day
    * during mount can hide). It survives the focused day unmounting with its month or being
-   * disabled under focus, so the landings below can hand focus back. Any sign the user went
-   * elsewhere gives it up: a blur to the page (`handleGridBlur`), focus entering another control,
-   * a primary press outside the grid, or leaving the window (re-armed on return when a day still
-   * holds focus).
+   * disabled under focus, so the landings below can hand focus back. Only the user moving focus
+   * elsewhere gives it up: a blur from the grid (`handleGridBlur`), focus entering another
+   * control, or — once a render has left focus on the page — a primary press outside the grid.
+   * Switching windows moves no focus inside the page, so it changes nothing; a day that held focus
+   * gets the browser's own blur and focus events for it.
    */
   const gridOwnsFocusRef = useRef(false);
   useEffect(() => {
@@ -165,26 +166,19 @@ export function Calendar({
       if (target instanceof Element && !inGrid(target)) gridOwnsFocusRef.current = false;
     };
     const onPointerDown = (e: Event) => {
-      // Secondary and middle buttons do not move focus; a primary press outside the grid does
-      // (or would, on something that cannot take focus).
+      // Secondary and middle buttons do not move focus. While a day still holds focus, a press
+      // that does move it is seen by the grid's blur or the next focusin, and one that does not
+      // (preventDefault, a touch scroll) leaves the grid in charge. Only when a render has already
+      // left focus on the page is the press itself the user's sign of moving on.
       if ((e as MouseEvent).button > 0) return;
-      if (!inGrid(e.target)) gridOwnsFocusRef.current = false;
-    };
-    const onWindowBlur = () => {
+      if (inGrid(e.target) || inGrid(document.activeElement)) return;
       gridOwnsFocusRef.current = false;
-    };
-    const onWindowFocus = () => {
-      if (inGrid(document.activeElement)) gridOwnsFocusRef.current = true;
     };
     document.addEventListener('focusin', onFocusIn, true);
     document.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('blur', onWindowBlur);
-    window.addEventListener('focus', onWindowFocus);
     return () => {
       document.removeEventListener('focusin', onFocusIn, true);
       document.removeEventListener('pointerdown', onPointerDown, true);
-      window.removeEventListener('blur', onWindowBlur);
-      window.removeEventListener('focus', onWindowFocus);
     };
   }, []);
 
