@@ -43,9 +43,11 @@ export interface AuthLayoutProps {
   subtitle?: ReactNode;
   children: ReactNode; // form or message
   footer?: ReactNode; // secondary links / legal copy
-  aside?: ReactNode; // marketing panel; when set, desktop is two columns
+  aside?: ReactNode; // marketing panel; two columns when the layout is wide enough
   asideLabel?: string; // accessible name for the complementary landmark
   level?: 1 | 2; // title heading level, default 1
+  as?: 'main' | 'div' | 'section'; // content landmark, default 'main'
+  fill?: boolean; // fill the viewport height, default true
   className?: string;
 }
 
@@ -61,7 +63,7 @@ export interface LoginFormProps {
   onChange: (value: LoginFormValues) => void;
   onSubmit: (value: LoginFormValues) => void;
   error?: ReactNode; // form-level error (wrong credentials, locked account)
-  errors?: Record<string, string>; // field errors keyed 'email' | 'password'
+  errors?: Partial<Record<'email' | 'password', string>>; // field errors
   loading?: boolean;
   disabled?: boolean;
   emailLabel?: string; // default 'Email'
@@ -77,53 +79,76 @@ export interface LoginFormProps {
 
 Behavior:
 
-- `AuthLayout` always renders a `<main>` landmark and renders `<aside>` only
-  when `aside` is set. With no aside the card is centred; with an aside the
-  desktop grid shows the panel + card, and below 768px the panel is hidden and
-  the card takes the full width. The component fills the viewport
-  (`min-height: 100dvh`).
+- `AuthLayout` renders `<main>` by default and renders `<aside>` only when
+  `aside` is set. `as="div" | "section"` replaces the main landmark when the
+  template is embedded in a page that already owns one. With no aside the card
+  is centred; with an aside the grid shows the panel + card whenever the
+  component itself is at least 769px wide (`@container`, not the viewport), so
+  docs frames and modals do not squeeze the card. Narrower than that, the panel
+  is hidden and the card takes the full width. `fill` defaults to true
+  (`min-height: 100dvh`); `fill={false}` lets the caller size the frame.
+- The blue-600 aside re-scopes `--text`, `--text-muted`, `--action-text` and
+  `--focus-ring` to light-on-blue values, so consumer links and focus rings
+  stay visible (WCAG 1.4.11 / 2.4.7) instead of matching the panel.
 - `LoginForm` is controlled: every edit calls `onChange` with a new
-  `{ email, password, remember }`. Submitting prevents the native submit and
-  calls `onSubmit(value)`; it never validates and never fetches.
+  `{ email, password, remember }`; callers must apply it immediately or with a
+  functional state update so two edits before a render cannot drop the first.
+  Submitting prevents the native submit and calls `onSubmit` with values read
+  from the form, so autofill that bypasses `onChange` is included. It never
+  validates and never fetches.
 - `loading` marks the form `aria-busy`, disables the submit button and shows
   its spinner; `disabled` disables every control. A submit is ignored while
   either is set (Enter in a field must not bypass the disabled button).
 - `error` renders above the fields with `role="alert"` and an icon, so colour
-  is not the only channel. Field errors flow through `Form errors` + `Field
-name`, giving `aria-invalid` and `aria-describedby` for free.
+  is not the only channel. Callers clear `error` when a new submit starts so a
+  repeat failure is announced again. Field errors flow through `Form errors` +
+  `Field name`, giving `aria-invalid` and `aria-describedby` for free, and only
+  accept the keys `email` and `password`.
+- The error border/icon use `--danger-emphasis` (light `#dc2626`, dark
+  `#f87171`) so the non-colour cue stays ≥3:1 on `--surface-muted` in both
+  themes.
 - `showRemember={false}` hides the remember checkbox; `forgotPassword` still
   renders in the row, right-aligned, so a forced re-auth screen can offer the
   reset link without the checkbox. The row is omitted only when both are
-  absent.
-- The submit button is full width; `children` renders under it.
+  absent. The slot styles both `<a>` and `<button>`.
+- The submit button is full width; `children` renders under it, outside the
+  `<form>`, so a plain SSO button cannot submit the form.
 
 ## 5. A11y
 
 - `AuthLayout` title is the page heading (`h1` by default; `level={2}` for
-  nested demos). The card is a `<main>`; the marketing panel is an `<aside>`
-  with an optional `asideLabel`.
+  nested demos). The card column is a `<main>` unless `as` changes it; the
+  marketing panel is an `<aside>` with an optional `asideLabel`. The docs page
+  owns the single `<main>` and mounts each demo with `as="div"`.
 - Inputs: visible `<label>` via `Field`, `name="email"`, `autoComplete="username"`;
   `name="password"`, `autoComplete="current-password"`; email uses
   `type="email"` and `inputMode="email"`.
 - Form-level error: `role="alert"`; field errors: `role="alert"` from `Field`.
+  Success messages in the docs keep `role="status"` mounted and only change its
+  text, so each message is announced.
 - Loading: submit button gets `aria-busy`; the form also sets `aria-busy`.
 - No autofocus: the template must not steal focus on mount. All controls are
-  reachable by Tab; focus rings use `--focus-ring`.
-- Contrast: muted text on surface and white on blue-600 meet 4.5:1 in both
-  themes.
+  reachable by Tab; focus rings use `--focus-ring`, including on the aside.
+- Contrast: muted text on surface, white on blue-600 and `--danger-emphasis` on
+  `--surface-muted` meet 4.5:1 / 3:1 as applicable in both themes.
 
 ## 6. Tests (acceptance)
 
 - `AuthLayout.test.tsx`: title/subtitle/brand/children/footer render; title
   level; no aside → no complementary landmark; aside → landmark + optional
-  label; className merge; main landmark exists.
+  label; className merge; main landmark exists; `as="div"` drops it; `fill`
+  data hook; container query instead of viewport media; aside token re-scope.
 - `LoginForm.test.tsx`: labels + autocomplete + input types; edits emit the
   full next value; remember toggles; submit prevents default and emits current
-  values; Enter while loading/disabled does not emit; form error alert; field
-  errors wire `aria-invalid`/`aria-describedby`; loading `aria-busy`; disabled
-  controls; custom labels; forgot slot; `showRemember={false}`; children slot.
+  values; submit reads autofilled DOM values and syncs `onChange`; hidden
+  remember keeps the controlled value; Enter while loading/disabled does not
+  emit; form error alert; field errors wire
+  `aria-invalid`/`aria-describedby`; loading `aria-busy`; disabled controls;
+  custom labels; forgot slot (`a` and `button` styling); `showRemember={false}`;
+  children render outside the form and a plain SSO button does not submit.
 - Docs page: three tabs render login / forgot / register compositions; one
-  code snippet typechecks.
+  code snippet typechecks; success status regions stay mounted; tab focus index
+  is derived from the rendered items.
 
 ## 7. Done khi
 

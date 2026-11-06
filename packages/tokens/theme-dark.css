@@ -11,6 +11,8 @@
      selected background, so the marker gets its own light-on-dark value. */
   --row-selected-marker: #60a5fa;
   --action-text: #bfdbfe;
+  /* --danger is ~2.1:1 on --surface-muted; red-400 keeps error borders/icons above 3:1. */
+  --danger-emphasis: #f87171;
   --nav-active-bg: #1e3a8a;
   --scrim: rgba(2, 6, 23, 0.65);
   /* Blue-600 falls to ~2.2:1 on the dark background; both rings use blue-300 instead. */

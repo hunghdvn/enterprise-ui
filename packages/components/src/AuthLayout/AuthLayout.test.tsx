@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { AuthLayout } from './AuthLayout';
 
+const css = readFileSync(join(import.meta.dirname, 'AuthLayout.module.css'), 'utf8');
+
 test('renders the card slots and a main landmark', () => {
-  render(
+  const { container } = render(
     <AuthLayout
       brand={<span>Enterprise</span>}
       title="Đăng nhập"
@@ -20,7 +24,7 @@ test('renders the card slots and a main landmark', () => {
   expect(screen.getByText('Enterprise')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Cần trợ giúp?' })).toBeInTheDocument();
   expect(screen.getByRole('form', { name: 'Đăng nhập' })).toBeInTheDocument();
-  expect(screen.getByRole('main').parentElement).toHaveClass('custom');
+  expect(container.firstElementChild).toHaveClass('custom');
 });
 
 test('renders the title at the requested heading level', () => {
@@ -31,6 +35,33 @@ test('renders the title at the requested heading level', () => {
   );
   expect(screen.getByRole('heading', { level: 2, name: 'Quên mật khẩu' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+});
+
+test('as="div" drops the main landmark for embedding and keeps the content', () => {
+  render(
+    <AuthLayout as="div" title="Đăng nhập">
+      <p>Form</p>
+    </AuthLayout>,
+  );
+  expect(screen.queryByRole('main')).toBeNull();
+  expect(screen.getByRole('heading', { level: 1, name: 'Đăng nhập' })).toBeInTheDocument();
+});
+
+test('fill defaults to true and fill={false} opts out of the viewport height', () => {
+  const { container, rerender } = render(
+    <AuthLayout title="Đăng nhập">
+      <p>Form</p>
+    </AuthLayout>,
+  );
+  expect(container.firstElementChild).toHaveAttribute('data-fill', 'true');
+
+  rerender(
+    <AuthLayout title="Đăng nhập" fill={false}>
+      <p>Form</p>
+    </AuthLayout>,
+  );
+  expect(container.firstElementChild).toHaveAttribute('data-fill', 'false');
+  expect(css).toContain(".root[data-fill='true']");
 });
 
 test('renders the aside as a complementary landmark only when provided', () => {
@@ -74,4 +105,18 @@ test('empty slots render nothing, not a stray zero or empty wrapper', () => {
   expect(container.textContent).toBe('Đăng nhậpForm');
   expect(container.querySelector('[class*="brand"]')).toBeNull();
   expect(container.querySelector('[class*="footer"]')).toBeNull();
+});
+
+test('the aside re-scopes tokens so links and focus rings stay visible on blue-600', () => {
+  const aside = /\.aside\s*\{([^}]*)\}/s.exec(css)?.[1] ?? '';
+  expect(aside).toContain('--text: var(--on-primary)');
+  expect(aside).toContain('--text-muted: var(--color-blue-100)');
+  expect(aside).toContain('--action-text: var(--on-primary)');
+  expect(aside).toContain('--focus-ring: var(--on-primary)');
+});
+
+test('the split layout follows the container width, not the viewport', () => {
+  expect(css).toContain('container-type: inline-size');
+  expect(css).toContain('@container (min-width: 769px)');
+  expect(css).not.toContain('@media (min-width: 769px)');
 });

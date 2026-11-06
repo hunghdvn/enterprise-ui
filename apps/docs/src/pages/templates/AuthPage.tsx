@@ -39,7 +39,7 @@ const authProps: PropDoc[] = [
     name: 'aside',
     type: 'ReactNode',
     description:
-      'Panel marketing; khi có, desktop chia hai cột. Dưới 768px panel bị ẩn và card chiếm toàn bộ chiều rộng.',
+      'Panel marketing; khi có và khung đủ rộng (container ≥ 769px) thì chia hai cột. Hẹp hơn thì panel bị ẩn và card chiếm toàn bộ chiều rộng.',
   },
   {
     name: 'asideLabel',
@@ -51,6 +51,20 @@ const authProps: PropDoc[] = [
     type: '1 | 2',
     default: '1',
     description: 'Cấp thẻ tiêu đề; dùng 2 khi template nằm dưới một h1 khác.',
+  },
+  {
+    name: 'as',
+    type: "'main' | 'div' | 'section'",
+    default: "'main'",
+    description:
+      'Landmark của cột nội dung. Dùng div khi trang đã có main (docs, re-auth trong app shell) để tránh nhiều main.',
+  },
+  {
+    name: 'fill',
+    type: 'boolean',
+    default: 'true',
+    description:
+      'Chiếm toàn bộ chiều cao viewport. Đặt false khi nhúng trong khung preview hoặc modal để tự quản chiều cao.',
   },
   { name: 'className', type: 'string', description: 'Lớp bổ sung cho vỏ.' },
 ];
@@ -64,23 +78,26 @@ const loginProps: PropDoc[] = [
   {
     name: 'onChange',
     type: '(value: LoginFormValues) => void',
-    description: 'Gọi với toàn bộ giá trị kế tiếp mỗi khi một field thay đổi.',
+    description:
+      'Gọi với toàn bộ giá trị kế tiếp mỗi khi một field thay đổi. Áp dụng ngay hoặc dùng functional setState: hai edit trước một lần render sẽ cùng spread giá trị cũ nếu không.',
   },
   {
     name: 'onSubmit',
     type: '(value: LoginFormValues) => void',
     description:
-      'Gọi khi form được submit; component đã preventDefault và không tự validate hay gọi API.',
+      'Gọi với giá trị đọc từ form khi submit (gồm cả autofill không phát onChange); component đã preventDefault và không tự validate hay gọi API.',
   },
   {
     name: 'error',
     type: 'ReactNode',
-    description: 'Lỗi cấp form (sai tài khoản, tài khoản bị khoá), hiển thị role="alert".',
+    description:
+      'Lỗi cấp form (sai tài khoản, tài khoản bị khoá), hiển thị role="alert". Xoá error khi bắt đầu submit mới để lỗi lặp lại được đọc lại.',
   },
   {
     name: 'errors',
-    type: 'Record<string, string>',
-    description: 'Lỗi theo field, key email/password; Field nhận aria-invalid và aria-describedby.',
+    type: "Partial<Record<'email' | 'password', string>>",
+    description:
+      'Lỗi theo field, chỉ nhận email/password; Field nhận aria-invalid và aria-describedby.',
   },
   { name: 'loading', type: 'boolean', description: 'Form aria-busy, nút submit quay và bị khoá.' },
   { name: 'disabled', type: 'boolean', description: 'Khoá toàn bộ control.' },
@@ -113,12 +130,14 @@ const loginProps: PropDoc[] = [
   {
     name: 'forgotPassword',
     type: 'ReactNode',
-    description: 'Link/button quên mật khẩu đặt đối diện checkbox.',
+    description:
+      'Link hoặc button quên mật khẩu đặt đối diện checkbox; component style cả hai, không cần reset riêng.',
   },
   {
     name: 'children',
     type: 'ReactNode',
-    description: 'Nội dung sau nút submit (SSO, ghi chú pháp lý).',
+    description:
+      'Nội dung sau nút submit và nằm ngoài <form> (SSO, ghi chú pháp lý); button thường trong slot này không submit form.',
   },
   { name: 'className', type: 'string', description: 'Lớp bổ sung cho <form>.' },
   {
@@ -157,8 +176,21 @@ export function LoginPage() {
   );
 }`;
 
-const TAB_KEYS = ['login', 'forgot', 'register'] as const;
-type TabKey = (typeof TAB_KEYS)[number];
+type TabKey = 'login' | 'forgot' | 'register';
+
+type LoginField = 'email' | 'password';
+type RegisterField = 'name' | 'email' | 'password' | 'terms';
+
+/** Drops one field error without allocating a new object when the key is absent. */
+function withoutKey<T extends string>(
+  errors: Partial<Record<T, string>>,
+  key: T,
+): Partial<Record<T, string>> {
+  if (!(key in errors)) return errors;
+  const next = { ...errors };
+  delete next[key];
+  return next;
+}
 
 function AuthAside() {
   return (
@@ -200,7 +232,7 @@ export default function AuthPage() {
     password: '',
     remember: true,
   });
-  const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
+  const [loginErrors, setLoginErrors] = useState<Partial<Record<LoginField, string>>>({});
   const [loginMessage, setLoginMessage] = useState('');
 
   const [forgotEmail, setForgotEmail] = useState('');
@@ -213,32 +245,32 @@ export default function AuthPage() {
     password: '',
     terms: false,
   });
-  const [registerErrors, setRegisterErrors] = useState<Record<string, string>>({});
+  const [registerErrors, setRegisterErrors] = useState<Partial<Record<RegisterField, string>>>({});
   const [registerMessage, setRegisterMessage] = useState('');
 
-  // A footer link lives inside the panel that is about to hide; move focus to
-  // the tab that replaced it so keyboard users do not land on <body>.
+  // A footer link lives inside the panel that is about to hide; move focus to the tab that
+  // replaced it. Match the id Tabs derives from the key, so reordering items cannot select one
+  // tab and focus another.
   const goTo = (key: TabKey) => {
     setTab(key);
-    const index = TAB_KEYS.indexOf(key);
     requestAnimationFrame(() => {
-      tabsRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[index]?.focus();
+      tabsRef.current?.querySelector<HTMLElement>(`[role="tab"][id$="-tab-${key}"]`)?.focus();
     });
   };
 
   const handleLoginChange = (next: LoginFormValues) => {
     setLogin(next);
     setLoginErrors((prev) => {
-      const updated = { ...prev };
-      if (next.email !== login.email) delete updated.email;
-      if (next.password !== login.password) delete updated.password;
+      let updated = prev;
+      if (next.email !== login.email) updated = withoutKey(updated, 'email');
+      if (next.password !== login.password) updated = withoutKey(updated, 'password');
       return updated;
     });
     setLoginMessage('');
   };
 
   const handleLogin = (values: LoginFormValues) => {
-    const next: Record<string, string> = {};
+    const next: Partial<Record<LoginField, string>> = {};
     if (!values.email.trim()) next.email = 'Vui lòng nhập email';
     else if (!values.email.includes('@')) next.email = 'Email không hợp lệ';
     if (!values.password) next.password = 'Vui lòng nhập mật khẩu';
@@ -259,18 +291,13 @@ export default function AuthPage() {
     setForgotMessage('Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi (demo).');
   };
 
-  const clearRegisterError = (key: string) => {
-    setRegisterErrors((prev) => {
-      if (!(key in prev)) return prev;
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+  const clearRegisterError = (key: RegisterField) => {
+    setRegisterErrors((prev) => withoutKey(prev, key));
   };
 
   const handleRegister = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const next: Record<string, string> = {};
+    const next: Partial<Record<RegisterField, string>> = {};
     if (!register.name.trim()) next.name = 'Vui lòng nhập họ tên';
     if (!register.email.includes('@')) next.email = 'Email không hợp lệ';
     if (register.password.length < 6) next.password = 'Mật khẩu tối thiểu 6 ký tự';
@@ -297,6 +324,8 @@ export default function AuthPage() {
       content: (
         <AuthLayout
           level={2}
+          as="div"
+          fill={false}
           className={styles.preview}
           brand={brand}
           title="Đăng nhập"
@@ -318,16 +347,14 @@ export default function AuthPage() {
             onSubmit={handleLogin}
             errors={loginErrors}
             forgotPassword={
-              <button type="button" className={styles.linkButton} onClick={() => goTo('forgot')}>
+              <button type="button" onClick={() => goTo('forgot')}>
                 Quên mật khẩu?
               </button>
             }
           >
-            {loginMessage && (
-              <p className={styles.status} role="status">
-                {loginMessage}
-              </p>
-            )}
+            <p className={styles.status} role="status">
+              {loginMessage}
+            </p>
           </LoginForm>
         </AuthLayout>
       ),
@@ -338,6 +365,8 @@ export default function AuthPage() {
       content: (
         <AuthLayout
           level={2}
+          as="div"
+          fill={false}
           className={styles.preview}
           brand={brand}
           title="Quên mật khẩu"
@@ -369,11 +398,9 @@ export default function AuthPage() {
             <Button type="submit" className={styles.submit}>
               Gửi hướng dẫn
             </Button>
-            {forgotMessage && (
-              <p className={styles.status} role="status">
-                {forgotMessage}
-              </p>
-            )}
+            <p className={styles.status} role="status">
+              {forgotMessage}
+            </p>
           </Form>
         </AuthLayout>
       ),
@@ -384,6 +411,8 @@ export default function AuthPage() {
       content: (
         <AuthLayout
           level={2}
+          as="div"
+          fill={false}
           className={styles.preview}
           brand={brand}
           title="Tạo tài khoản"
@@ -404,7 +433,7 @@ export default function AuthPage() {
                 autoComplete="name"
                 value={register.name}
                 onChange={(event) => {
-                  setRegister({ ...register, name: event.target.value });
+                  setRegister((prev) => ({ ...prev, name: event.target.value }));
                   clearRegisterError('name');
                   setRegisterMessage('');
                 }}
@@ -418,7 +447,7 @@ export default function AuthPage() {
                 inputMode="email"
                 value={register.email}
                 onChange={(event) => {
-                  setRegister({ ...register, email: event.target.value });
+                  setRegister((prev) => ({ ...prev, email: event.target.value }));
                   clearRegisterError('email');
                   setRegisterMessage('');
                 }}
@@ -431,7 +460,7 @@ export default function AuthPage() {
                 autoComplete="new-password"
                 value={register.password}
                 onChange={(event) => {
-                  setRegister({ ...register, password: event.target.value });
+                  setRegister((prev) => ({ ...prev, password: event.target.value }));
                   clearRegisterError('password');
                   setRegisterMessage('');
                 }}
@@ -442,7 +471,7 @@ export default function AuthPage() {
                 name="terms"
                 checked={register.terms}
                 onChange={(event) => {
-                  setRegister({ ...register, terms: event.target.checked });
+                  setRegister((prev) => ({ ...prev, terms: event.target.checked }));
                   clearRegisterError('terms');
                   setRegisterMessage('');
                 }}
@@ -453,11 +482,9 @@ export default function AuthPage() {
             <Button type="submit" className={styles.submit}>
               Tạo tài khoản
             </Button>
-            {registerMessage && (
-              <p className={styles.status} role="status">
-                {registerMessage}
-              </p>
-            )}
+            <p className={styles.status} role="status">
+              {registerMessage}
+            </p>
           </Form>
         </AuthLayout>
       ),
@@ -465,7 +492,7 @@ export default function AuthPage() {
   ];
 
   return (
-    <div className={styles.page}>
+    <main className={styles.page}>
       <h1 className={styles.title}>Auth (Login)</h1>
       <p className={styles.subtitle}>
         AuthLayout + LoginForm: một khung đăng nhập dùng lại cho đăng nhập, quên mật khẩu và đăng
@@ -494,6 +521,6 @@ export default function AuthPage() {
           <PropsTable props={loginProps} />
         </section>
       </div>
-    </div>
+    </main>
   );
 }

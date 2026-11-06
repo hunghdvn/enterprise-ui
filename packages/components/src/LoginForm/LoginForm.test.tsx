@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LoginForm } from './LoginForm';
 import type { LoginFormValues } from './types';
 
 const EMPTY: LoginFormValues = { email: '', password: '', remember: false };
+const css = readFileSync(join(import.meta.dirname, 'LoginForm.module.css'), 'utf8');
 
 function Harness({
   initial = EMPTY,
@@ -97,6 +100,44 @@ test('submitting prevents the native submit and emits the current values', () =>
 
   // fireEvent returns false when the handler called preventDefault.
   expect(fireEvent.submit(screen.getByRole('form'))).toBe(false);
+  expect(onSubmit).toHaveBeenCalledWith({
+    email: 'an@congty.vn',
+    password: 'secret',
+    remember: true,
+  });
+});
+
+test('submits what is in the inputs when autofill bypasses onChange', () => {
+  const onChange = vi.fn();
+  const onSubmit = vi.fn();
+  render(<LoginForm value={EMPTY} onChange={onChange} onSubmit={onSubmit} />);
+
+  // Password managers and iOS autofill can write straight to the DOM without a React event.
+  const email = screen.getByRole('textbox', { name: 'Email' }) as HTMLInputElement;
+  const password = screen.getByLabelText(/Mật khẩu/) as HTMLInputElement;
+  email.value = 'autofill@congty.vn';
+  password.value = 'autofill-secret';
+
+  fireEvent.submit(screen.getByRole('form'));
+
+  const filled = { email: 'autofill@congty.vn', password: 'autofill-secret', remember: false };
+  expect(onSubmit).toHaveBeenCalledWith(filled);
+  // The caller is told about the DOM values, so its next render cannot clear them.
+  expect(onChange).toHaveBeenCalledWith(filled);
+});
+
+test('a hidden remember checkbox keeps the controlled value on submit', () => {
+  const onSubmit = vi.fn();
+  render(
+    <LoginForm
+      value={{ email: 'an@congty.vn', password: 'secret', remember: true }}
+      onChange={() => {}}
+      onSubmit={onSubmit}
+      showRemember={false}
+    />,
+  );
+
+  fireEvent.submit(screen.getByRole('form'));
   expect(onSubmit).toHaveBeenCalledWith({
     email: 'an@congty.vn',
     password: 'secret',
@@ -230,13 +271,29 @@ test('no remember row renders when both the checkbox and the forgot slot are abs
   expect(container.querySelector('[class*="meta"]')).toBeNull();
 });
 
-test('children render after the submit button', () => {
+test('children render after the form, so a plain SSO button cannot submit it', () => {
+  const onSubmit = vi.fn();
+  const startSso = vi.fn();
   render(
-    <LoginForm value={EMPTY} onChange={() => {}} onSubmit={() => {}}>
-      <p>Đăng nhập bằng SSO</p>
+    <LoginForm value={EMPTY} onChange={() => {}} onSubmit={onSubmit}>
+      <button onClick={startSso}>Đăng nhập bằng SSO</button>
     </LoginForm>,
   );
 
-  const form = screen.getByRole('form');
-  expect(form.lastElementChild).toHaveTextContent('Đăng nhập bằng SSO');
+  const sso = screen.getByRole('button', { name: 'Đăng nhập bằng SSO' });
+  expect(screen.getByRole('form')).not.toContainElement(sso);
+  fireEvent.click(sso);
+  expect(startSso).toHaveBeenCalledTimes(1);
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+test('the forgot-password slot styles links and buttons alike', () => {
+  expect(css).toContain('.forgot :is(a, button)');
+  expect(css).toContain('font: inherit');
+  expect(css).toContain('outline: 2px solid var(--focus-ring)');
+});
+
+test('error borders and icons use the theme-aware danger emphasis token', () => {
+  expect(css).toContain('border: 1px solid var(--danger-emphasis)');
+  expect(css).toMatch(/\.errorIcon\s*\{[^}]*color:\s*var\(--danger-emphasis\)/s);
 });

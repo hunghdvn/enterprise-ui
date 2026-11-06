@@ -12,6 +12,8 @@
   --color-orange-600: #ea580c;
   --success: #16a34a;
   --danger: #dc2626;
+  /* Danger foreground/border on muted surfaces; themes lighten it when --danger falls below 3:1. */
+  --danger-emphasis: #dc2626;
   --radius: 6px;
   --radius-lg: 8px;
   /* Keyboard focus indicator; themes override it when the base blue does not contrast. */

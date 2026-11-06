@@ -1,11 +1,24 @@
 .root {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* The split layout follows the width AuthLayout actually receives (docs frame, modal,
+     embedded re-auth), not the viewport. */
+  container-type: inline-size;
+  display: flex;
+  min-width: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
+}
+
+.root[data-fill='true'] {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
 }
 
 .aside {
@@ -14,6 +27,12 @@
   padding: 40px;
   background: var(--color-blue-600);
   color: var(--on-primary);
+  /* The panel is always blue-600. Re-scope the semantic tokens so links and focus rings
+     handed in by the caller stay visible instead of matching the panel colour. */
+  --text: var(--on-primary);
+  --text-muted: var(--color-blue-100);
+  --action-text: var(--on-primary);
+  --focus-ring: var(--on-primary);
 }
 
 .main {
@@ -79,8 +98,8 @@
   color: var(--text-muted);
 }
 
-@media (min-width: 769px) {
-  .root[data-layout='split'] {
+@container (min-width: 769px) {
+  .root[data-layout='split'] .layout {
     grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
   }
 

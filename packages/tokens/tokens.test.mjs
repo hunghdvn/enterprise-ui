@@ -16,6 +16,7 @@ const must = [
   '--on-primary:',
   '--on-accent:',
   '--input-h-lg:',
+  '--danger-emphasis: #dc2626',
   '--control-size-sm:',
   '--control-size:',
   '--font-size-md:',
@@ -165,6 +166,11 @@ assertThemeTokens('light', lightCss, '[data-theme="light"]', blockedPair);
 assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
   '--blocked-selection-bg': 'var(--surface-muted)',
   '--blocked-selection-text': 'var(--text)',
+  '--danger-emphasis': '#f87171',
+});
+// Like the rings, the danger cue must be reset inside a light subtree of a dark page.
+assertThemeTokens('light', lightCss, '[data-theme="light"]', {
+  '--danger-emphasis': '#dc2626',
 });
 
 // Component-source conventions (no hardcoded hex, both data-size variants styled) live in the

@@ -3,7 +3,7 @@
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--danger);
+  border: 1px solid var(--danger-emphasis);
   border-left-width: 4px;
   border-radius: var(--radius);
   background: var(--surface-muted);
@@ -15,7 +15,7 @@
 .errorIcon {
   flex-shrink: 0;
   margin-top: 1px;
-  color: var(--danger);
+  color: var(--danger-emphasis);
 }
 
 .meta {
@@ -34,13 +34,24 @@
   font-size: 13px;
 }
 
-.forgot a {
+/* The slot accepts a link or a button; style both so the caller does not need its own reset. */
+.forgot :is(a, button) {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--action-text);
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.forgot a:hover {
+.forgot :is(a, button):hover {
   text-decoration: underline;
+}
+
+.forgot :is(a, button):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .submit {

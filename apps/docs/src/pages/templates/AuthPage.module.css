@@ -35,8 +35,8 @@
   border-radius: var(--radius-lg);
 }
 
-/* The template fills a real app viewport; the docs preview frames it instead. */
-.frame .preview {
+/* AuthLayout is full-height by default; the demo passes fill={false} and sizes the frame. */
+.preview {
   min-height: 560px;
 }
 
