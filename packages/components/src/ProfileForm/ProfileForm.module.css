@@ -1,0 +1,44 @@
+.form {
+  /* The grid columns follow the space the form gets, not the viewport. */
+  container-type: inline-size;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.avatar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatarHint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@container (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
