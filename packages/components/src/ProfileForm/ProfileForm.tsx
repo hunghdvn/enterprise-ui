@@ -54,9 +54,12 @@ export function ProfileForm({
   return (
     // The avatar slot sits outside the <form>: a plain <button> in a caller's upload
     // widget defaults to type="submit", so inside the form, opening the picker would
-    // also submit the profile. The wrapper only carries the layout gap; `className`
-    // and the remaining form attributes still land on the <form>, as documented.
-    <div className={styles.root}>
+    // also submit the profile.
+    //
+    // The wrapper is the element in the caller's layout, so `className`, `hidden`, `style`,
+    // `id` and `data-*` land here (types.ts documents it). On the inner <form> a placement
+    // class would do nothing and `hidden` would hide the form but leave the avatar showing.
+    <div {...rest} className={cx(styles.root, className)}>
       {isPresent(avatar) && (
         <div className={styles.avatar}>
           {avatar}
@@ -64,11 +67,10 @@ export function ProfileForm({
         </div>
       )}
       <Form
-        {...rest}
         aria-label={ariaLabel}
         aria-busy={loading || undefined}
         errors={formErrors}
-        className={cx(styles.form, className)}
+        className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
           // Enter in a field still submits natively; a disabled button must not let it through.

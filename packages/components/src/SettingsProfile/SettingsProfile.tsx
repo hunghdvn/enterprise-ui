@@ -67,12 +67,18 @@ export function SettingsProfile({
 
   // A long list in a narrow container scrolls horizontally, and the active section can
   // start off-screen. Move only the nav's own scroll offset, never the page's.
+  //
+  // Rects, not `offsetLeft`: that value is relative to the offsetParent, which is <body>
+  // unless an ancestor is positioned, so inside a padded frame (AppShell, the docs page)
+  // it includes the nav's own distance from the page edge and overshoots. Subtracting the
+  // two rects cancels that out, and `scrollLeft +=` composes with the current offset.
   useEffect(() => {
     const nav = navRef.current;
     const active = activeRef.current;
     if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
-    const centered = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
-    nav.scrollLeft = Math.max(0, centered);
+    const navRect = nav.getBoundingClientRect();
+    const itemRect = active.getBoundingClientRect();
+    nav.scrollLeft += itemRect.left - navRect.left - (nav.clientWidth - itemRect.width) / 2;
   }, [current]);
 
   const select = (key: string) => {

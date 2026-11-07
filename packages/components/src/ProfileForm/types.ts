@@ -1,4 +1,4 @@
-import type { FormHTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
 export interface ProfileFormValues {
   displayName: string;
@@ -8,8 +8,14 @@ export interface ProfileFormValues {
   department: string;
 }
 
+/**
+ * Pass-through attributes go to the root wrapper (the element the caller lays out), not the
+ * inner `<form>`: `className` for placement, `hidden`, `style`, `id`, `data-*`. Form-only
+ * attributes (`action`, `method`) are meaningless here because the component owns submit and
+ * always prevents the native one.
+ */
 export interface ProfileFormProps extends Omit<
-  FormHTMLAttributes<HTMLFormElement>,
+  HTMLAttributes<HTMLDivElement>,
   'onChange' | 'onSubmit' | 'children' | 'className'
 > {
   value: ProfileFormValues;
@@ -44,5 +50,10 @@ export interface ProfileFormProps extends Omit<
   cancelLabel?: string;
   /** Renders the secondary cancel button when set. */
   onCancel?: () => void;
+  /**
+   * Extra class for the **root wrapper** (the element that sits in the caller's layout), so
+   * placement (`flex`, `grid-column`, `margin`) takes effect. The `<form>` keeps its own class;
+   * style its descendants from here if needed.
+   */
   className?: string;
 }

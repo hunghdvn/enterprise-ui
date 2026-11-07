@@ -101,7 +101,7 @@ export interface ProfileFormValues {
 }
 
 export interface ProfileFormProps extends Omit<
-  FormHTMLAttributes<HTMLFormElement>,
+  HTMLAttributes<HTMLDivElement>,
   'onChange' | 'onSubmit' | 'children' | 'className'
 > {
   value: ProfileFormValues;
@@ -137,6 +137,7 @@ export interface ProfileFormProps extends Omit<
   cancelLabel?: string; // 'Huỷ'
   /** Renders the secondary cancel button when set. */
   onCancel?: () => void;
+  /** Extra class for the root wrapper (the element in the caller's layout), not the form. */
   className?: string;
 }
 ```
@@ -174,6 +175,12 @@ requires is added.
   current item inside the section set.
 - Clicking an item calls `onSectionChange(key)`; uncontrolled, it also switches
   its own state (`defaultActiveKey ?? sections[0].key`).
+- `defaultActiveKey` seeds the **first render only**. If `sections` arrives in
+  stages (async or permission-gated list) and the key is not present yet, the
+  state reconciles to the first section that does exist and does not switch back
+  when the key arrives. Sections known only at runtime, or a key taken from the
+  URL, belong in controlled mode (`activeKey` + `onSectionChange`) — a documented
+  trade-off of the stale-key reconcile below, not a bug to "fix" by re-seeding.
 - An `activeKey` that matches no section falls back to the first section rather
   than rendering no pane — a stale key from a removed section must not blank the
   screen. The fallback is **not** render-only: a `useEffect` reconciles the
@@ -200,9 +207,15 @@ requires is added.
   rail and panes sit beside it; below that the nav becomes a horizontally
   scrollable row above the pane (a thin scrollbar, still keyboard-scrollable) and
   the pane takes the full width. The active item is scrolled into view when the
-  row overflows, so an off-screen `defaultActiveKey` cannot start invisible. The
-  active cue follows the orientation: an underline in the row, a left bar in the
-  rail — a left border in the row would butt against the previous item. Long
+  row overflows, so an off-screen `defaultActiveKey` cannot start invisible. That
+  centring is computed from `getBoundingClientRect()` of the nav and the item, not
+  `offsetLeft`: `offsetLeft` is relative to the `offsetParent`, which is `<body>`
+  unless an ancestor is positioned, so inside a padded frame it includes the
+  nav's own distance from the page edge and overshoots (measured on the docs page:
+  `scrollLeft` 134 instead of the intended 96, the active button at -1px). Rects
+  cancel that out, and `scrollLeft +=` composes with the current offset.
+  The active cue follows the orientation: an underline in the row, a left bar in
+  the rail — a left border in the row would butt against the previous item. Long
   labels wrap inside the 220px rail instead of spilling over the pane.
   `@container`, never `@media`, so the same component works in the docs frame and
   in a wide shell.
@@ -236,13 +249,19 @@ requires is added.
   ignored (Enter in a field must not bypass the disabled button).
 - The `avatar` slot renders **outside** the `<form>`. A caller's upload control is
   typically a plain `<button>`, which defaults to `type="submit"`; inside the form,
-  opening the picker would also save the profile. A thin wrapper owns the vertical
-  gap; `className` and the other form attributes still land on the `<form>`.
-- The root has a `min-inline-size: min(15rem, 100%)` floor. `container-type:
-inline-size` makes a form contribute 0 to its parent's intrinsic width, so in a
+  opening the picker would also save the profile. The wrapper is therefore the
+  outer element: `className`, `hidden`, `style`, `id` and `data-*` land on it, so
+  placement classes reach the caller's flex/grid layout and `hidden` hides the
+  avatar too. The `<form>` keeps only its own class; form-only attributes
+  (`action`, `method`) are meaningless because the component owns submit and
+  always prevents the native one.
+- The root has a `min-inline-size: 15rem` floor. `container-type: inline-size`
+  makes a form contribute 0 to its parent's intrinsic width, so in a
   shrink-to-fit home (flex item without grow, grid `auto` column, `width:
 fit-content`, inline-block, popover) it would collapse to ~0px; the floor keeps
-  it usable and the `100%` half lets it yield inside a narrower container.
+  it usable. Deliberately a plain length, **not** `min(15rem, 100%)`: the
+  percentage resolves against an indefinite width in exactly the shrink-to-fit
+  case being fixed, so it would not floor anything there.
 - No autofocus. The component never validates and never fetches.
 - The autofill read lives in `internal/readFormValue.ts` and is shared with
   `LoginForm`: one copy of the "read the DOM, keep missing controls, check
@@ -302,6 +321,10 @@ fit-content`, inline-block, popover) it would collapse to ~0px; the floor keeps
 - CSS pins: `@container` present, `@media` absent, root `box-sizing: border-box`,
   768px rail breakpoint, `[hidden]` display none rule, thin (not hidden)
   scrollbar, wrapping labels in the rail, orientation-specific active cue.
+- the active item's centring is computed from rects, not `offsetLeft`: with the
+  nav offset from the page edge and already scrolled, the resulting `scrollLeft`
+  is the centred value (an `offsetLeft` read overshoots; the mocked-`offsetLeft`
+  version of this test could not catch it).
 
 `ProfileForm.test.tsx`:
 
@@ -323,12 +346,16 @@ fit-content`, inline-block, popover) it would collapse to ~0px; the floor keeps
   no `onCancel` renders no cancel button.
 - avatar and `avatarHint` render; omitted avatar renders no wrapper; a plain
   `<button>` in the avatar slot is not inside the form and does not submit.
-- className merge; the root's `min-inline-size` floor is pinned in CSS so
-  `container-type: inline-size` cannot collapse it.
+- className merge on the **root wrapper**, which also takes `hidden`, `style`,
+  `id` and `data-*`: a placement class reaches the caller's layout and `hidden`
+  hides the avatar slot too. The root's `min-inline-size` floor is pinned in CSS
+  so `container-type: inline-size` cannot collapse it.
 
 Docs page: three sections render through `SettingsProfile`; the snippet
 typechecks; switching sections keeps the typed value; saves are reported with
-`useToast`.
+`useToast`; the change-password form carries a hidden `username` field so
+password managers have an account to attach the new password to (and browsers
+stop logging the "password forms should have username fields" warning).
 
 ## 8. My calls (recorded so they can be checked)
 

@@ -66,7 +66,8 @@ const settingsProps: PropDoc[] = [
     name: 'defaultActiveKey',
     type: 'string',
     default: 'sections[0].key',
-    description: 'Section mở đầu khi không controlled.',
+    description:
+      'Section mở đầu khi không controlled. Chỉ là giá trị khởi tạo: nếu sections đến theo đợt (ví dụ section theo quyền chỉ có sau khi tải role) thì key này bị thay bằng section đầu tiên đang có — lúc đó key đến muộn không còn được chọn nữa. Section đến bất đồng bộ hoặc key lấy từ URL thì dùng chế độ controlled (activeKey + onSectionChange) thay vì defaultActiveKey.',
   },
   {
     name: 'onSectionChange',
@@ -160,7 +161,12 @@ const profileProps: PropDoc[] = [
     default: "'Lưu thay đổi' / 'Huỷ'",
     description: 'Nhãn hai nút hành động.',
   },
-  { name: 'className', type: 'string', description: 'Lớp bổ sung cho form.' },
+  {
+    name: 'className',
+    type: 'string',
+    description:
+      'Lớp bổ sung cho vỏ ngoài (phần tử nằm trong layout của trang), không phải thẻ form bên trong.',
+  },
 ];
 
 const code = `import { useState } from 'react';
@@ -300,6 +306,17 @@ export default function SettingsPage() {
           }}
           className={styles.security}
         >
+          {/* A password field in a form with no username makes browsers log a warning and
+              leaves password managers unable to tell which account this password belongs
+              to; a hidden username field is what they hook into. */}
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={profile.email}
+            readOnly
+            hidden
+          />
           {/* A password input outside a form trips a browser warning and leaves password
               managers nothing to hook into, so this pane is its own form. */}
           <Field label="Mật khẩu mới" hint="Tối thiểu 8 ký tự." required error={passwordError}>

@@ -208,7 +208,7 @@ test('a removed active section notifies a controlled caller', () => {
   expect(onSectionChange).toHaveBeenCalledWith('profile');
 });
 
-test('the active nav item is scrolled into view when the row overflows', () => {
+test('the nav centres the active item even when it sits away from the page edge', () => {
   const proto = HTMLElement.prototype;
   const saved = Object.fromEntries(
     ['scrollWidth', 'clientWidth', 'scrollLeft', 'offsetLeft', 'offsetWidth'].map((key) => [
@@ -216,12 +216,37 @@ test('the active nav item is scrolled into view when the row overflows', () => {
       Object.getOwnPropertyDescriptor(proto, key),
     ]),
   );
-  // jsdom has no layout, so supply the numbers the effect reads.
+  const savedRect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
+
+  // jsdom has no layout, so supply the numbers the effect reads. The nav sits 293px from
+  // the page edge (the docs frame) and is already scrolled 100px, so the active item's
+  // body-relative `offsetLeft` is 713 while its rect left is 293 + 420 - 100 = 613.
+  //
+  // Reading offsets instead of rects mixes coordinate systems: `offsetLeft` counts from
+  // the offsetParent (<body>, since nothing positions the nav), so a 160px nav scrolled
+  // to its maximum and left the button at -1px in the browser.
+  let scrollLeft = 100;
+  const rect = (left: number, width: number) =>
+    ({ left, width, right: left + width, top: 0, height: 0, bottom: 0, x: left, y: 0 }) as DOMRect;
+  Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value(this: Element) {
+      if (this.tagName === 'NAV') return rect(293, 200);
+      if (this.getAttribute('aria-current') === 'true') return rect(293 + 420 - scrollLeft, 120);
+      return rect(0, 0);
+    },
+  });
   Object.defineProperty(proto, 'scrollWidth', { configurable: true, get: () => 600 });
   Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 200 });
-  Object.defineProperty(proto, 'offsetLeft', { configurable: true, get: () => 420 });
+  Object.defineProperty(proto, 'offsetLeft', { configurable: true, get: () => 713 });
   Object.defineProperty(proto, 'offsetWidth', { configurable: true, get: () => 120 });
-  Object.defineProperty(proto, 'scrollLeft', { configurable: true, writable: true, value: 0 });
+  Object.defineProperty(proto, 'scrollLeft', {
+    configurable: true,
+    get: () => scrollLeft,
+    set: (value: number) => {
+      scrollLeft = value;
+    },
+  });
   try {
     render(
       <SettingsProfile
@@ -233,10 +258,12 @@ test('the active nav item is scrolled into view when the row overflows', () => {
       />,
     );
 
-    // Without this the active section can start off-screen in a narrow row: 420 -
-    // (200 - 120) / 2 = 380, clamped at 0 from below.
+    // Target: the item (420px into the content, 120px wide) centred in a 200px viewport
+    // → 420 - (200 - 120) / 2 = 380. The offsetLeft read produced 673, and assigning the
+    // delta instead of adding it produced 280.
     expect(screen.getByRole('navigation', { name: 'Mục cài đặt' }).scrollLeft).toBe(380);
   } finally {
+    if (savedRect) Object.defineProperty(Element.prototype, 'getBoundingClientRect', savedRect);
     for (const [key, descriptor] of Object.entries(saved)) {
       if (descriptor) Object.defineProperty(proto, key, descriptor);
       else delete (proto as unknown as Record<string, unknown>)[key];

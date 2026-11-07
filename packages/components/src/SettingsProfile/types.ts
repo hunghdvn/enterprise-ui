@@ -34,7 +34,12 @@ export interface SettingsProfileProps {
   sections: SettingsSection[];
   /** Controlled active section; omit for uncontrolled. */
   activeKey?: string;
-  /** Initial section when uncontrolled; defaults to the first section. */
+  /**
+   * Initial section when uncontrolled; defaults to the first section. Seeds the first render
+   * only: if the key is not in `sections` yet (async or permission-gated sections), the state
+   * falls back to the first section that exists and does not switch back when it arrives. For
+   * URL-driven or staged sections use controlled mode (`activeKey` + `onSectionChange`).
+   */
   defaultActiveKey?: string;
   onSectionChange?: (key: string) => void;
   /** Accessible name for the section nav landmark; default 'Mục cài đặt'. */

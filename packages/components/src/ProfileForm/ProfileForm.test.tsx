@@ -350,15 +350,47 @@ test('the root keeps a floor width so inline-size containment cannot collapse it
   expect(css).toMatch(/\.form\s*\{[^}]*container-type:\s*inline-size/);
 });
 
-test('className merges on the form and the form is named', () => {
+test('caller placement props land on the root wrapper, not the inner form', () => {
   const { container } = render(
-    <ProfileForm value={value} onChange={() => {}} onSubmit={() => {}} className="custom" />,
+    <ProfileForm
+      value={value}
+      onChange={() => {}}
+      onSubmit={() => {}}
+      className="custom"
+      style={{ flex: '1 1 auto' }}
+      data-testid="profile"
+    />,
   );
 
-  const form = container.querySelector('form');
-  expect(form).toHaveClass('custom');
+  // The wrapper is what sits in the caller's layout, so placement (`flex`, `grid-column`,
+  // `margin`) and `id`/`style`/`data-*` must reach it. On the inner <form> they would be
+  // invisible to the parent and rows/columns would not line up.
+  const root = container.firstElementChild as HTMLElement;
+  expect(root).toHaveClass('custom');
+  expect(root).toHaveStyle({ flex: '1 1 auto' });
+  expect(root).toHaveAttribute('data-testid', 'profile');
+
+  const form = container.querySelector('form') as HTMLFormElement;
+  expect(form).not.toHaveClass('custom');
   expect(form).toHaveAttribute('aria-label', 'Hồ sơ cá nhân');
   expect(screen.getByRole('form', { name: 'Hồ sơ cá nhân' })).toBe(form);
+});
+
+test('hidden hides the avatar slot as well as the form', () => {
+  const { container } = render(
+    <ProfileForm
+      value={value}
+      onChange={() => {}}
+      onSubmit={() => {}}
+      avatar={<span data-testid="avatar">NA</span>}
+      hidden
+    />,
+  );
+
+  // `hidden` on the <form> alone left the avatar and its hint on screen.
+  expect(container.firstElementChild).not.toBeVisible();
+  expect(screen.getByTestId('avatar')).not.toBeVisible();
+  expect(screen.queryByRole('form', { hidden: true })).not.toBeNull();
 });
 
 test('a caller-supplied aria-label renames the form', () => {
