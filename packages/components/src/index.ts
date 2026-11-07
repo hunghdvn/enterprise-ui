@@ -59,6 +59,8 @@ export { KpiCard } from './KpiCard/KpiCard';
 export type { KpiCardProps, KpiDeltaTone } from './KpiCard/types';
 export { KpiGrid } from './KpiGrid/KpiGrid';
 export type { KpiGridProps } from './KpiGrid/types';
+export { SettingsProfile } from './SettingsProfile/SettingsProfile';
+export type { SettingsProfileProps, SettingsSection } from './SettingsProfile/types';
 export { Form, FormErrorsContext } from './Form/Form';
 export type { FormProps } from './Form/Form';
 export { Field } from './Form/Field';
