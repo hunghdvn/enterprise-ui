@@ -1,0 +1,295 @@
+# Settings/Profile Design Spec (P3 — Settings/Profile)
+
+Date: 2026-11-07
+Status: Draft — scope chosen by the user ("cứ làm", defaults below stated as my calls)
+Base: `docs/superpowers/specs/2026-10-11-enterprise-ui-design.md` (P3 templates)
+Siblings: `2026-11-06-auth-design.md` (AuthLayout + LoginForm), `2026-11-06-error-page-design.md`
+
+## 1. Intent & why
+
+The P3 list ends with "Settings/Profile", the screen every ERP app has and no
+template covers yet. A settings screen is not one form: it is a page that
+switches between several independent forms (personal info, notifications,
+security) while keeping one header and one navigation rail. Built by hand, each
+team re-invents the rail, the responsive breakpoint, the pane semantics and the
+save/cancel footer — and gets the "one `<main>`", "named region", or
+"hidden pane keeps its state" details wrong.
+
+The template stays presentational: it renders slots and emits values. It never
+validates, never fetches, never persists, and never decides which sections
+exist.
+
+## 2. Goals / Non-goals
+
+Goals:
+
+- G1: `SettingsProfile` — page-level layout: title/subtitle, optional header
+  actions, a section nav (rail when wide, horizontal scroller when narrow), and
+  one named `<section>` pane per section, each titled by its own heading.
+- G2: `ProfileForm` — controlled personal-info form composed from `Form`,
+  `Field`, `Input`, `Button`; emits the whole next value and the submitted
+  values; avatar slot.
+- G3: Docs page `SettingsPage.tsx` with the two components composed into a
+  realistic three-section screen (personal info, notifications, security).
+- G4: Light/dark, compact/comfortable, keyboard, focus-visible and 4.5:1
+  contrast hold; panes that are not active stay in the DOM with `hidden`, so
+  half-typed values survive a section switch but leave the tab order.
+- G5: No third copy of the AuthLayout/ErrorPage `as`/`fill`/`min-height`
+  plumbing — see §4.1.
+
+Non-goals: validation, persistence, fetching, routing, avatar upload, password
+change flow, 2FA, session management, org-unit pickers, a `Textarea` primitive,
+a `Switch` primitive (the notifications demo uses `Checkbox`), `Modal` wiring
+(the security demo uses a two-step inline confirm), charts, autosave/dirty
+tracking, i18n framework.
+
+## 3. Constraints
+
+Zero runtime deps; TS strict, no `any`; CSS Modules + `var(--…)` only, no
+hardcoded hex; presentational-only; folder layout `X.tsx + X.module.css +
+types.ts + index.ts + X.test.tsx`; re-export the component **and** its public
+types from `packages/components/src/index.ts`; Vitest globals on; docs pages
+`export default`, exactly one `const code = \`…\`;`, no nested backticks.
+
+## 4. API
+
+```ts
+// SettingsProfile
+export interface SettingsSection {
+  /** Stable id used by `activeKey` / `onSectionChange`. */
+  key: string;
+  /** Nav label; also the heading text of the pane. */
+  label: string;
+  /** Muted line under the pane heading. */
+  description?: ReactNode;
+  /** Pane body: a form, a group of toggles, a danger zone. */
+  content: ReactNode;
+}
+
+export interface SettingsProfileProps {
+  /** Page heading; default 'Cài đặt'. */
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  /** Header actions (invite, export, audit log). */
+  actions?: ReactNode;
+  sections: SettingsSection[];
+  /** Controlled active section; omit for uncontrolled. */
+  activeKey?: string;
+  /** Initial section when uncontrolled; defaults to the first section. */
+  defaultActiveKey?: string;
+  onSectionChange?: (key: string) => void;
+  /** Accessible name for the section nav landmark; default 'Mục cài đặt'. */
+  navLabel?: string;
+  /** Page heading level; default 1. Panes then use h2 (h3 when this is 2). */
+  level?: 1 | 2;
+  className?: string;
+}
+
+// ProfileForm
+export interface ProfileFormValues {
+  displayName: string;
+  email: string;
+  phone: string;
+  jobTitle: string;
+  department: string;
+}
+
+export interface ProfileFormProps extends Omit<
+  FormHTMLAttributes<HTMLFormElement>,
+  'onChange' | 'onSubmit' | 'children' | 'className'
+> {
+  value: ProfileFormValues;
+  /**
+   * Called with the whole next value. Apply it immediately (or with a functional
+   * state update): two edits that arrive before a render would otherwise spread
+   * the same stale value.
+   */
+  onChange: (value: ProfileFormValues) => void;
+  /**
+   * Called with the values read from the form on submit, so autofill that never
+   * fires `onChange` is still included. The component already prevented the
+   * native submit. When the DOM read differs from `value`, `onChange` is called
+   * with the same object first, so the next render cannot clear it.
+   */
+  onSubmit: (value: ProfileFormValues) => void;
+  /** Field errors keyed by a `ProfileFormValues` key; the caller owns validation. */
+  errors?: Partial<Record<keyof ProfileFormValues, string>>;
+  /** Fields marked required; default `['displayName', 'email']`. */
+  required?: readonly (keyof ProfileFormValues)[];
+  loading?: boolean;
+  disabled?: boolean;
+  /** Avatar or initials block above the fields; the caller owns upload. */
+  avatar?: ReactNode;
+  /** Hint under the avatar, e.g. accepted formats and size limit. */
+  avatarHint?: ReactNode;
+  displayNameLabel?: string; // 'Họ và tên'
+  emailLabel?: string; // 'Email'
+  phoneLabel?: string; // 'Số điện thoại'
+  jobTitleLabel?: string; // 'Chức danh'
+  departmentLabel?: string; // 'Phòng ban'
+  submitLabel?: string; // 'Lưu thay đổi'
+  cancelLabel?: string; // 'Huỷ'
+  /** Renders the secondary cancel button when set. */
+  onCancel?: () => void;
+  className?: string;
+}
+```
+
+### 4.1 Why there is no `as` / `fill`
+
+`SettingsProfile` is an embedded page: it lives inside `AppShell`, which already
+renders the single `<main>`. It therefore renders plain `div`/`nav`/`section`
+elements and has **no** `as`, `fill`, `min-height: 100dvh` or landmark props.
+This is deliberate: round-2 review of PR #33 recorded the `as`/`level`/`fill` +
+container-type + `min-height` plumbing already duplicated between `AuthLayout`
+and `ErrorPage`, and a third copy would make the shared-root follow-up harder.
+A full-viewport behaviour is wrong for this screen anyway.
+
+### 4.2 Behaviour — `SettingsProfile`
+
+- Renders one `<nav aria-label={navLabel}>` of `<button type="button">` items,
+  one per section, in `sections` order. Active item gets `aria-current="page"`
+  and the accent border/colour; the rest are muted. Buttons, not links: the
+  component does not route.
+- Clicking an item calls `onSectionChange(key)`; uncontrolled, it also switches
+  its own state (`defaultActiveKey ?? sections[0].key`).
+- An `activeKey` that matches no section falls back to the first section rather
+  than rendering no pane — a stale key from a removed section must not blank the
+  screen. Same fallback when `sections` is empty: the nav renders nothing and no
+  pane renders.
+- Every pane renders as `<section aria-labelledby>` with its own heading
+  (`h2`, or `h3` when `level={2}`), so each is a named `region` a screen-reader
+  user can jump to. `description` renders as a muted paragraph under the
+  heading and is part of the section's accessible name via `aria-describedby`
+  only if it is present — the heading alone names it.
+- Inactive panes stay mounted with the `hidden` attribute. `hidden` removes them
+  from the accessibility tree and the tab order while keeping React state, so
+  values typed in one section survive switching away; they are not submitted
+  twice or lost.
+- Layout: an inline-size container. At ≥ 768px the nav is a fixed 220px left
+  rail and panes sit beside it; below that the nav becomes a horizontally
+  scrollable row above the pane (scrollbar hidden, still keyboard-scrollable)
+  and the pane takes the full width. `@container`, never `@media`, so the same
+  component works in the docs frame and in a wide shell.
+- The root is `box-sizing: border-box` with `min-width: 0`, so it cannot force
+  a horizontal scrollbar inside `AppShell`'s padded body.
+
+### 4.3 Behaviour — `ProfileForm`
+
+- Controlled: every edit calls `onChange` with a new
+  `{ displayName, email, phone, jobTitle, department }`, spreading the previous
+  value and replacing one key. The caller must apply it immediately or with a
+  functional state update.
+- Submitting prevents the native submit and calls `onSubmit` with values read
+  from the DOM (`FormData`-style read of the five named inputs), so autofill that
+  bypasses React's `onChange` is still included. When the DOM read differs from
+  `value`, it calls `onChange(next)` **before** `onSubmit(next)` — the same
+  contract as `LoginForm`: otherwise the next render repaints the stale
+  controlled value and silently wipes the autofilled text the caller was just
+  handed.
+- Five `Field` + `Input` pairs in a two-column grid (one column below a 640px
+  container), each with a visible `<label>`, `name`, and `autoComplete`:
+  `name`, `email`, `tel`, `organization-title`, `organization`. Email is
+  `type="email"` + `inputMode="email"`; phone is `type="tel"` + `inputMode="tel"`.
+- `required` (default `['displayName', 'email']`) marks those `Field`s required,
+  giving the visible asterisk and `aria-required`.
+- `errors` flow through `Form errors` + `Field name`, giving `aria-invalid` and
+  `aria-describedby` for free. Only the five known keys are accepted.
+- Footer: primary submit, and a secondary cancel only when `onCancel` is set.
+  `loading` sets `aria-busy` on the form, disables the submit and shows its
+  spinner; `disabled` disables every control; a submit while either is set is
+  ignored (Enter in a field must not bypass the disabled button).
+- No autofocus. The component never validates and never fetches.
+
+## 5. A11y
+
+- `SettingsProfile` owns no `<main>`; the page or `AppShell` does. The nav is a
+  named `nav` landmark, not a `tablist`: switching sections is page navigation
+  between independent forms, and a `tablist` would demand all panes be
+  `role="tabpanel"` with roving tabindex and arrow-key handling — behaviour this
+  template does not need and should not pretend to have.
+- `aria-current="page"` on the active nav item, plus the accent border and a
+  weight/token change, so the state is not colour-only.
+- Each pane is a `<section>` named by its own `<h2>`/`<h3>`; headings are real
+  text, so `hidden` panes leave the outline while their state survives.
+- Keyboard: nav buttons are ordinary Tab stops with `--focus-ring`; no arrow-key
+  emulation is claimed. A horizontal scroller below 768px stays reachable by
+  keyboard, and its scroll position follows focus (native behaviour).
+- `ProfileForm` inputs are all labelled by `Field`; errors are `role="alert"`
+  from `Field`, so a failed save is announced. Contrast: `--text`,
+  `--text-muted`, `--action-text` and `--danger-emphasis` on `--surface` /
+  `--bg` meet 4.5:1 (3:1 for the non-text danger cue) in both themes and both
+  densities.
+- The docs demo reports saves with `useToast` (auto-dismissing, like
+  `ErrorsPage`), not a persistent `role="status"` line: `ToastProvider` owns the
+  announcement region, so the demo does not need a second one.
+
+## 6. Tests (acceptance)
+
+`SettingsProfile.test.tsx`:
+
+- renders the default title, subtitle and header actions; custom `title`.
+- one nav button per section, in order, with the first active by default;
+  `defaultActiveKey` selects another; `activeKey` is controlled (click does not
+  change the visible pane, `onSectionChange` fires with the key).
+- `aria-current="page"` moves with the active section and only one item has it.
+- every pane is a named `region` (heading text), panes other than the active one
+  carry `hidden`, and switching keeps the previously typed input value in the
+  DOM (state survives `hidden`).
+- unknown `activeKey` falls back to the first section; empty `sections` renders
+  no nav and no pane.
+- `level={2}` makes the page heading `h2` and pane headings `h3`.
+- `navLabel` names the nav landmark; default name is used when omitted.
+- className merge; no `<main>` in the rendered output (the page owns it).
+- CSS pins: `@container` present, `@media` absent, root `box-sizing: border-box`,
+  768px rail breakpoint, `[hidden]` display none rule.
+
+`ProfileForm.test.tsx`:
+
+- renders five labelled inputs with the expected `name`, `type`, `inputMode`
+  and `autoComplete` values.
+- edits emit the whole next value per field (5 cases), and two rapid edits do not
+  drop the first (functional-update call site).
+- submit prevents default and emits the current values; submit reads autofilled
+  DOM values that `onChange` never saw, reports them, and calls `onChange` with
+  the same object before `onSubmit`.
+- `required` default marks displayName + email (`aria-required` + asterisk) and
+  not the other three; a custom `required` list moves the marks.
+- `errors` wire `aria-invalid` + `aria-describedby` for the matching field only,
+  and render `role="alert"`.
+- `loading` sets `aria-busy`, disables submit, shows the spinner; Enter while
+  `loading`/`disabled` emits nothing.
+- `disabled` disables all inputs and both buttons.
+- custom labels; `onCancel` renders the cancel button and fires it;
+  no `onCancel` renders no cancel button.
+- avatar and `avatarHint` render; omitted avatar renders no wrapper.
+- className merge.
+
+Docs page: three sections render through `SettingsProfile`; the snippet
+typechecks; switching sections keeps the typed value; saves are reported with
+`useToast`.
+
+## 8. My calls (recorded so they can be checked)
+
+The three questions the builder check raised were answered by me, not by the
+user:
+
+1. **No new primitives.** Notifications uses `Checkbox` (no `Switch`); the
+   security pane uses `Input type="password"` + `Button` and an inline two-step
+   confirm (no `Modal`). Adding either primitive is its own PR and its own docs
+   page.
+2. **`onChange` before `onSubmit`** on an autofilled read, mirroring
+   `LoginForm`.
+3. **`useToast`** for the demo, since `ToastProvider` auto-dismisses and already
+   owns the announcement region.
+
+## 7. Done khi
+
+1. Both components and their public types (`SettingsProfileProps`,
+   `SettingsSection`, `ProfileFormProps`, `ProfileFormValues`) exported from the
+   root; no deep imports needed.
+2. Docs page reachable from the sidebar at `settings`, light/dark and both
+   densities verified.
+3. Full gate: `npm test` → typecheck → `docs:snippets` → lint → `format:check` →
+   components/showcase/docs builds; every new behaviour has a pinning test and a
+   mutant run that kills the mutant.
