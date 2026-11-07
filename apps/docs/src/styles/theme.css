@@ -159,6 +159,14 @@ starlight-theme-select select {
   margin-block: 1.25rem;
 }
 
+/* Starlight adds `margin-top` to every adjacent block inside markdown,
+   including grid children. That pushes the second column/row down by
+   `--sl-content-gap-y` even though the grid already owns spacing via `gap`.
+   Keep all cells on the same line. */
+.sl-markdown-content :where(.feature-grid, .swatch-grid, .component-grid) > * {
+  margin-top: 0;
+}
+
 .component-card {
   display: flex;
   flex-direction: column;
