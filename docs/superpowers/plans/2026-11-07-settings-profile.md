@@ -415,9 +415,11 @@ Page shell: `<main className={styles.page}>` with the page's own `<h1>` (`Cài �
   sections={sections}
   activeKey={active}
   onSectionChange={setActive}
-  className={styles.settings}
 />
 ```
+
+(No `className` here: the implementation adds no `.settings` rule, and passing an
+undefined CSS-module key would emit `class="undefined"` through `cx`.)
 
 `code` snippet: one self-contained example importing `SettingsProfile` and `ProfileForm`, with no nested backticks and no `${}` inside the template literal (use `'…'` strings, not template literals, inside the snippet — the extractor truncates at the first `` `; ``).
 

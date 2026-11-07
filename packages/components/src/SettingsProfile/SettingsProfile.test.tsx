@@ -101,14 +101,26 @@ test('activeKey is controlled: clicking reports but does not switch', () => {
   expect(screen.getByRole('region', { name: 'Bảo mật' })).toBeInTheDocument();
 });
 
-test('a section description renders under its heading', () => {
+test('a section description renders under its heading and describes the region', () => {
   render(<SettingsProfile sections={sections} />);
 
-  expect(
-    within(screen.getByRole('region', { name: 'Thông tin cá nhân' })).getByText(
-      'Ảnh và thông tin liên hệ.',
-    ),
-  ).toBeInTheDocument();
+  const region = screen.getByRole('region', { name: 'Thông tin cá nhân' });
+  const paragraph = within(region).getByText('Ảnh và thông tin liên hệ.');
+  expect(paragraph).toBeInTheDocument();
+
+  // The heading names the region; the description is supplementary context, so it
+  // must reach assistive tech through aria-describedby rather than be read linearly.
+  const describedBy = region.getAttribute('aria-describedby');
+  expect(describedBy).toBeTruthy();
+  expect(describedBy).toBe(paragraph.id);
+
+  // A section without a description does not point at anything that is not there.
+  // (The pane is inactive here, so it is out of the a11y tree — read the DOM.)
+  const { container } = render(<SettingsProfile sections={sections} />);
+  const withoutDescription = container.querySelectorAll('section')[2];
+  expect(withoutDescription).not.toHaveAttribute('aria-describedby');
+  // No stray description node of its own (its body content may still contain <p>).
+  expect(withoutDescription.querySelector('[id$="-description"]')).toBeNull();
 });
 
 test('a value typed in one pane survives a section switch', () => {
@@ -130,6 +142,31 @@ test('an unknown activeKey falls back to the first section', () => {
 
   expect(screen.getByRole('region', { name: 'Thông tin cá nhân' })).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'missing' })).toBeNull();
+});
+
+test('renders a custom title, subtitle and header actions', () => {
+  render(
+    <SettingsProfile
+      title="Tài khoản"
+      subtitle="Quản lý hồ sơ và bảo mật."
+      actions={<button type="button">Xuất dữ liệu</button>}
+      sections={sections}
+    />,
+  );
+
+  expect(screen.getByRole('heading', { level: 1, name: 'Tài khoản' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Cài đặt' })).toBeNull();
+  expect(screen.getByText('Quản lý hồ sơ và bảo mật.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Xuất dữ liệu' })).toBeInTheDocument();
+});
+
+test('an omitted subtitle and actions leave no empty wrapper', () => {
+  const { container } = render(<SettingsProfile sections={sections} />);
+
+  const header = container.querySelector('header') as HTMLElement;
+  // heading only: no stray subtitle paragraph, no margin-only action row
+  expect(header.children).toHaveLength(1);
+  expect(header.querySelector('p')).toBeNull();
 });
 
 test('empty sections renders no nav and no pane', () => {
@@ -168,4 +205,16 @@ test('the layout is a container query, never a media query', () => {
   expect(css).toContain('container-type: inline-size');
   expect(css).toContain('@container (min-width: 768px)');
   expect(css).not.toContain('@media');
+});
+
+test('the root is border-box, so it cannot overflow a padded shell', () => {
+  // §4.2: the template must not force a horizontal scrollbar inside AppShell's body.
+  expect(css).toMatch(/\.root\s*\{[^}]*box-sizing:\s*border-box/);
+  expect(css).toMatch(/\.root\s*\{[^}]*min-width:\s*0/);
+});
+
+test('the narrow nav scrolls without showing a scrollbar', () => {
+  // §4.2: a native bar under the section tabs reads as chrome inside a shell.
+  expect(css).toMatch(/\.nav\s*\{[^}]*scrollbar-width:\s*none/);
+  expect(css).toMatch(/\.nav::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
 });

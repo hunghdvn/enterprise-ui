@@ -49,7 +49,14 @@
   display: flex;
   gap: 4px;
   min-width: 0;
+  /* Scrolls with the keyboard, but a visible bar under the section tabs reads as
+     chrome inside a shell. Hide it and keep the native scroll behaviour. */
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .navItem {
@@ -71,8 +78,9 @@
 }
 
 .navItem:focus-visible {
+  /* The scroller clips an outward ring at narrow widths, so keep it inside. */
   outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 /* --color-blue-600 is not re-mapped in the dark theme, so the active colour

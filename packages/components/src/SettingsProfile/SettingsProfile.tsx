@@ -67,11 +67,15 @@ export function SettingsProfile({
               // Keys are unique by contract, so one base id plus the key stays stable
               // across renders and lets each pane be labelled by its own heading.
               const paneId = `${baseId}-${section.key}`;
+              const descriptionId = `${paneId}-description`;
               return (
                 <section
                   key={section.key}
                   className={styles.pane}
                   aria-labelledby={paneId}
+                  // The heading names the region; the description is extra context, so it
+                  // goes through aria-describedby instead of only being read inline.
+                  aria-describedby={isPresent(section.description) ? descriptionId : undefined}
                   // Stays mounted so a half-typed value in another pane survives the
                   // switch; `hidden` takes it out of the a11y tree and the tab order.
                   hidden={!isActive}
@@ -80,7 +84,9 @@ export function SettingsProfile({
                     {section.label}
                   </PaneTitle>
                   {isPresent(section.description) && (
-                    <p className={styles.paneDescription}>{section.description}</p>
+                    <p className={styles.paneDescription} id={descriptionId}>
+                      {section.description}
+                    </p>
                   )}
                   <div className={styles.paneBody}>{section.content}</div>
                 </section>

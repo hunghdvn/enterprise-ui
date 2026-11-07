@@ -65,23 +65,36 @@ test.each([
   expect(onChange).toHaveBeenCalledWith({ ...value, [key]: typed });
 });
 
+test('the inputs follow the value prop, so the form is truly controlled', () => {
+  const { rerender } = render(
+    <ProfileForm value={value} onChange={() => {}} onSubmit={() => {}} />,
+  );
+
+  rerender(
+    <ProfileForm
+      value={{ ...value, displayName: 'Từ prop', department: 'Bộ phận mới' }}
+      onChange={() => {}}
+      onSubmit={() => {}}
+    />,
+  );
+
+  // An uncontrolled (`defaultValue`) field would keep the first value instead.
+  expect(screen.getByLabelText(/Họ và tên/)).toHaveValue('Từ prop');
+  expect(screen.getByLabelText(/Phòng ban/)).toHaveValue('Bộ phận mới');
+});
+
 test('two edits in different fields both land', () => {
   function Harness() {
     const [current, setCurrent] = useState(value);
-    return (
-      <ProfileForm
-        value={current}
-        onChange={(next) => setCurrent((previous) => ({ ...previous, ...next }))}
-        onSubmit={() => {}}
-      />
-    );
+    // A plain setter, not a merging reducer: the component itself must emit the
+    // whole next value, otherwise the second edit wipes the first.
+    return <ProfileForm value={current} onChange={setCurrent} onSubmit={() => {}} />;
   }
   render(<Harness />);
 
   fireEvent.change(screen.getByLabelText(/Họ và tên/), { target: { value: 'Trần Thị B' } });
   fireEvent.change(screen.getByLabelText(/Phòng ban/), { target: { value: 'Kinh doanh' } });
 
-  // The second edit must build on the first, not on the value from the first render.
   expect(screen.getByLabelText(/Họ và tên/)).toHaveValue('Trần Thị B');
   expect(screen.getByLabelText(/Phòng ban/)).toHaveValue('Kinh doanh');
 });
@@ -203,6 +216,19 @@ test('loading marks the form busy, disables submit and blocks Enter', () => {
   expect(screen.getByRole('button', { name: /Lưu thay đổi/ })).toBeDisabled();
 
   // Enter in a field still submits natively; a disabled button must not let it through.
+  fireEvent.submit(form);
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+test('disabled blocks Enter as well as the button', () => {
+  const onSubmit = vi.fn();
+  const { container } = render(
+    <ProfileForm value={value} onChange={() => {}} onSubmit={onSubmit} disabled />,
+  );
+  const form = container.querySelector('form') as HTMLFormElement;
+
+  // The button is disabled either way; the guard is what stops a native Enter submit,
+  // and `loading` alone would let this through.
   fireEvent.submit(form);
   expect(onSubmit).not.toHaveBeenCalled();
 });
