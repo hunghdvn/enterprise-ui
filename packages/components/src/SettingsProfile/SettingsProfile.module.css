@@ -1,0 +1,159 @@
+.root {
+  /* Widths follow the space the template actually gets (docs frame, AppShell
+     body, modal), not the viewport. */
+  container-type: inline-size;
+  box-sizing: border-box;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.header {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+/* Narrow: the sections become a horizontally scrollable row above the pane. */
+.nav {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  /* Reaches the sections that do not fit: a thin bar plus wheel/trackpad scroll, and
+     the active item is scrolled into view (SettingsProfile.tsx). Hiding the bar
+     entirely left clipped sections unreachable for a vertical-only wheel. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.navItem {
+  border: 0;
+  /* Narrow row: the active cue is a rule under the label, not a vertical bar butting
+     against the previous tab. Wide rail switches to a left border below. */
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.navItem:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.navItem:focus-visible {
+  /* The scroller clips an outward ring at narrow widths, so keep it inside. */
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* --color-blue-600 is not re-mapped in the dark theme, so the active colour
+   comes from --action-text, which the theme does remap for both modes. */
+.navItem[data-active='true'] {
+  background: var(--nav-active-bg);
+  border-bottom-color: var(--action-text);
+  color: var(--action-text);
+  font-weight: 600;
+}
+
+.panes {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pane {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* `hidden` is already honoured by the UA sheet, but an explicit rule keeps the
+   behaviour local: a consumer resetting `display` on .pane cannot resurrect it. */
+.pane[hidden] {
+  display: none;
+}
+
+.paneTitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.paneDescription {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paneBody {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+@container (min-width: 768px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .nav {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  /* Wide rail: the cue becomes a left bar, and long labels wrap inside the 220px
+     column instead of spilling over the pane's border. */
+  .navItem {
+    border-bottom: 0;
+    border-left: 3px solid transparent;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .navItem[data-active='true'] {
+    border-left-color: var(--action-text);
+  }
+}

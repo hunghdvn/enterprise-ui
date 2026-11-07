@@ -1,0 +1,150 @@
+import type { ChangeEvent } from 'react';
+import { Button } from '../Button/Button';
+import { Field } from '../Form/Field';
+import { Form } from '../Form/Form';
+import { Input } from '../Input/Input';
+import { isPresent } from '../internal/isPresent';
+import { cx } from '../internal/cx';
+import { readFormValues } from '../internal/readFormValue';
+import styles from './ProfileForm.module.css';
+import type { ProfileFormProps, ProfileFormValues } from './types';
+
+const FIELDS: readonly (keyof ProfileFormValues)[] = [
+  'displayName',
+  'email',
+  'phone',
+  'jobTitle',
+  'department',
+];
+
+export function ProfileForm({
+  value,
+  onChange,
+  onSubmit,
+  errors,
+  required = ['displayName', 'email'],
+  loading = false,
+  disabled = false,
+  avatar,
+  avatarHint,
+  displayNameLabel = 'Họ và tên',
+  emailLabel = 'Email',
+  phoneLabel = 'Số điện thoại',
+  jobTitleLabel = 'Chức danh',
+  departmentLabel = 'Phòng ban',
+  submitLabel = 'Lưu thay đổi',
+  cancelLabel = 'Huỷ',
+  onCancel,
+  className = '',
+  'aria-label': ariaLabel = 'Hồ sơ cá nhân',
+  ...rest
+}: ProfileFormProps) {
+  const busy = loading || disabled;
+  const isRequired = (key: keyof ProfileFormValues) => required.includes(key);
+
+  const setField = (key: keyof ProfileFormValues) => (event: ChangeEvent<HTMLInputElement>) =>
+    onChange({ ...value, [key]: event.target.value });
+
+  // Form accepts `Record<string, string>`; the prop is narrowed to known keys, so drop empty
+  // messages here rather than casting the caller's object.
+  const formErrors = errors
+    ? Object.fromEntries(Object.entries(errors).filter(([, message]) => message))
+    : undefined;
+
+  return (
+    // The avatar slot sits outside the <form>: a plain <button> in a caller's upload
+    // widget defaults to type="submit", so inside the form, opening the picker would
+    // also submit the profile.
+    //
+    // The wrapper is the element in the caller's layout, so `className`, `hidden`, `style`,
+    // `id` and `data-*` land here (types.ts documents it). On the inner <form> a placement
+    // class would do nothing and `hidden` would hide the form but leave the avatar showing.
+    <div {...rest} className={cx(styles.root, className)}>
+      {isPresent(avatar) && (
+        <div className={styles.avatar}>
+          {avatar}
+          {isPresent(avatarHint) && <p className={styles.avatarHint}>{avatarHint}</p>}
+        </div>
+      )}
+      <Form
+        aria-label={ariaLabel}
+        aria-busy={loading || undefined}
+        errors={formErrors}
+        className={styles.form}
+        onSubmit={(event) => {
+          event.preventDefault();
+          // Enter in a field still submits natively; a disabled button must not let it through.
+          if (busy) return;
+          const next = readFormValues(event.currentTarget, value, FIELDS);
+          if (FIELDS.some((key) => next[key] !== value[key])) {
+            // Tell the caller about autofilled values so the next render cannot clear them.
+            onChange(next);
+          }
+          onSubmit(next);
+        }}
+      >
+        <div className={styles.grid}>
+          <Field label={displayNameLabel} name="displayName" required={isRequired('displayName')}>
+            <Input
+              name="displayName"
+              autoComplete="name"
+              value={value.displayName}
+              disabled={disabled}
+              onChange={setField('displayName')}
+            />
+          </Field>
+          <Field label={emailLabel} name="email" required={isRequired('email')}>
+            <Input
+              type="email"
+              name="email"
+              autoComplete="email"
+              inputMode="email"
+              value={value.email}
+              disabled={disabled}
+              onChange={setField('email')}
+            />
+          </Field>
+          <Field label={phoneLabel} name="phone" required={isRequired('phone')}>
+            <Input
+              type="tel"
+              name="phone"
+              autoComplete="tel"
+              inputMode="tel"
+              value={value.phone}
+              disabled={disabled}
+              onChange={setField('phone')}
+            />
+          </Field>
+          <Field label={jobTitleLabel} name="jobTitle" required={isRequired('jobTitle')}>
+            <Input
+              name="jobTitle"
+              autoComplete="organization-title"
+              value={value.jobTitle}
+              disabled={disabled}
+              onChange={setField('jobTitle')}
+            />
+          </Field>
+          <Field label={departmentLabel} name="department" required={isRequired('department')}>
+            <Input
+              name="department"
+              autoComplete="organization"
+              value={value.department}
+              disabled={disabled}
+              onChange={setField('department')}
+            />
+          </Field>
+        </div>
+        <div className={styles.footer}>
+          <Button type="submit" variant="primary" loading={loading} disabled={disabled}>
+            {submitLabel}
+          </Button>
+          {onCancel && (
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
+              {cancelLabel}
+            </Button>
+          )}
+        </div>
+      </Form>
+    </div>
+  );
+}

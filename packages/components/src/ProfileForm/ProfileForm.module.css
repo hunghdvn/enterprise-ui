@@ -1,0 +1,55 @@
+.root {
+  display: grid;
+  gap: 16px;
+  /* Inline-size containment makes a form contribute 0 to its parent's intrinsic width,
+     so in a shrink-to-fit parent (flex item without grow, grid auto column, width:
+     fit-content, inline-block, popover) it would collapse to ~0px and the inputs would
+     squeeze. A plain floor, not min(…, 100%): a percentage resolves against an
+     indefinite width there, which is exactly the case being fixed. */
+  min-inline-size: 15rem;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.form {
+  /* The grid columns follow the space the form gets, not the viewport. */
+  container-type: inline-size;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.avatar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatarHint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@container (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -34,6 +34,7 @@ import KanbanPage from './pages/data/KanbanPage';
 import CalendarPage from './pages/data/CalendarPage';
 import AuthPage from './pages/templates/AuthPage';
 import ErrorsPage from './pages/templates/ErrorsPage';
+import SettingsPage from './pages/templates/SettingsPage';
 import SavedViewsPage from './pages/data/SavedViewsPage';
 import FileUploadPage from './pages/data/FileUploadPage';
 import TreePage from './pages/data/TreePage';
@@ -112,6 +113,7 @@ const ROUTES: Record<string, { label: string; el: ReactNode; icon: IconName }> =
   calendar: { label: 'Calendar', icon: 'calendar', el: <CalendarPage /> },
   auth: { label: 'Auth', icon: 'log-in', el: <AuthPage /> },
   errorpage: { label: 'ErrorPage', icon: 'alert-triangle', el: <ErrorsPage /> },
+  settings: { label: 'Settings', icon: 'settings', el: <SettingsPage /> },
   savedviews: { label: 'SavedViews', icon: 'check', el: <SavedViewsPage /> },
   fileupload: { label: 'FileUpload', icon: 'upload', el: <FileUploadPage /> },
   tree: { label: 'Tree', icon: 'menu', el: <TreePage /> },
