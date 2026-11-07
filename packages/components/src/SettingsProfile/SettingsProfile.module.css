@@ -76,7 +76,7 @@
 }
 
 /* --color-blue-600 is not re-mapped in the dark theme, so the active colour
-   comes from --action-text, which is (light #1e47c4, dark #bfdbfe). */
+   comes from --action-text, which the theme does remap for both modes. */
 .navItem[data-active='true'] {
   background: var(--nav-active-bg);
   border-left-color: var(--action-text);
