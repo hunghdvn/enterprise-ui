@@ -1,0 +1,116 @@
+---
+title: Cài đặt
+description: Cài Enterprise UI trong một workspace npm, import stylesheet và bọc ứng dụng bằng ThemeProvider.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Yêu cầu
+
+- Node.js 20 trở lên
+- React 18.3 và React DOM 18.3 (peer dependency)
+- Một bundler hiểu CSS Modules — Vite, Next.js, Remix hoặc Astro đều được
+
+## Cài package
+
+Trong monorepo này, package được tham chiếu qua workspace:
+
+```json
+{
+  "dependencies": {
+    "@enterprise-ui/components": "*"
+  }
+}
+```
+
+Với ứng dụng bên ngoài, cài từ registry nội bộ hoặc đường dẫn package:
+
+```bash
+npm install @enterprise-ui/components
+```
+
+Nếu bạn đang phát triển chính thư viện, build package trước khi chạy app tiêu thụ:
+
+```bash
+npm run build --workspace=@enterprise-ui/components
+```
+
+:::caution
+Các app trong repo này (`showcase`, `docs`) resolve package qua `dist/`, không phải source. `dist/` bị gitignore, nên lần đầu clone phải build components trước khi `npm run dev`.
+:::
+
+## Import stylesheet
+
+Package đóng gói cả token và CSS component vào một file duy nhất:
+
+```tsx
+import '@enterprise-ui/components/style.css';
+```
+
+Chỉ cần import một lần ở entry point. Không import riêng `@enterprise-ui/tokens/all.css` trừ khi bạn tự dựng theme ngoài `ThemeProvider` — file `style.css` đã bao gồm token.
+
+## Bọc ứng dụng
+
+`ThemeProvider` gắn `data-theme` và `data-density` lên một `<div>` bao ngoài, đồng thời lưu lựa chọn của người dùng vào localStorage.
+
+```tsx
+import { ThemeProvider } from '@enterprise-ui/components';
+import '@enterprise-ui/components/style.css';
+
+export function Root() {
+  return (
+    <ThemeProvider theme="light" density="compact">
+      <div>Ứng dụng</div>
+    </ThemeProvider>
+  );
+}
+```
+
+Mặc định là `light` + `compact`. Người dùng có thể đổi qua hook `useTheme()`:
+
+```tsx
+import { useTheme } from '@enterprise-ui/components';
+
+export function ThemeSwitch() {
+  const { theme, density, setTheme, setDensity } = useTheme();
+  return (
+    <div>
+      <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>Theme: {theme}</button>
+      <button onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')}>
+        Mật độ: {density}
+      </button>
+    </div>
+  );
+}
+```
+
+<Aside type="tip" title="Không có provider?">
+  Component vẫn render, nhưng token theme chỉ áp dụng khi có phần tử mang `data-theme`. Nếu bạn
+  nhúng component vào một app đã có cơ chế theme riêng, hãy đặt `data-theme="light"` hoặc
+  `data-theme="dark"` lên phần tử gốc thay vì dùng `ThemeProvider`.
+</Aside>
+
+## Dùng component
+
+```tsx
+import { Badge, Button, Icon } from '@enterprise-ui/components';
+
+export function Actions() {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Button icon={<Icon name="plus" size={14} />}>Tạo đơn</Button>
+      <Button variant="secondary">Huỷ</Button>
+      <Badge tone="green">Đã lưu</Badge>
+    </div>
+  );
+}
+```
+
+## Kiểm tra tích hợp
+
+- Mở trang ở cả theme sáng và tối.
+- Thử chuyển mật độ compact/comfortable.
+- Tab qua toàn bộ control để kiểm tra focus ring.
+- Chạy `npm run build --workspace=@enterprise-ui/docs` để chắc chắn stylesheet được bundle.
+
+Tiếp theo: [Theme và mật độ](/enterprise-ui/guides/theming/) hoặc [Design tokens](/enterprise-ui/foundations/tokens/).

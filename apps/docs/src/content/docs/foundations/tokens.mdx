@@ -1,0 +1,135 @@
+---
+title: Design tokens
+description: Màu thương hiệu, màu ngữ nghĩa, chữ, khoảng cách và bán kính góc — hợp đồng thị giác giữa mọi component.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Token là lớp duy nhất mà component được phép đọc màu sắc và khoảng cách. Chúng sống trong `packages/tokens` dưới dạng biến CSS thuần, không cần build step riêng.
+
+## Màu thương hiệu
+
+<div class="swatch-grid">
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#eff6ff' }} />
+    <div class="swatch-meta">
+      <strong>Blue 50</strong>
+      <code>--color-blue-50</code>
+      <span>#eff6ff</span>
+    </div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#dbeafe' }} />
+    <div class="swatch-meta">
+      <strong>Blue 100</strong>
+      <code>--color-blue-100</code>
+      <span>#dbeafe</span>
+    </div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#1e47c4' }} />
+    <div class="swatch-meta">
+      <strong>Blue 600</strong>
+      <code>--color-blue-600</code>
+      <span>#1e47c4</span>
+    </div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#1e3a8a' }} />
+    <div class="swatch-meta">
+      <strong>Blue 800</strong>
+      <code>--color-blue-800</code>
+      <span>#1e3a8a</span>
+    </div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#f97316' }} />
+    <div class="swatch-meta">
+      <strong>Orange 500</strong>
+      <code>--color-orange-500</code>
+      <span>#f97316</span>
+    </div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style={{ background: '#ea580c' }} />
+    <div class="swatch-meta">
+      <strong>Orange 600</strong>
+      <code>--color-orange-600</code>
+      <span>#ea580c</span>
+    </div>
+  </div>
+</div>
+
+Xanh `blue-600` là màu hành động chính. Cam là điểm nhấn, dùng tiết chế cho trạng thái cần chú ý hoặc CTA phụ.
+
+## Màu ngữ nghĩa
+
+| Token               | Sáng      | Tối       | Dùng cho                                      |
+| ------------------- | --------- | --------- | --------------------------------------------- |
+| `--success`         | `#16a34a` | `#16a34a` | Trạng thái hoàn thành, xác nhận.              |
+| `--danger`          | `#dc2626` | `#dc2626` | Lỗi, hành động phá huỷ.                       |
+| `--danger-emphasis` | `#dc2626` | `#f87171` | Viền và icon lỗi cần tương phản trên nền tối. |
+| `--focus-ring`      | `#1e47c4` | `#93c5fd` | Viền focus bàn phím.                          |
+
+## Bề mặt và chữ
+
+| Token             | Sáng      | Tối       | Dùng cho             |
+| ----------------- | --------- | --------- | -------------------- |
+| `--bg`            | `#ffffff` | `#0f172a` | Nền trang.           |
+| `--surface`       | `#f8fafc` | `#1e293b` | Card, panel, footer. |
+| `--surface-muted` | `#f1f5f9` | `#334155` | Vùng phụ, hover nhẹ. |
+| `--border`        | `#e2e8f0` | `#334155` | Viền mảnh 1px.       |
+| `--text`          | `#0f172a` | `#f8fafc` | Chữ chính.           |
+| `--text-muted`    | `#64748b` | `#94a3b8` | Nhãn phụ, mô tả.     |
+
+## Chữ
+
+| Token            | Giá trị                             | Dùng cho                |
+| ---------------- | ----------------------------------- | ----------------------- |
+| `--font`         | `Inter, system-ui, …`               | Toàn bộ giao diện.      |
+| `--font-size`    | `13px` compact / `14px` comfortable | Chữ body.               |
+| `--font-size-md` | `15px`                              | Nhấn mạnh, tiêu đề nhỏ. |
+
+Cỡ chữ tiêu đề do layout quyết định; component không tự đặt `h1`, `h2`.
+
+## Khoảng cách và bán kính
+
+| Token          | Compact | Comfortable | Dùng cho                  |
+| -------------- | ------- | ----------- | ------------------------- |
+| `--row-height` | `32px`  | `44px`      | Chiều cao hàng bảng.      |
+| `--cell-py`    | `4px`   | `12px`      | Padding dọc của ô.        |
+| `--cell-px`    | `8px`   | `16px`      | Padding ngang của ô.      |
+| `--input-h`    | `32px`  | `40px`      | Chiều cao input mặc định. |
+| `--input-h-lg` | `40px`  | `48px`      | Input size `md`.          |
+| `--radius`     | `6px`   | `6px`       | Card, input, nút.         |
+| `--radius-lg`  | `8px`   | `8px`       | Panel lớn, code block.    |
+
+## Dùng token trong code
+
+```css
+.card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.card:hover {
+  background: var(--surface-muted);
+}
+```
+
+<Aside type="tip" title="Token trước, hex sau">
+  Nếu một giá trị chưa có token, thêm token vào `packages/tokens` rồi dùng nó. Hex trong file
+  component là lỗi review — trừ khi đó là giá trị cố định của chính component (ví dụ màu trắng trên
+  nền primary đã có token `--on-primary`).
+</Aside>
+
+## Kiểm tra token
+
+```bash
+node packages/tokens/tokens.test.mjs
+```
+
+Test đọc trực tiếp file CSS và xác nhận theme sáng/tối có cùng bộ khoá. Prettier chuẩn hoá hex và dấu nháy, nên test so sánh không phân biệt hoa thường.

@@ -1,0 +1,63 @@
+---
+interface Props {
+  /** Optional short label shown above the live area. */
+  title?: string;
+  /** Optional supporting copy shown next to the label. */
+  hint?: string;
+}
+
+const { title, hint } = Astro.props;
+---
+
+<section class="demo">
+  {(title || hint) && (
+    <header class="demo-header">
+      {title && <h3 class="demo-title">{title}</h3>}
+      {hint && <p class="demo-hint">{hint}</p>}
+    </header>
+  )}
+  <div class="demo-surface" data-density="compact" data-enterprise-ui>
+    <slot />
+  </div>
+</section>
+
+<style>
+  .demo {
+    margin-block: 1.25rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 10px;
+    background: var(--sl-color-bg-sidebar);
+  }
+
+  .demo-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .demo-title {
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+  }
+
+  .demo-hint {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+  }
+
+  .demo-surface {
+    overflow: auto;
+    padding: 1.25rem 1rem;
+    border-radius: 0 0 9px 9px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--font-size);
+  }
+</style>

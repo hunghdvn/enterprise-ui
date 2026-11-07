@@ -1,0 +1,60 @@
+---
+title: Button
+description: Nút hành động với sáu biến thể, hai kích thước, icon tùy chọn và trạng thái loading.
+---
+
+import { ButtonDemo } from '../../../components/demos/ButtonDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Button` là điểm vào cho mọi hành động. Nút luôn render `<button type="button">` trừ khi bạn truyền `type` khác, nên đặt trong form cần chỉ định `type="submit"`.
+
+<Demo title="Biến thể, kích thước và trạng thái">
+  <ButtonDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Button, Icon } from '@enterprise-ui/components';
+
+export function Actions() {
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Button icon={<Icon name="plus" size={14} />}>Tạo đơn</Button>
+      <Button variant="secondary">Huỷ</Button>
+      <Button variant="danger" loading>
+        Đang xoá…
+      </Button>
+    </div>
+  );
+}
+```
+
+## Props
+
+| Prop       | Kiểu                                                                       | Mặc định    | Mô tả                                                   |
+| ---------- | -------------------------------------------------------------------------- | ----------- | ------------------------------------------------------- |
+| `variant`  | `'primary' \| 'secondary' \| 'ghost' \| 'danger' \| 'accent' \| 'success'` | `'primary'` | Biến thể màu sắc.                                       |
+| `size`     | `'sm' \| 'md'`                                                             | `'sm'`      | Kích thước nút.                                         |
+| `icon`     | `ReactNode`                                                                | —           | Icon trang trí phía trước nhãn; được bọc `aria-hidden`. |
+| `loading`  | `boolean`                                                                  | `false`     | Hiện spinner và tự vô hiệu hoá nút.                     |
+| `disabled` | `boolean`                                                                  | `false`     | Vô hiệu hoá nút.                                        |
+| `onClick`  | `(event: MouseEvent) => void`                                              | —           | Gọi khi người dùng bấm.                                 |
+| `children` | `ReactNode`                                                                | —           | Nhãn hoặc nội dung bên trong nút.                       |
+
+Mọi thuộc tính hợp lệ của `<button>` đều được forward: `type`, `aria-label`, `form`, `name`…
+
+## Chọn biến thể
+
+- **primary** — hành động chính của màn hình. Mỗi vùng chỉ nên có một.
+- **secondary** — hành động phụ, huỷ, đóng.
+- **ghost** — hành động nhẹ trong toolbar hoặc bảng.
+- **danger** — hành động phá huỷ, không thể hoàn tác.
+- **accent** — CTA thương mại như nâng cấp gói; dùng tiết chế.
+- **success** — xác nhận đã hoàn tất; không dùng cho hành động mới.
+
+## Accessibility
+
+- Nút chỉ có icon phải có `aria-label`.
+- `loading` đặt `aria-busy` và chặn tương tác; nhãn nên đổi sang động từ tiếp diễn (“Đang lưu…”).
+- Không đặt `div` hoặc `span` bên trong nút; chỉ dùng nội dung inline.

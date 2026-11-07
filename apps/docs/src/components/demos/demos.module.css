@@ -1,0 +1,150 @@
+.stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.section {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 22rem;
+}
+
+.label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.helper {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.box {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.plainList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plainList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.plainList li:last-child {
+  border-bottom: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.spinStage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2rem;
+  min-height: 4rem;
+}
+
+.emptyStage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.emptyStage > * {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tooltipStage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(8rem, max-content));
+  justify-content: center;
+  gap: 1.5rem 3rem;
+  padding: 1.5rem 0;
+}
+
+.tooltipStage > * {
+  justify-self: center;
+}
+
+.tableWrap {
+  min-width: 0;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--color-orange-500);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}

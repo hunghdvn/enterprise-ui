@@ -1,0 +1,63 @@
+---
+title: Select
+description: Bọc select native, chọn một giá trị, có trạng thái lỗi và hai kích thước.
+---
+
+import { SelectDemo } from '../../../components/demos/SelectDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Select` giữ hành vi của `<select>` native để đảm bảo hỗ trợ bàn phím và mobile. Component cố ý không hỗ trợ `multiple` — chọn nhiều có giao diện riêng ở `Combobox`.
+
+<Demo title="Controlled, lỗi và disabled">
+  <SelectDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Select } from '@enterprise-ui/components';
+
+export function TeamPicker() {
+  return (
+    <Select defaultValue="sales" aria-label="Nhóm phụ trách">
+      <option value="sales">Kinh doanh</option>
+      <option value="ops">Vận hành</option>
+      <option value="finance">Tài chính</option>
+    </Select>
+  );
+}
+```
+
+## Props
+
+| Prop           | Kiểu                                              | Mặc định | Mô tả                                     |
+| -------------- | ------------------------------------------------- | -------- | ----------------------------------------- |
+| `size`         | `'sm' \| 'md'`                                    | `'sm'`   | Chiều cao select.                         |
+| `error`        | `string`                                          | —        | Thông báo lỗi, tự nối `aria-describedby`. |
+| `value`        | `string \| number`                                | —        | Giá trị controlled, một giá trị duy nhất. |
+| `defaultValue` | `string \| number`                                | —        | Giá trị khởi tạo uncontrolled.            |
+| `onChange`     | `(event: ChangeEvent<HTMLSelectElement>) => void` | —        | Nhận giá trị mới.                         |
+| `disabled`     | `boolean`                                         | `false`  | Vô hiệu hoá select.                       |
+| `children`     | `ReactNode`                                       | —        | Các `<option>` hoặc `<optgroup>`.         |
+
+`multiple`, `size` native và mảng `value` bị loại khỏi type để tránh cấu hình không hoạt động.
+
+## Option mặc định
+
+```tsx
+import { Select } from '@enterprise-ui/components';
+
+<Select defaultValue="" aria-label="Phòng ban">
+  <option value="" disabled>
+    — Chọn phòng ban —
+  </option>
+  <option value="product">Sản phẩm</option>
+  <option value="engineering">Kỹ thuật</option>
+</Select>;
+```
+
+## Accessibility
+
+- Luôn có nhãn: `<label htmlFor>` hoặc `aria-label` nếu nhãn hiển thị ở nơi khác.
+- Không thay `Select` bằng `div` để tự vẽ dropdown; bàn phím và screen reader native là lý do component tồn tại.
+- Khi danh sách dài, nhóm bằng `<optgroup label="…">` thay vì thêm option tiêu đề.

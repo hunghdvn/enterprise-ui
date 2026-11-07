@@ -1,0 +1,74 @@
+---
+title: Theme và mật độ
+description: Cách ThemeProvider, data-theme và data-density hoạt động, cùng cách tạo theme tùy chỉnh.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { ThemeDemo } from '../../../components/demos/ThemeDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+Hai trục hiển thị độc lập: **theme** (sáng/tối) và **mật độ** (compact/comfortable). Cả hai được điều khiển bằng một attribute trên phần tử bao ngoài, nên component không cần biết gì về cơ chế lưu trữ.
+
+<Demo title="Đổi theme và mật độ trong một vùng riêng">
+  <ThemeDemo client:load />
+</Demo>
+
+## Cách hoạt động
+
+`ThemeProvider` render một `<div>` với hai attribute:
+
+```html
+<div data-enterprise-ui data-theme="light" data-density="compact">
+  <!-- ứng dụng -->
+</div>
+```
+
+- `data-theme="light"` kích hoạt bộ token trong `theme-light.css`.
+- `data-theme="dark"` kích hoạt bộ token trong `theme-dark.css`.
+- `data-density="compact"` đặt chiều cao hàng, padding ô và cỡ chữ gọn.
+- `data-density="comfortable"` tăng khoảng cách cho màn hình cảm ứng hoặc trình chiếu.
+
+Lựa chọn được lưu vào localStorage với hai khoá `eui-theme` và `eui-density`. Khi provider mount, giá trị đã lưu được đọc lại; nếu chưa có thì dùng prop khởi tạo.
+
+## API
+
+| Prop       | Kiểu                         | Mặc định    | Mô tả                                            |
+| ---------- | ---------------------------- | ----------- | ------------------------------------------------ |
+| `theme`    | `'light' \| 'dark'`          | `'light'`   | Theme khởi tạo khi localStorage chưa có giá trị. |
+| `density`  | `'compact' \| 'comfortable'` | `'compact'` | Mật độ khởi tạo.                                 |
+| `children` | `ReactNode`                  | —           | Cây ứng dụng cần theme.                          |
+
+Hook `useTheme()` trả về `{ theme, density, setTheme, setDensity }` và chỉ dùng được bên trong provider.
+
+## Tạo theme tùy chỉnh
+
+Bạn không cần fork component. Chỉ cần override token trên một selector có độ ưu tiên cao hơn:
+
+```css
+[data-theme='brand'] {
+  --color-blue-600: #0f766e;
+  --focus-ring: #0f766e;
+  --on-primary: #ffffff;
+}
+
+[data-theme='brand'] .app {
+  --bg: #f0fdfa;
+  --surface: #ffffff;
+  --border: #99f6e4;
+  --text: #134e4a;
+  --text-muted: #5f8b86;
+}
+```
+
+Sau đó đặt `data-theme="brand"` lên wrapper. Vì `ThemeProvider` chỉ chấp nhận `'light'` hoặc `'dark'`, theme thương hiệu thường được gắn trực tiếp lên phần tử gốc của app thay vì đi qua provider.
+
+<Aside type="caution" title="Đừng hardcode màu trong component">
+  Component trong thư viện chỉ dùng `var(--…)`. Nếu một component cần màu mới, thêm token vào
+  `packages/tokens` trước — đừng viết hex trực tiếp vào file `.module.css`.
+</Aside>
+
+## Mật độ và component
+
+Mật độ ảnh hưởng đến các biến như `--row-height`, `--cell-py`, `--input-h` và `--font-size`. Các component dùng chung các biến này nên tự co giãn đồng bộ: bảng, input, select, pagination và menu đều đổi cùng lúc.
+
+Nếu một khu vực cần mật độ khác phần còn lại, đặt `data-density` lên wrapper của khu vực đó — như demo phía trên.

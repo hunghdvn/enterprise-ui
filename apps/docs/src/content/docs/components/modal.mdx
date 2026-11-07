@@ -1,0 +1,67 @@
+---
+title: Modal
+description: Hộp thoại controlled với trap focus, khoá cuộn nền và đóng bằng Escape.
+---
+
+import { ModalDemo } from '../../../components/demos/ModalDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Modal` phù hợp cho xác nhận hành động phá huỷ, form ngắn và nội dung cần sự tập trung. Component không tự đóng — caller giữ trạng thái `open` và quyết định khi nào đóng.
+
+<Demo title="Xác nhận xoá và nội dung dài tự cuộn">
+  <ModalDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Button, Modal } from '@enterprise-ui/components';
+
+export function DeleteDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Xoá đơn hàng
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Xoá đơn hàng?">
+        <p>Thao tác này không thể hoàn tác.</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="secondary" onClick={() => setOpen(false)}>
+            Huỷ
+          </Button>
+          <Button variant="danger" onClick={() => setOpen(false)}>
+            Xoá
+          </Button>
+        </div>
+      </Modal>
+    </>
+  );
+}
+```
+
+## Props
+
+| Prop       | Kiểu         | Mặc định | Mô tả                                              |
+| ---------- | ------------ | -------- | -------------------------------------------------- |
+| `open`     | `boolean`    | —        | Trạng thái mở; khi `false` không render gì.        |
+| `onClose`  | `() => void` | —        | Gọi khi bấm ✕, nhấn Escape hoặc bấm nền.           |
+| `title`    | `string`     | —        | Tiêu đề, đồng thời là `aria-label` của dialog.     |
+| `children` | `ReactNode`  | —        | Nội dung thân hộp thoại, kể cả hàng nút hành động. |
+
+## Hành vi
+
+- Khoá cuộn trang nền khi mở.
+- Trap focus trong panel; `Tab` và `Shift+Tab` quẩn quanh các control bên trong.
+- Đóng bằng `Escape` hoặc bấm vùng nền.
+- Khi đóng, focus trả về phần tử đã mở dialog.
+- Nhiều modal có thể xếp chồng; modal trên cùng nhận `Escape` và `Tab`.
+
+## Accessibility
+
+- `title` là bắt buộc — không có dialog không tên.
+- Đặt nút hành động chính ở cuối `children`, thứ tự tab tự nhiên.
+- Không mở modal ngay khi trang tải; luôn có hành động của người dùng.
+- Với nội dung dài, panel tự cuộn và giữ header trong vùng nhìn.

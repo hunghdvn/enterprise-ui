@@ -1,0 +1,65 @@
+---
+title: Checkbox
+description: Ô chọn nhiều với nhãn liền kề, hai kích thước và trạng thái disabled.
+---
+
+import { CheckboxDemo } from '../../../components/demos/CheckboxDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Checkbox` render một `<label>` bọc `<input type="checkbox">`, nên bấm vào nhãn cũng đổi trạng thái. Component nhận mọi thuộc tính native của input, trừ `type` và `size`.
+
+<Demo title="Nhóm lựa chọn và trạng thái">
+  <CheckboxDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Checkbox } from '@enterprise-ui/components';
+
+export function Notifications() {
+  return (
+    <Checkbox defaultChecked name="notify" value="email">
+      Nhận thông báo qua email
+    </Checkbox>
+  );
+}
+```
+
+## Props
+
+| Prop             | Kiểu                                             | Mặc định | Mô tả                             |
+| ---------------- | ------------------------------------------------ | -------- | --------------------------------- |
+| `size`           | `'sm' \| 'md'`                                   | `'sm'`   | Kích thước ô chọn và nhãn.        |
+| `checked`        | `boolean`                                        | —        | Trạng thái controlled.            |
+| `defaultChecked` | `boolean`                                        | —        | Trạng thái khởi tạo uncontrolled. |
+| `onChange`       | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi.                    |
+| `disabled`       | `boolean`                                        | `false`  | Vô hiệu hoá.                      |
+| `children`       | `ReactNode`                                      | —        | Nhãn hiển thị cạnh ô chọn.        |
+
+## Nhóm nhiều lựa chọn
+
+Dùng `fieldset` và `legend` khi các checkbox có quan hệ với nhau:
+
+```tsx
+import { Checkbox } from '@enterprise-ui/components';
+
+<fieldset>
+  <legend>Loại dữ liệu xuất</legend>
+  <Checkbox name="export" value="orders">
+    Đơn hàng
+  </Checkbox>
+  <Checkbox name="export" value="invoices">
+    Hoá đơn
+  </Checkbox>
+  <Checkbox name="export" value="customers">
+    Khách hàng
+  </Checkbox>
+</fieldset>;
+```
+
+## Accessibility
+
+- Nhãn luôn nằm trong `children`, không đặt aria-label rời.
+- `indeterminate` chưa được hỗ trợ; nếu cần “chọn tất cả”, dùng checkbox riêng với nhãn mô tả trạng thái.
+- Trạng thái disabled vẫn giữ độ tương phản nhãn theo WCAG AA.

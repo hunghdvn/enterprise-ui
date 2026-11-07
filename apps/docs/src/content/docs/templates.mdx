@@ -1,0 +1,117 @@
+---
+title: Templates
+description: Các màn hình dựng sẵn từ component nền tảng — đăng nhập, lỗi và cài đặt hồ sơ.
+---
+
+Templates là composition của component nền tảng, không phải component nguyên tử. Chúng đóng gói bố cục và hành vi phổ biến để bạn không phải dựng lại từ đầu, nhưng vẫn nhận dữ liệu và sự kiện qua props.
+
+## Auth
+
+`AuthLayout` + `LoginForm` cho màn hình đăng nhập một hoặc hai cột.
+
+```tsx
+import { useState } from 'react';
+import { AuthLayout, LoginForm } from '@enterprise-ui/components';
+import type { LoginFormValues } from '@enterprise-ui/components';
+
+export function LoginPage() {
+  const [value, setValue] = useState<LoginFormValues>({
+    email: '',
+    password: '',
+    remember: false,
+  });
+
+  return (
+    <AuthLayout
+      brand={<strong>Enterprise UI</strong>}
+      title="Đăng nhập"
+      subtitle="Dùng tài khoản công ty để tiếp tục."
+      footer={<p>© 2026 Enterprise UI</p>}
+    >
+      <LoginForm value={value} onChange={setValue} onSubmit={(values) => console.log(values)} />
+    </AuthLayout>
+  );
+}
+```
+
+- `AuthLayout` nhận `brand`, `title`, `subtitle`, `children`, `footer` và panel marketing qua `aside`.
+- `LoginForm` là controlled form: `value`, `onChange`, `onSubmit`, `errors`, `loading`.
+- Lỗi cấp form (`error`) được đọc lại mỗi lần submit mới.
+
+## Error page
+
+`ErrorPage` có sẵn nội dung cho 403, 404 và 500.
+
+```tsx
+import { Button, ErrorPage } from '@enterprise-ui/components';
+
+export function NotFound() {
+  return (
+    <ErrorPage
+      status={404}
+      actions={<Button onClick={() => window.location.assign('/')}>Về trang chủ</Button>}
+    />
+  );
+}
+```
+
+- `status` chọn icon, tiêu đề và mô tả mặc định.
+- `title`, `description`, `icon` có thể override; `null` ẩn.
+- `actions` là nơi đặt nút khôi phục.
+- Khi nhúng trong một trang đã có `main`, truyền `as="div"` và `fill={false}`.
+
+## Settings & Profile
+
+`SettingsProfile` dựng trang cài đặt nhiều mục; `ProfileForm` là form hồ sơ cá nhân.
+
+```tsx
+import { useState } from 'react';
+import { ProfileForm, SettingsProfile } from '@enterprise-ui/components';
+import type { ProfileFormValues } from '@enterprise-ui/components';
+
+const initialProfile: ProfileFormValues = {
+  displayName: 'Nguyễn Văn A',
+  email: 'a.nguyen@congty.vn',
+  phone: '0901 234 567',
+  jobTitle: 'Trưởng nhóm vận hành',
+  department: 'Vận hành',
+};
+
+export function SettingsPage() {
+  const [profile, setProfile] = useState(initialProfile);
+
+  return (
+    <SettingsProfile
+      title="Cài đặt"
+      sections={[
+        {
+          key: 'profile',
+          label: 'Hồ sơ',
+          description: 'Thông tin hiển thị với đồng nghiệp.',
+          content: (
+            <ProfileForm
+              value={profile}
+              onChange={setProfile}
+              onSubmit={(values) => console.log(values)}
+            />
+          ),
+        },
+        {
+          key: 'security',
+          label: 'Bảo mật',
+          description: 'Mật khẩu và phiên đăng nhập.',
+          content: <p>Đổi mật khẩu và quản lý phiên đăng nhập.</p>,
+        },
+      ]}
+    />
+  );
+}
+```
+
+- `SettingsProfile` có nav mục, heading và vùng nội dung; controlled hoặc uncontrolled qua `activeKey`.
+- `ProfileForm` nhận `value`, `onChange`, `onSubmit`, `errors`, `avatar`.
+- Cả hai đều nhận `as` để chọn landmark phù hợp khi nhúng.
+
+## Khi nào dùng template
+
+Dùng template khi màn hình khớp ít nhất 80% nhu cầu. Nếu bạn cần bố cục khác, dùng component nền tảng trực tiếp — template không phải API ổn định cho mọi biến thể giao diện.

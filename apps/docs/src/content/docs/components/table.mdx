@@ -1,0 +1,123 @@
+---
+title: Table
+description: 'Lưới dữ liệu trình bày thuần: sắp xếp, chọn dòng, lọc cột, nhóm và virtual scroll.'
+---
+
+import { TableDemo } from '../../../components/demos/TableDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Table` là component lớn nhất của thư viện. Nó **không tự sắp xếp, lọc hay phân trang dữ liệu** — mọi thay đổi đi ra qua callback và caller truyền dữ liệu đã xử lý trở lại. Cách này giữ component thuần trình bày và cho phép server-side pagination.
+
+<Demo title="Sắp xếp nhiều cấp và chọn dòng">
+  <TableDemo client:load />
+</Demo>
+
+## Cách dùng tối thiểu
+
+```tsx
+import { Table } from '@enterprise-ui/components';
+import type { Column } from '@enterprise-ui/components';
+
+interface Order {
+  code: string;
+  customer: string;
+  total: number;
+}
+
+const columns: Column<Order>[] = [
+  { key: 'code', title: 'Mã đơn', width: 120, sortable: true },
+  { key: 'customer', title: 'Khách hàng' },
+  { key: 'total', title: 'Giá trị', align: 'right' },
+];
+
+export function Orders({ rows }: { rows: Order[] }) {
+  return <Table columns={columns} data={rows} rowKey={(row) => row.code} />;
+}
+```
+
+## Props chính
+
+| Prop            | Kiểu                                        | Mặc định              | Mô tả                                   |
+| --------------- | ------------------------------------------- | --------------------- | --------------------------------------- |
+| `columns`       | `Column<T>[]`                               | —                     | Định nghĩa cột.                         |
+| `data`          | `T[]`                                       | —                     | Các dòng của trang hiện tại.            |
+| `rowKey`        | `(row: T) => string`                        | `key` / `code` / `id` | Khoá ổn định cho mỗi dòng.              |
+| `sorts`         | `SortEntry[]`                               | `[]`                  | Quy tắc sắp xếp hiện tại.               |
+| `onSort`        | `(next: SortEntry[]) => void`               | —                     | Nhận toàn bộ mảng sort mới.             |
+| `selectedKeys`  | `string[]`                                  | —                     | Các dòng đang chọn.                     |
+| `onSelect`      | `(keys: string[]) => void`                  | —                     | Nhận toàn bộ lựa chọn mới.              |
+| `status`        | `'idle' \| 'loading' \| 'empty' \| 'error'` | `'idle'`              | Trạng thái hiển thị.                    |
+| `onRetry`       | `() => void`                                | —                     | Gọi khi bấm “Thử lại” ở trạng thái lỗi. |
+| `pagination`    | `TablePagination`                           | —                     | Bật footer phân trang.                  |
+| `summary`       | `ReactNode`                                 | —                     | Dòng tổng kết.                          |
+| `virtual`       | `boolean`                                   | `false`               | Cửa sổ hoá cho tập dữ liệu lớn.         |
+| `showFilterRow` | `boolean`                                   | `false`               | Hiện hàng lọc theo cột.                 |
+| `groupBy`       | `string[]`                                  | —                     | Nhóm theo tối đa hai khoá cột.          |
+
+### Column
+
+```ts
+import type { ReactNode } from 'react';
+import type { FilterOption } from '@enterprise-ui/components';
+
+interface Column<T> {
+  key: string;
+  title: string;
+  align?: 'left' | 'right' | 'center';
+  sortable?: boolean;
+  render?: (row: T) => ReactNode;
+  width?: number;
+  pinned?: 'left' | 'right';
+  filterable?: boolean;
+  filterType?: 'text' | 'select' | 'number' | 'date';
+  filterOptions?: FilterOption[];
+}
+```
+
+## Sắp xếp
+
+`Table` gọi `onSort` với mảng `SortEntry[]` đầy đủ. Caller áp dụng lên dữ liệu rồi truyền lại:
+
+```tsx
+import { useMemo, useState } from 'react';
+import { applySorts, Table } from '@enterprise-ui/components';
+import type { Column, SortEntry } from '@enterprise-ui/components';
+
+interface Order {
+  code: string;
+  total: number;
+}
+
+const columns: Column<Order>[] = [
+  { key: 'code', title: 'Mã đơn', sortable: true },
+  { key: 'total', title: 'Giá trị', align: 'right', sortable: true },
+];
+
+const allRows: Order[] = [];
+
+export function SortedOrders() {
+  const [sorts, setSorts] = useState<SortEntry[]>([]);
+  const rows = useMemo(() => applySorts(allRows, sorts), [sorts]);
+
+  return (
+    <Table
+      columns={columns}
+      data={rows}
+      rowKey={(row) => row.code}
+      sorts={sorts}
+      onSort={setSorts}
+    />
+  );
+}
+```
+
+## Virtual scroll
+
+Với hàng nghìn dòng, bật `virtual` và khai báo `rowHeight` khớp mật độ (32 compact, 44 comfortable). Table chỉ render các dòng quanh viewport, phần còn lại là chiều cao cuộn.
+
+## Accessibility
+
+- Header sortable là `<button>` trong `<th>`, có `aria-sort`.
+- Cột chọn dùng checkbox có nhãn theo mã dòng.
+- Khi không có dữ liệu, dùng `status="empty"` để hiển thị `Empty` thay vì bảng trống.
+- Ở màn hình hẹp, bảng chuyển sang card; đảm bảo `renderCard` hoặc thứ tự cột đủ thông tin.

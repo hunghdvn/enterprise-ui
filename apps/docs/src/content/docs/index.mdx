@@ -1,0 +1,94 @@
+---
+title: Enterprise UI
+description: Bộ component React cho ứng dụng quản trị doanh nghiệp — token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+template: splash
+hero:
+  tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+  actions:
+    - text: Bắt đầu
+      link: /enterprise-ui/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Xem components
+      link: /enterprise-ui/components/
+      icon: puzzle
+      variant: secondary
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { HomePreview } from '../../components/demos/HomePreview.tsx';
+import Demo from '../../components/Demo.astro';
+
+<Demo title="Bảng điều khiển mẫu" hint="Component thật, chạy trực tiếp trong trang docs">
+  <HomePreview client:load />
+</Demo>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <h3>Token, không phải màu cứng</h3>
+    <p>
+      Mọi component đọc biến CSS từ <code>@enterprise-ui/tokens</code>. Đổi một token là đổi cả hệ
+      thống, không săn từng file CSS.
+    </p>
+  </div>
+  <div class="feature-card">
+    <h3>Sáng, tối và mật độ</h3>
+    <p>
+      <code>ThemeProvider</code> gắn <code>data-theme</code> và <code>data-density</code> lên một
+      wrapper duy nhất, tự lưu lựa chọn vào localStorage.
+    </p>
+  </div>
+  <div class="feature-card">
+    <h3>Không phụ thuộc runtime</h3>
+    <p>
+      Package chỉ cần React 18 làm peer dependency. CSS Modules đóng gói trong một file
+      <code>style.css</code> duy nhất.
+    </p>
+  </div>
+</div>
+
+## Bắt đầu nhanh
+
+Cài package, import stylesheet một lần và bọc ứng dụng bằng `ThemeProvider`.
+
+```bash
+npm install @enterprise-ui/components
+```
+
+```tsx
+import { Button, ThemeProvider } from '@enterprise-ui/components';
+import '@enterprise-ui/components/style.css';
+
+export function App() {
+  return (
+    <ThemeProvider>
+      <Button variant="primary">Tạo đơn hàng</Button>
+    </ThemeProvider>
+  );
+}
+```
+
+<CardGrid>
+  <LinkCard
+    title="Cài đặt"
+    description="Yêu cầu hệ thống, cấu trúc package và cách nhúng vào ứng dụng."
+    href="/enterprise-ui/getting-started/"
+  />
+  <LinkCard
+    title="Design tokens"
+    description="Màu, chữ, khoảng cách và bán kính góc — nền tảng của mọi component."
+    href="/enterprise-ui/foundations/tokens/"
+  />
+  <LinkCard
+    title="Components"
+    description="Thư viện component kèm demo sống, props và mã sử dụng."
+    href="/enterprise-ui/components/"
+  />
+</CardGrid>
+
+## Nguyên tắc thiết kế
+
+- **Màu thương hiệu tiết chế.** Xanh chủ đạo cho hành động chính, cam cho điểm nhấn — khoảng 10% diện tích.
+- **Bàn làm việc sáng.** Nền trắng, sidebar trắng, viền mảnh; mật độ compact là mặc định.
+- **Component thuần trình bày.** Dữ liệu vào qua props, sự kiện ra qua callback; không fetch bên trong.
+- **Truy cập bàn phím trước.** Focus ring rõ, dialog trap focus, tab điều hướng bằng phím mũi tên.

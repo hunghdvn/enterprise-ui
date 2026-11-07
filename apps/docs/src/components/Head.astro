@@ -1,0 +1,16 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default>
+  <slot />
+</Default>
+
+<!--
+  The library ships compact spacing as an opt-in data attribute. Docs demos are
+  dense by design, so opt the whole document in before first paint. Starlight
+  sets data-theme on <html> itself, which the library theme tokens also use.
+-->
+<script is:inline>
+  document.documentElement.dataset.density = 'compact';
+</script>

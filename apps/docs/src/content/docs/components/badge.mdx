@@ -1,0 +1,46 @@
+---
+title: Badge
+description: Nhãn trạng thái nhỏ gọn với năm tông màu và chấm màu phía trước.
+---
+
+import { BadgeDemo } from '../../../components/demos/BadgeDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Badge` hiển thị trạng thái hoặc phân loại trong danh sách, bảng và thẻ. Mỗi badge có một chấm màu trang trí giúp phân biệt khi nhìn nhanh.
+
+<Demo title="Năm tông màu và ngữ cảnh sử dụng">
+  <BadgeDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Badge } from '@enterprise-ui/components';
+
+export function OrderStatus() {
+  return <Badge tone="green">Hoàn thành</Badge>;
+}
+```
+
+## Props
+
+| Prop       | Kiểu                                                  | Mặc định    | Mô tả                                |
+| ---------- | ----------------------------------------------------- | ----------- | ------------------------------------ |
+| `tone`     | `'blue' \| 'orange' \| 'green' \| 'red' \| 'neutral'` | `'neutral'` | Tông màu của badge.                  |
+| `children` | `ReactNode`                                           | —           | Nội dung, thường là một cụm từ ngắn. |
+
+Thuộc tính của `<span>` như `className`, `title`, `aria-*` được forward.
+
+## Ý nghĩa màu
+
+- **blue** — đang xử lý, đang giao, thông tin trung tính tích cực.
+- **orange** — cần chú ý, chờ duyệt, sắp đến hạn.
+- **green** — hoàn thành, đã xác minh, thành công.
+- **red** — lỗi, quá hạn, bị từ chối.
+- **neutral** — nhãn phụ, đếm số lượng, trạng thái không màu.
+
+## Accessibility
+
+- Màu không phải tín hiệu duy nhất: luôn kèm chữ có nghĩa (“Quá hạn”) thay vì chỉ “Đỏ”.
+- Chấm màu được đánh dấu `aria-hidden`, nên trình đọc màn hình chỉ đọc nội dung chữ.
+- Không dùng badge cho hành động bấm được; đó là vai trò của `Button`.
