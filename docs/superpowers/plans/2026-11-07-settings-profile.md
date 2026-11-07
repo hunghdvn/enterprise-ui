@@ -48,9 +48,9 @@
 - Consumes: `cx` from `../internal/cx`; `isPresent` from `../internal/isPresent` if a slot check is needed (title/subtitle/actions are `ReactNode`, so use `isPresent` rather than truthiness).
 - Produces:
   - `export interface SettingsSection { key: string; label: string; description?: ReactNode; content: ReactNode }`
-  - `export interface SettingsProfileProps { title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; sections: SettingsSection[]; activeKey?: string; defaultActiveKey?: string; onSectionChange?: (key: string) => void; navLabel?: string; level?: 1 | 2; className?: string }`
+  - `export interface SettingsProfileProps { as?: 'main' | 'div' | 'section'; title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; sections: SettingsSection[]; activeKey?: string; defaultActiveKey?: string; onSectionChange?: (key: string) => void; navLabel?: string; level?: 1 | 2; className?: string }`
   - `export function SettingsProfile(props: SettingsProfileProps): JSX.Element`
-  - DOM contract later tasks and the docs page rely on: root `data-*`-free `<div>`; nav is `<nav aria-label>` containing `<button type="button">` per section; the active button carries `aria-current="page"`; each pane is `<section aria-labelledby>` with an `<h2>`/`<h3>`; inactive panes carry the `hidden` attribute.
+  - DOM contract later tasks and the docs page rely on: root `data-*`-free `<main>` by default (`as` picks `main`/`div`/`section`); nav is `<nav aria-label>` containing `<button type="button">` per section; the active button carries `aria-current="true"`; each pane is `<section aria-labelledby>` with an `<h2>`/`<h3>`; inactive panes carry the `hidden` attribute.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -88,7 +88,7 @@ test('renders the default title, the nav and the first pane', () => {
   ).toEqual(['Thông tin cá nhân', 'Thông báo', 'Bảo mật']);
   expect(within(nav).getByRole('button', { name: 'Thông tin cá nhân' })).toHaveAttribute(
     'aria-current',
-    'page',
+    'true',
   );
   expect(screen.getByRole('region', { name: 'Thông tin cá nhân' })).toBeInTheDocument();
   expect(screen.getByText('Pane profile')).toBeVisible();
@@ -118,22 +118,24 @@ Expected: FAIL — cannot resolve `./SettingsProfile`.
 
 - [ ] **Step 3: Implement `SettingsProfile`**
 
-`types.ts` — the two interfaces from the Interfaces block, with these JSDoc lines kept: `activeKey` "Controlled active section; omit for uncontrolled", `defaultActiveKey` "Initial section when uncontrolled; defaults to the first section", `navLabel` "Accessible name for the section nav landmark; default 'Mục cài đặt'", `level` "Page heading level; default 1. Panes then use h2 (h3 when this is 2)".
+`types.ts` — the two interfaces from the Interfaces block, with these JSDoc lines kept: `as` "Wrapper element; default `main`. Keep `main` inside AppShell — its content area is a `div`, so the page would otherwise lose its main landmark. Use `div` only when an ancestor already renders `<main>`", `activeKey` "Controlled active section; omit for uncontrolled", `defaultActiveKey` "Initial section when uncontrolled; defaults to the first section", `navLabel` "Accessible name for the section nav landmark; default 'Mục cài đặt'", `level` "Page heading level; default 1. Panes then use h2 (h3 when this is 2)".
 
-`SettingsProfile.tsx` — signature `export function SettingsProfile({ title = 'Cài đặt', subtitle, actions, sections, activeKey, defaultActiveKey, onSectionChange, navLabel = 'Mục cài đặt', level = 1, className = '' }: SettingsProfileProps)`. Behaviour:
+`SettingsProfile.tsx` — signature `export function SettingsProfile({ as = 'main', title = 'Cài đặt', subtitle, actions, sections, activeKey, defaultActiveKey, onSectionChange, navLabel = 'Mục cài đặt', level = 1, className = '' }: SettingsProfileProps)`, then `const Root = as;`. Behaviour:
 
 - Active key: `const [uncontrolled, setUncontrolled] = useState(() => defaultActiveKey ?? sections[0]?.key)`; `const isControlled = activeKey !== undefined`; the candidate is `isControlled ? activeKey : uncontrolled`; resolve with `sections.some((s) => s.key === candidate) ? candidate : sections[0]?.key`. Compute the state initialiser and the fallback defensively (`sections[0]?.key`) because `sections` may be empty.
+- Reconcile that fallback in a `useEffect` on `[current, candidate, activeKey, onSectionChange]`: when `current` differs from `candidate`, `setUncontrolled(current)` when uncontrolled, else `onSectionChange?.(current)`. A render-only fallback lets a removed-then-restored section steal the view and leaves a controlled caller pointing at a section that is not on screen.
 - Clicking a nav button: `onSectionChange?.(key)`; when uncontrolled also `setUncontrolled(key)`.
 - `Title: 'h1' | 'h2' = level === 1 ? 'h1' : 'h2'`; `PaneTitle = level === 1 ? 'h2' : 'h3'`.
-- Nav: `<nav aria-label={navLabel} className={styles.nav}>` with `sections.map` → `<button type="button" key={key} className={styles.navItem} aria-current={isActive ? 'page' : undefined} data-active={isActive ? 'true' : 'false'} onClick={...}>{label}</button>`.
-- Panes: `sections.map` → `<section key={key} className={styles.pane} aria-labelledby={id} hidden={!isActive}>` where `id` is a `useId`-derived stable per-key id. Because ids must be stable across renders and hooks cannot run in a loop, use one `useId()` at the top and build `` `${baseId}-${key}` `` (keys are already unique).
-- Inside a pane: `<PaneTitle className={styles.paneTitle} id={id}>{label}</PaneTitle>`, `isPresent(description) && <p className={styles.paneDescription}>{description}</p>`, then `<div className={styles.paneBody}>{content}</div>`.
-- Header: `<header className={styles.header}>` with `<Title className={styles.title}>{title}</Title>`, `isPresent(subtitle) && <p className={styles.subtitle}>`, `isPresent(actions) && <div className={styles.actions}>`.
-- Root: `<div className={cx(styles.root, className)}>` — no landmark, no `data-fill`.
+- Nav: `<nav aria-label={navLabel} className={styles.nav} ref={navRef}>` with `sections.map` → `<button type="button" key={key} ref={isActive ? activeRef : undefined} className={styles.navItem} aria-current={isActive ? 'true' : undefined} data-active={isActive ? 'true' : 'false'} onClick={...}>{label}</button>`. `"true"`, not `"page"`: `AppShell`'s sidebar already marks the route with `aria-current="page"`.
+- A `useEffect` on `[current]` scrolls the active item into view (`nav.scrollLeft = max(0, active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2)`) only when `nav.scrollWidth > nav.clientWidth`, so an off-screen `defaultActiveKey` cannot start invisible. Move the nav's own offset, never the page's.
+- Panes: `sections.map((section, index) => …)` → `<section key={key} className={styles.pane} aria-labelledby={\`${baseId}-pane-${index}\`} aria-describedby={isPresent(description) ? \`${baseId}-desc-${index}\` : undefined} hidden={!isActive}>`. Use one `useId()`at the top and build both ids from the **index**:`aria-labelledby`is a space-separated id list, so a key like`"account settings"` would split into two ids that do not exist, and key-derived ids in one namespace collide (`privacy`'s description vs the pane of `privacy-description`).
+- Inside a pane: `<PaneTitle className={styles.paneTitle} id={paneId}>{label}</PaneTitle>`, `isPresent(description) && <p className={styles.paneDescription} id={descriptionId}>{description}</p>`, then `<div className={styles.paneBody}>{content}</div>`.
+- Header: `<header className={styles.header}>` with `<Title className={styles.title} id={titleId}>{title}</Title>`, `isPresent(subtitle) && <p className={styles.subtitle}>`, `isPresent(actions) && <div className={styles.actions}>`.
+- Root: `<Root className={cx(styles.root, className)} aria-labelledby={as === 'div' ? undefined : titleId}>` — a named `main`/`section` is a landmark, but ARIA 1.2 forbids `aria-labelledby` on role=generic, so the `div` variant drops it. No `data-fill`.
 
-`SettingsProfile.module.css` — `.root { container-type: inline-size; box-sizing: border-box; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); min-width: 0; font-family: var(--font); color: var(--text); }`. `.nav` is a horizontally scrollable row below 768px (`display: flex; gap: 4px; overflow-x: auto;`), each `.navItem` a button with `border: 0; border-left: 3px solid transparent; background: transparent; padding: 8px 10px; font: inherit; font-size: var(--font-size); color: var(--text-muted); cursor: pointer; text-align: left; white-space: nowrap;` plus `:hover { color: var(--text); background: var(--surface-muted) }`, `:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px }`, and `[data-active='true'] { border-left-color: var(--color-blue-600); color: var(--color-blue-600); font-weight: 600; background: var(--nav-active-bg) }`. `.pane[hidden] { display: none }`. Pane card: `background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px;`. Inside `@container (min-width: 768px)` switch the root to `grid-template-columns: 220px minmax(0, 1fr); align-items: start;` and give `.nav` `flex-direction: column; overflow-x: visible;`. Dark theme: rely on tokens only (no `[data-theme='dark']` block) because `--nav-active-bg` and `--color-blue-600` are already theme-aware — check `packages/tokens` and, if `--color-blue-600` is not re-mapped in dark, use `--action-text` for the active colour instead.
+`SettingsProfile.module.css` — `.root { container-type: inline-size; box-sizing: border-box; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); min-width: 0; font-family: var(--font); color: var(--text); }`. `.nav` is a horizontally scrollable row below 768px (`display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;`) — a _thin_ bar, not a hidden one: hiding it leaves clipped sections unreachable for a vertical-only wheel. Each `.navItem` a button with `border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 8px 10px; font: inherit; font-size: var(--font-size); color: var(--text-muted); cursor: pointer; text-align: left; white-space: nowrap;` plus `:hover { color: var(--text); background: var(--surface-muted) }`, `:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px }` (an outward ring is clipped by the scroller), and `[data-active='true'] { border-bottom-color: var(--action-text); color: var(--action-text); font-weight: 600; background: var(--nav-active-bg) }`. The row's cue is an underline; a left border there would butt against the previous item. `.pane[hidden] { display: none }`. Pane card: `background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px;`. Inside `@container (min-width: 768px)` switch the root to `grid-template-columns: 220px minmax(0, 1fr); align-items: start;`, give `.nav` `flex-direction: column; overflow-x: visible;`, and switch `.navItem` to `border-bottom: 0; border-left: 3px solid transparent; white-space: normal; overflow-wrap: anywhere;` (long labels wrap inside the 220px rail instead of spilling over the pane) with `[data-active='true'] { border-left-color: var(--action-text) }`. Dark theme: rely on tokens only (no `[data-theme='dark']` block); `--color-blue-600` is **not** re-mapped in dark, so use `--action-text` for the active colour.
 
-`index.ts` — `export { SettingsProfile } from './SettingsProfile'; export type { SettingsProfileProps, SettingsSection } from './types';`
+`index.ts` — `export { SettingsProfile } from './SettingsProfile'; export type { SettingsProfileLandmark, SettingsProfileProps, SettingsSection } from './types';`
 
 `packages/components/src/index.ts` — add the component and both types in the existing alphabetical block.
 
@@ -179,8 +181,16 @@ test('navLabel renames the nav landmark and className merges', () => {
   /* navLabel="Khu vực"; container.firstElementChild has custom class */
 });
 
-test('the template renders no main landmark', () => {
-  /* queryByRole('main') null — the page owns it */
+test('the root is a main landmark by default, as="div" is not', () => {
+  /* as default → getByRole('main') named 'Cài đặt'; as="div" inside a caller <main> → exactly one main and no aria-labelledby; as="section" → named region */
+});
+
+test('a key with whitespace and a colliding key pair still name their regions', () => {
+  /* key 'account settings' → aria-labelledby has no space and resolves; privacy + privacy-description → ids are unique */
+});
+
+test('a removed active section reconciles state and notifies a controlled caller', () => {
+  /* uncontrolled defaultActiveKey="security", drop security → first pane; restore → still first. controlled: rerender with activeKey="security" and only 'profile' → onSectionChange('profile') */
 });
 
 test('the layout is a container query, never a media query', () => {
@@ -193,7 +203,7 @@ For the CSS test, copy the `readFileSync(join(import.meta.dirname, 'SettingsProf
 - [ ] **Step 6: Run the tests**
 
 Run: `npm run test --workspace=@enterprise-ui/components -- --run src/SettingsProfile`
-Expected: PASS (11 tests).
+Expected: PASS (16 tests).
 
 - [ ] **Step 7: Typecheck and lint the new folder**
 
@@ -279,10 +289,11 @@ Signature as in the spec §4. Behaviour:
 - One `setField = (key: keyof ProfileFormValues) => (event: ChangeEvent<HTMLInputElement>) => onChange({ ...value, [key]: event.target.value })`.
 - Submit handler: `event.preventDefault()`; if `loading || disabled` return; read the form via `event.currentTarget` and `new FormData(event.currentTarget)`; build `next` from the five `name`s (fall back to `value[key]` if a field is missing); `if (Object.keys(next).some((k) => next[k] !== value[k])) onChange(next)`; then `onSubmit(next)`.
 - `required` default `['displayName', 'email']`; membership check `required.includes(key)`.
-- Layout: `<Form errors={errors} aria-busy={loading || undefined} onSubmit={submit} className={cx(styles.form, className)}>`; avatar block (`isPresent(avatar)`) then `<div className={styles.grid}>` of five `<Field label={…} name={key} required={…}>` wrapping `<Input … value={value[key]} onChange={setField(key)} disabled={disabled} />`; then `<div className={styles.footer}>` with `<Button type="submit" variant="primary" loading={loading} disabled={disabled}>{submitLabel}</Button>` and `onCancel && <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>{cancelLabel}</Button>`.
+- Layout: a wrapper `<div className={styles.root}>` holding the avatar block (`isPresent(avatar)`), then `<Form errors={errors} aria-busy={loading || undefined} onSubmit={submit} className={cx(styles.form, className)}>` with `<div className={styles.grid}>` of five `<Field label={…} name={key} required={…}>` wrapping `<Input … value={value[key]} onChange={setField(key)} disabled={disabled} />`, then `<div className={styles.footer}>` with `<Button type="submit" variant="primary" loading={loading} disabled={disabled}>{submitLabel}</Button>` and `onCancel && <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>{cancelLabel}</Button>`. The avatar sits **outside** the form: a caller's upload control is typically a plain `<button>`, which defaults to `type="submit"` — inside the form, opening the picker would also save.
+- `readFormValues(form, current, keys)` from `../internal/readFormValue` (shared with `LoginForm`): reads `value` for text inputs and `checked` for checkboxes/radios, and keeps the controlled value for a missing control. Share it instead of a second copy of the autofill contract.
 - `errors` type is `Partial<Record<keyof ProfileFormValues, string>>`; `Form errors` accepts `Record<string, string>`. Narrow locally before passing: `const formErrors = errors ? Object.fromEntries(Object.entries(errors).filter(([, message]) => message)) as Record<string, string> : undefined;` — this keeps the cast on a freshly built object and never casts the caller's prop.
 
-CSS: `.form { display: grid; gap: 16px; font-family: var(--font); color: var(--text) }`; `.avatar { display: flex; align-items: center; gap: 12px }` + `.avatarHint { margin: 0; color: var(--text-muted); font-size: 12px }`; `.grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) }`; `.footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px }`. For the two-column grid use a container query on the form itself (`.form { container-type: inline-size }` + `@container (min-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } }`). If a nested container turns out not to work in the docs frame, fall back to the single-column grid at every width and note it — never a `@media` query. `.footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px }`.
+CSS: `.root { display: grid; gap: 16px; min-inline-size: 15rem; font-family: var(--font); color: var(--text) }` — the floor is required because `container-type: inline-size` on the form makes it contribute 0 to a shrink-to-fit parent's intrinsic width (a plain length, not `min(…, 100%)`: a percentage resolves against an indefinite width in exactly that case); `.form { display: grid; gap: 16px; min-width: 0 }`; `.avatar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px }` + `.avatarHint { margin: 0; color: var(--text-muted); font-size: 12px }`; `.grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) }`; `.footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px }`. For the two-column grid use a container query on the form itself (`.form { container-type: inline-size }` + `@container (min-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } }`). If a nested container turns out not to work in the docs frame, fall back to the single-column grid at every width and note it — never a `@media` query.
 
 `index.ts` and `packages/components/src/index.ts` re-exports like Task 1.
 
@@ -368,10 +379,16 @@ Revert each behaviour in turn (keep a `cp` backup of the file, restore with `cp`
 4. `hidden={!isActive}` (Task 1) → `hidden={false}` → "inactive panes stay mounted but hidden" fails.
 5. `sections.some(...)` fallback replaced with the raw candidate → "unknown activeKey falls back" fails.
 6. `sections[0]?.key` → `sections[0].key` (Task 1) → "empty sections" throws.
-7. `aria-current` always `'page'` → "moves aria-current" fails.
+7. `aria-current="true"` → always `'page'` → "moves aria-current" fails.
 8. `onChange?.({ ...value, [key]: … })` → `onChange({ [key]: … } as ProfileFormValues)` → the field-edit tests fail.
 9. `type="button"` dropped from the cancel button → clicking cancel submits → "custom labels and onCancel" fails.
 10. `disabled` dropped from the inputs → "disabled disables every control" fails.
+11. `as = 'main'` → hardcoded `div` → "the root is a main landmark by default" fails.
+12. pane/description ids from the raw key → `${baseId}-${key}` → the whitespace-key test fails.
+13. `-desc-` suffix → `-description` on a key-based pane id → the `privacy`/`privacy-description` test fails.
+14. reconcile effect removed → "reconciles state and notifies a controlled caller" fails.
+15. `scrollbar-width: thin` → `none` → the overflow-affordance pin fails.
+16. avatar moved back inside `<Form>` → the avatar `<button>` submits → "renders outside the form" fails.
 
 Record the count (expected 10/10 caught) for the gate table.
 
@@ -399,16 +416,17 @@ git commit -m "feat(settings): add ProfileForm personal-info form"
 
 - [ ] **Step 1: Write the page**
 
-Hold `const [profile, setProfile] = useState<ProfileFormValues>({...})`, `const [active, setActive] = useState('profile')`, and three `Checkbox` booleans in one object. Build the three `sections` with `useMemo`-free plain construction:
+Hold `const [profile, setProfile] = useState<ProfileFormValues>({...})`, a second `const [savedProfile, setSavedProfile] = useState(INITIAL_PROFILE)` baseline, `const [active, setActive] = useState('profile')`, and three `Checkbox` booleans in one object. Build the three `sections` with `useMemo`-free plain construction:
 
-- `profile`: `<ProfileForm value={profile} onChange={setProfile} onSubmit={(v) => toast.show(\`Đã lưu hồ sơ của ${v.displayName}\`, 'success')} onCancel={() => toast.show('Đã huỷ thay đổi (demo).', 'info')} avatar={<span className={styles.avatar}>NA</span>} avatarHint="PNG hoặc JPG, tối đa 2 MB." />`
+- `profile`: `<ProfileForm value={profile} onChange={setProfile} onSubmit={(v) => { setSavedProfile(v); toast.show(…, 'success'); }} onCancel={() => { setProfile(savedProfile); toast.show('Đã huỷ thay đổi (demo).', 'info'); }} avatar={<span className={styles.avatar}>NA</span>} avatarHint="PNG hoặc JPG, tối đa 2 MB." />`. Cancel resets to the **last saved** value, not to the seed data: resetting to `INITIAL_PROFILE` would also undo a save.
 - `notifications`: three `Checkbox` rows (`aria`-free, label text in the `Checkbox` children), each wired to its own state key.
-- `security`: a password `Input` (`type="password"`, `autoComplete="new-password"`, labelled through `Field`), a `Button variant="secondary"` "Đổi mật khẩu" that toasts, and a `Button variant="danger"` "Vô hiệu hoá tài khoản" that flips an inline two-step confirm (`Xác nhận vô hiệu hoá` + `Huỷ`) — no `Modal`.
+- `security`: a password `Input` (`type="password"`, `autoComplete="new-password"`, `minLength={8}` + `required`, labelled through `Field` with `hint`), a `Button type="submit" variant="secondary"` "Đổi mật khẩu", and a `Button variant="danger"` "Vô hiệu hoá tài khoản" that flips an inline two-step confirm (`Xác nhận vô hiệu hoá` + `Huỷ`) — no `Modal`. `Form` renders `noValidate`, so the demo must also guard in `onSubmit`: under 8 characters sets a `Field error` instead of toasting success. A security demo that reports success for an empty password models the wrong thing.
 
-Page shell: `<main className={styles.page}>` with the page's own `<h1>` (`Cài đặt`) and a subtitle paragraph. Mount `SettingsProfile` with both `title` and `level={2}`, so the template heading is an `h2` under the page `h1` and the page keeps exactly one `h1`:
+Page shell: `<main className={styles.page}>` with the page's own `<h1>` and a subtitle paragraph. Mount `SettingsProfile` with `title`, `level={2}` **and** `as="div"` — the docs page already renders the `<main>`, so the default `main` would nest one:
 
 ```tsx
 <SettingsProfile
+  as="div"
   title="Cài đặt tài khoản"
   subtitle="Thông tin cá nhân, thông báo và bảo mật."
   level={2}
@@ -423,9 +441,9 @@ undefined CSS-module key would emit `class="undefined"` through `cx`.)
 
 `code` snippet: one self-contained example importing `SettingsProfile` and `ProfileForm`, with no nested backticks and no `${}` inside the template literal (use `'…'` strings, not template literals, inside the snippet — the extractor truncates at the first `` `; ``).
 
-Docs CSS: `.page` stacking with `gap: 16px`, `.preview` a bordered frame with `min-height: 380px` so the rail layout has room, `.avatar` a circular initials chip using tokens.
+Docs CSS: `.page` stacking with `gap: 16px`, `.frame` a bordered frame with `min-height: 420px` **and `padding: 16px`** (the template root pads nothing of its own, so without it the heading sits flush against the border and the pane's border doubles up with the frame's), `.avatar` a circular initials chip using tokens.
 
-Props table rows must document for `SettingsProfile`: `title`, `subtitle`, `actions`, `sections` (bắt buộc), `activeKey`, `defaultActiveKey`, `onSectionChange`, `navLabel`, `level`, `className`; and for `ProfileForm`: all of §4 plus a note that `onSubmit` reads the DOM and calls `onChange` first.
+Props table rows must document for `SettingsProfile`: `as` (default `'main'`, `div` when the page already has a `main`), `title`, `subtitle`, `actions`, `sections` (bắt buộc), `activeKey`, `defaultActiveKey`, `onSectionChange`, `navLabel` (active item is `aria-current="true"`, not `"page"`), `level`, `className`; and for `ProfileForm`: all of §4 plus a note that `onSubmit` reads the DOM and calls `onChange` first.
 
 - [ ] **Step 2: Run the snippet check and typecheck**
 
@@ -491,5 +509,7 @@ PR body: spec + plan links, the two components' API, the docs route, the gate ta
 **Spec coverage:** §4.2 nav/panes/hidden/fallbacks → Task 1 Steps 3, 5; §4.3 form behaviour incl. `onChange`-before-`onSubmit` → Task 2 Steps 3, 5; §5 a11y (nav landmark, `aria-current`, named regions, labels) → Tasks 1–2 tests; §6 test lists → both test blocks; §7 done criteria → Task 4.
 
 **Gaps found and closed:** the spec's `[hidden]` display rule had no pin — added as CSS mutant 11. The docs `level={2}` decision (page `h1` stays unique) was ambiguous — fixed in Task 3 Step 1.
+
+**Reviewed and corrected (PR #34):** §4.1's premise was wrong — `AppShell` renders `<div>`s, not `<main>` — so `SettingsProfile` gained `as` (default `main`) and `aria-current` moved from `"page"` (the sidebar's) to `"true"`. Pane/description ids are index-based (whitespace keys and the `privacy`/`privacy-description` collision). The stale-key fallback now reconciles state and notifies a controlled caller. The narrow nav keeps a thin scrollbar and scrolls the active item into view; the active cue is an underline in the row and a left bar in the rail; long labels wrap. `ProfileForm`'s avatar slot moved outside the `<form>` and the root gained a `min-inline-size` floor; the DOM read is shared with `LoginForm` in `internal/readFormValue.ts`.
 
 **Type consistency:** `SettingsSection`/`SettingsProfileProps`/`ProfileFormValues`/`ProfileFormProps` names and the five value keys are identical across Task 1, Task 2 and the docs page.

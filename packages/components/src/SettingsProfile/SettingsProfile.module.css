@@ -49,19 +49,19 @@
   display: flex;
   gap: 4px;
   min-width: 0;
-  /* Scrolls with the keyboard, but a visible bar under the section tabs reads as
-     chrome inside a shell. Hide it and keep the native scroll behaviour. */
+  /* Reaches the sections that do not fit: a thin bar plus wheel/trackpad scroll, and
+     the active item is scrolled into view (SettingsProfile.tsx). Hiding the bar
+     entirely left clipped sections unreachable for a vertical-only wheel. */
   overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.nav::-webkit-scrollbar {
-  display: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .navItem {
   border: 0;
-  border-left: 3px solid transparent;
+  /* Narrow row: the active cue is a rule under the label, not a vertical bar butting
+     against the previous tab. Wide rail switches to a left border below. */
+  border-bottom: 3px solid transparent;
   background: transparent;
   padding: 8px 10px;
   color: var(--text-muted);
@@ -87,7 +87,7 @@
    comes from --action-text, which the theme does remap for both modes. */
 .navItem[data-active='true'] {
   background: var(--nav-active-bg);
-  border-left-color: var(--action-text);
+  border-bottom-color: var(--action-text);
   color: var(--action-text);
   font-weight: 600;
 }
@@ -142,5 +142,18 @@
   .nav {
     flex-direction: column;
     overflow-x: visible;
+  }
+
+  /* Wide rail: the cue becomes a left bar, and long labels wrap inside the 220px
+     column instead of spilling over the pane's border. */
+  .navItem {
+    border-bottom: 0;
+    border-left: 3px solid transparent;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .navItem[data-active='true'] {
+    border-left-color: var(--action-text);
   }
 }

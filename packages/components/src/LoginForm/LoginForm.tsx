@@ -5,25 +5,11 @@ import { Form } from '../Form/Form';
 import { Icon } from '../Icon';
 import { Input } from '../Input/Input';
 import { isPresent } from '../internal/isPresent';
+import { readFormValues } from '../internal/readFormValue';
 import styles from './LoginForm.module.css';
 import type { LoginFormProps, LoginFormValues } from './types';
 
-/**
- * Reads what is actually in the form. A password manager or mobile autofill can write into the
- * inputs without firing a React change event; submitting the `value` prop would then send empty
- * credentials. A missing control (e.g. the hidden remember checkbox) keeps the controlled value.
- */
-function readFormValue(form: HTMLFormElement, current: LoginFormValues): LoginFormValues {
-  const field = (name: string) => form.elements.namedItem(name);
-  const email = field('email');
-  const password = field('password');
-  const remember = form.querySelector<HTMLInputElement>('input[name="remember"]');
-  return {
-    email: email instanceof HTMLInputElement ? email.value : current.email,
-    password: password instanceof HTMLInputElement ? password.value : current.password,
-    remember: remember ? remember.checked : current.remember,
-  };
-}
+const VALUE_KEYS = ['email', 'password', 'remember'] as const;
 
 export function LoginForm({
   value,
@@ -58,12 +44,8 @@ export function LoginForm({
         onSubmit={(event) => {
           event.preventDefault();
           if (busy) return;
-          const next = readFormValue(event.currentTarget, value);
-          if (
-            next.email !== value.email ||
-            next.password !== value.password ||
-            next.remember !== value.remember
-          ) {
+          const next = readFormValues(event.currentTarget, value, VALUE_KEYS);
+          if (VALUE_KEYS.some((key) => next[key] !== value[key])) {
             // Tell the caller about autofilled values so the next render cannot clear them.
             onChange(next);
           }

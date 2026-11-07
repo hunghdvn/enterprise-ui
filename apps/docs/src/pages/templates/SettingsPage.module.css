@@ -24,10 +24,12 @@
   color: var(--text-muted);
 }
 
-/* The template switches to a 220px rail once it has 768px of its own width,
-   so the frame needs that much room before the rail appears. */
+/* The template switches to a 220px rail once it has 768px of its own width, so the
+   frame needs that much room before the rail appears. The template root pads nothing
+   of its own (a page template cannot assume it is framed), so the frame does. */
 .frame {
   min-height: 420px;
+  padding: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

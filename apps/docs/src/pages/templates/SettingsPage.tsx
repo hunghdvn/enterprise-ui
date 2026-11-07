@@ -26,6 +26,13 @@ const INITIAL_PROFILE: ProfileFormValues = {
 
 const settingsProps: PropDoc[] = [
   {
+    name: 'as',
+    type: "'main' | 'div' | 'section'",
+    default: "'main'",
+    description:
+      'Thẻ bao ngoài. Mặc định main để trang đặt trong AppShell vẫn có landmark (vùng nội dung của AppShell là div). Đặt div khi trang đã có main riêng — như trang docs này — nếu không sẽ có hai main lồng nhau. header bên trong main không phải banner, nên mặc định main cũng tránh được banner trùng với header của AppShell.',
+  },
+  {
     name: 'sections',
     type: 'SettingsSection[]',
     description:
@@ -71,7 +78,7 @@ const settingsProps: PropDoc[] = [
     type: 'string',
     default: "'Mục cài đặt'",
     description:
-      'Tên của nav landmark. Nav dùng button thay vì link vì template không điều hướng; mục active mang aria-current="page".',
+      'Tên của nav landmark. Nav dùng button thay vì link vì template không điều hướng; mục active mang aria-current="true" (không dùng "page" vì trang là route, và sidebar của AppShell đã đánh dấu "page").',
   },
   {
     name: 'level',
@@ -160,15 +167,21 @@ const code = `import { useState } from 'react';
 import { ProfileForm, SettingsProfile } from '@enterprise-ui/components';
 import type { ProfileFormValues } from '@enterprise-ui/components';
 
+const INITIAL_PROFILE: ProfileFormValues = {
+  displayName: 'Nguyễn Văn A',
+  email: 'an.nguyen@congty.vn',
+  phone: '0901234567',
+  jobTitle: 'Kế toán trưởng',
+  department: 'Tài chính',
+};
+
 export function AccountSettings() {
   const [active, setActive] = useState('profile');
-  const [profile, setProfile] = useState<ProfileFormValues>({
-    displayName: 'Nguyễn Văn A',
-    email: 'an.nguyen@congty.vn',
-    phone: '0901234567',
-    jobTitle: 'Kế toán trưởng',
-    department: 'Tài chính',
-  });
+  // Two copies on purpose: profile is what the user is editing, saved is the last
+  // value that went through onSubmit. Cancel resets to saved, not to the seed data —
+  // otherwise it would also undo a successful save.
+  const [profile, setProfile] = useState<ProfileFormValues>(INITIAL_PROFILE);
+  const [saved, setSaved] = useState<ProfileFormValues>(INITIAL_PROFILE);
 
   return (
     <SettingsProfile
@@ -183,8 +196,11 @@ export function AccountSettings() {
             <ProfileForm
               value={profile}
               onChange={setProfile}
-              onSubmit={(next) => console.log('Lưu hồ sơ', next)}
-              onCancel={() => setProfile(profile)}
+              onSubmit={(next) => {
+                setSaved(next);
+                console.log('Lưu hồ sơ', next);
+              }}
+              onCancel={() => setProfile(saved)}
             />
           ),
         },
@@ -202,8 +218,11 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [active, setActive] = useState('profile');
   const [profile, setProfile] = useState<ProfileFormValues>(INITIAL_PROFILE);
+  // The cancel button must undo edits, not a save: this baseline moves only on submit.
+  const [savedProfile, setSavedProfile] = useState<ProfileFormValues>(INITIAL_PROFILE);
   const [notify, setNotify] = useState({ email: true, daily: false, weekly: true });
   const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [confirmingDisable, setConfirmingDisable] = useState(false);
 
   const sections: SettingsSection[] = [
@@ -215,9 +234,12 @@ export default function SettingsPage() {
         <ProfileForm
           value={profile}
           onChange={setProfile}
-          onSubmit={(next) => toast.show(`Đã lưu hồ sơ của ${next.displayName}.`, 'success')}
+          onSubmit={(next) => {
+            setSavedProfile(next);
+            toast.show(`Đã lưu hồ sơ của ${next.displayName}.`, 'success');
+          }}
           onCancel={() => {
-            setProfile(INITIAL_PROFILE);
+            setProfile(savedProfile);
             toast.show('Đã huỷ thay đổi (demo).', 'info');
           }}
           avatar={<span className={styles.avatar}>NA</span>}
@@ -266,20 +288,32 @@ export default function SettingsPage() {
           aria-label="Đổi mật khẩu"
           onSubmit={(event) => {
             event.preventDefault();
+            // `Form` renders noValidate, so a native minLength would never fire; the demo
+            // must still refuse a one-character password instead of reporting success.
+            if (password.length < 8) {
+              setPasswordError('Mật khẩu cần ít nhất 8 ký tự.');
+              return;
+            }
             setPassword('');
+            setPasswordError('');
             toast.show('Đã cập nhật mật khẩu (demo).', 'success');
           }}
           className={styles.security}
         >
           {/* A password input outside a form trips a browser warning and leaves password
               managers nothing to hook into, so this pane is its own form. */}
-          <Field label="Mật khẩu mới" hint="Tối thiểu 8 ký tự.">
+          <Field label="Mật khẩu mới" hint="Tối thiểu 8 ký tự." required error={passwordError}>
             <Input
               type="password"
               name="newPassword"
               autoComplete="new-password"
+              minLength={8}
+              required
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (passwordError) setPasswordError('');
+              }}
             />
           </Field>
           <div className={styles.row}>
@@ -327,7 +361,9 @@ export default function SettingsPage() {
       </p>
       <DemoPlayground>
         <div className={styles.frame}>
+          {/* This page already renders the <main>; a nested one would be invalid. */}
           <SettingsProfile
+            as="div"
             title="Cài đặt tài khoản"
             subtitle="Thông tin cá nhân, thông báo và bảo mật."
             level={2}
@@ -338,11 +374,11 @@ export default function SettingsPage() {
         </div>
       </DemoPlayground>
       <p className={styles.note}>
-        Demo chạy ở chế độ controlled (activeKey + onSectionChange) và mount template với level=
-        &#123;2&#125; vì trang docs đã có h1 riêng. Nav ở đây là nav landmark với button, không phải
-        tablist: chuyển section là chuyển giữa các form độc lập, không phải chuyển tab trong cùng
-        một widget, nên không cần roving tabindex hay điều hướng bằng phím mũi tên. Security dùng
-        xác nhận hai bước ngay trong pane thay vì Modal.
+        Demo chạy ở chế độ controlled (activeKey + onSectionChange), mount template với level=
+        &#123;2&#125; vì trang docs đã có h1 riêng và as=&quot;div&quot; vì trang đã có main riêng.
+        Nav ở đây là nav landmark với button, không phải tablist: chuyển section là chuyển giữa các
+        form độc lập, không phải chuyển tab trong cùng một widget, nên không cần roving tabindex hay
+        điều hướng bằng phím mũi tên. Security dùng xác nhận hai bước ngay trong pane thay vì Modal.
       </p>
       <h2 className={styles.sectionTitle}>Code</h2>
       <CodeBlock code={code} />

@@ -29,7 +29,7 @@ test('renders the default title, the nav and the first pane', () => {
   ).toEqual(['Thông tin cá nhân', 'Thông báo', 'Bảo mật']);
   expect(within(nav).getByRole('button', { name: 'Thông tin cá nhân' })).toHaveAttribute(
     'aria-current',
-    'page',
+    'true',
   );
   expect(screen.getByRole('region', { name: 'Thông tin cá nhân' })).toBeInTheDocument();
   expect(screen.getByText('Pane profile')).toBeVisible();
@@ -64,7 +64,7 @@ test('clicking a section switches the pane and moves aria-current', () => {
   const nav = screen.getByRole('navigation', { name: 'Mục cài đặt' });
   expect(within(nav).getByRole('button', { name: 'Bảo mật' })).toHaveAttribute(
     'aria-current',
-    'page',
+    'true',
   );
   expect(
     within(nav)
@@ -80,7 +80,7 @@ test('defaultActiveKey selects the opening section', () => {
   const nav = screen.getByRole('navigation', { name: 'Mục cài đặt' });
   expect(within(nav).getByRole('button', { name: 'Bảo mật' })).toHaveAttribute(
     'aria-current',
-    'page',
+    'true',
   );
 });
 
@@ -121,6 +121,127 @@ test('a section description renders under its heading and describes the region',
   expect(withoutDescription).not.toHaveAttribute('aria-describedby');
   // No stray description node of its own (its body content may still contain <p>).
   expect(withoutDescription.querySelector('[id$="-description"]')).toBeNull();
+});
+
+test('a key with whitespace still names its region', () => {
+  // aria-labelledby is a space-separated id list: building the id from the raw key makes
+  // `aria-labelledby=":r1:-account settings"` resolve to two ids that do not exist, which
+  // costs the section its name and its `region` role.
+  render(
+    <SettingsProfile
+      sections={[{ key: 'account settings', label: 'Cài đặt tài khoản', content: <p>x</p> }]}
+    />,
+  );
+
+  const region = screen.getByRole('region', { name: 'Cài đặt tài khoản' });
+  const labelledBy = region.getAttribute('aria-labelledby') as string;
+  expect(labelledBy).not.toContain(' ');
+  expect(document.getElementById(labelledBy)).toBe(region.querySelector('h2, h3'));
+});
+
+test('a "privacy" pane and a "privacy-description" sibling get distinct ids', () => {
+  // Key-based ids share one namespace: `${paneId}-description` for `privacy` lands on the
+  // same id as the pane of `privacy-description`, so one label resolves to the other's node.
+  render(
+    <SettingsProfile
+      sections={[
+        { key: 'privacy', label: 'Quyền riêng tư', description: 'Ai xem được.', content: <p>a</p> },
+        { key: 'privacy-description', label: 'Mô tả', content: <p>b</p> },
+      ]}
+    />,
+  );
+
+  const ids = Array.from(document.querySelectorAll('[id]'), (el) => el.id);
+  expect(new Set(ids).size).toBe(ids.length);
+
+  const privacy = screen.getByRole('region', { name: 'Quyền riêng tư' });
+  const descriptionId = privacy.getAttribute('aria-describedby') as string;
+  expect(document.getElementById(descriptionId)).toHaveTextContent('Ai xem được.');
+});
+
+test('a removed active section resets the internal state instead of springing back', () => {
+  const initial: SettingsSection[] = [
+    { key: 'profile', label: 'Hồ sơ', content: <p>a</p> },
+    { key: 'security', label: 'Bảo mật', content: <p>b</p> },
+  ];
+  const { rerender } = render(<SettingsProfile sections={initial} defaultActiveKey="security" />);
+  expect(screen.getByRole('region', { name: 'Bảo mật' })).toBeInTheDocument();
+
+  // Drop the active section: the view falls back to the first one…
+  rerender(
+    <SettingsProfile
+      sections={[{ key: 'profile', label: 'Hồ sơ', content: <p>a</p> }]}
+      defaultActiveKey="security"
+    />,
+  );
+  expect(screen.getByRole('region', { name: 'Hồ sơ' })).toBeInTheDocument();
+
+  // …and the state follows it, so bringing the section back does not steal the view
+  // without a user action.
+  rerender(<SettingsProfile sections={initial} defaultActiveKey="security" />);
+  expect(screen.getByRole('region', { name: 'Hồ sơ' })).toBeInTheDocument();
+});
+
+test('a removed active section notifies a controlled caller', () => {
+  const onSectionChange = vi.fn();
+  const { rerender } = render(
+    <SettingsProfile
+      sections={[
+        { key: 'profile', label: 'Hồ sơ', content: <p>a</p> },
+        { key: 'security', label: 'Bảo mật', content: <p>b</p> },
+      ]}
+      activeKey="security"
+      onSectionChange={onSectionChange}
+    />,
+  );
+
+  rerender(
+    <SettingsProfile
+      sections={[{ key: 'profile', label: 'Hồ sơ', content: <p>a</p> }]}
+      activeKey="security"
+      onSectionChange={onSectionChange}
+    />,
+  );
+
+  // Otherwise the caller's activeKey (URL sync, save-on-leave) keeps pointing at a
+  // section that is not on screen.
+  expect(onSectionChange).toHaveBeenCalledWith('profile');
+});
+
+test('the active nav item is scrolled into view when the row overflows', () => {
+  const proto = HTMLElement.prototype;
+  const saved = Object.fromEntries(
+    ['scrollWidth', 'clientWidth', 'scrollLeft', 'offsetLeft', 'offsetWidth'].map((key) => [
+      key,
+      Object.getOwnPropertyDescriptor(proto, key),
+    ]),
+  );
+  // jsdom has no layout, so supply the numbers the effect reads.
+  Object.defineProperty(proto, 'scrollWidth', { configurable: true, get: () => 600 });
+  Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 200 });
+  Object.defineProperty(proto, 'offsetLeft', { configurable: true, get: () => 420 });
+  Object.defineProperty(proto, 'offsetWidth', { configurable: true, get: () => 120 });
+  Object.defineProperty(proto, 'scrollLeft', { configurable: true, writable: true, value: 0 });
+  try {
+    render(
+      <SettingsProfile
+        sections={[
+          { key: 'a', label: 'A', content: <p>a</p> },
+          { key: 'b', label: 'B', content: <p>b</p> },
+        ]}
+        defaultActiveKey="b"
+      />,
+    );
+
+    // Without this the active section can start off-screen in a narrow row: 420 -
+    // (200 - 120) / 2 = 380, clamped at 0 from below.
+    expect(screen.getByRole('navigation', { name: 'Mục cài đặt' }).scrollLeft).toBe(380);
+  } finally {
+    for (const [key, descriptor] of Object.entries(saved)) {
+      if (descriptor) Object.defineProperty(proto, key, descriptor);
+      else delete (proto as unknown as Record<string, unknown>)[key];
+    }
+  }
 });
 
 test('a value typed in one pane survives a section switch', () => {
@@ -196,8 +317,47 @@ test('navLabel renames the nav landmark and className merges', () => {
   expect(container.firstElementChild).toHaveClass('custom');
 });
 
-test('the template renders no main landmark', () => {
+test('the root is a main landmark by default, because AppShell renders a div', () => {
+  // Spec §4.1 used to claim AppShell already renders <main>; AppShell.tsx renders
+  // <div className={styles.main}> / <div className={styles.body}>. A template dropped in
+  // there must therefore supply the landmark itself, or skip-to-main finds nothing.
   render(<SettingsProfile sections={sections} />);
+
+  const main = screen.getByRole('main');
+  expect(main).toHaveAccessibleName('Cài đặt');
+});
+
+test('the template header sits inside the main landmark, not at the top level', () => {
+  const { container } = render(<SettingsProfile sections={sections} />);
+
+  // HTML-AAM: a <header> whose nearest ancestor is `main` maps to generic, not `banner`,
+  // so it cannot collide with AppShell's own site header (axe
+  // landmark-no-duplicate-banner). jsdom maps every <header> to `banner` regardless of
+  // scope, so pin the structure that produces the mapping rather than the role.
+  const header = container.querySelector('header') as HTMLElement;
+  expect(header.parentElement?.tagName).toBe('MAIN');
+  expect(container.querySelectorAll(':scope > header')).toHaveLength(0);
+});
+
+test('as="div" renders no landmark, for a page that already has a main', () => {
+  const { container } = render(
+    <main>
+      <SettingsProfile as="div" sections={sections} />
+    </main>,
+  );
+
+  // Exactly the caller's main: nesting a second one would be invalid HTML.
+  expect(screen.getAllByRole('main')).toHaveLength(1);
+  // A bare div has role=generic, and ARIA 1.2 forbids aria-labelledby on it.
+  const root = container.querySelector('main')?.firstElementChild as HTMLElement;
+  expect(root).not.toHaveAttribute('aria-labelledby');
+  expect(root.tagName).toBe('DIV');
+});
+
+test('as="section" is a named region', () => {
+  render(<SettingsProfile as="section" sections={sections} />);
+
+  expect(screen.getByRole('region', { name: 'Cài đặt' })).toBeInTheDocument();
   expect(screen.queryByRole('main')).toBeNull();
 });
 
@@ -213,8 +373,28 @@ test('the root is border-box, so it cannot overflow a padded shell', () => {
   expect(css).toMatch(/\.root\s*\{[^}]*min-width:\s*0/);
 });
 
-test('the narrow nav scrolls without showing a scrollbar', () => {
-  // §4.2: a native bar under the section tabs reads as chrome inside a shell.
-  expect(css).toMatch(/\.nav\s*\{[^}]*scrollbar-width:\s*none/);
-  expect(css).toMatch(/\.nav::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
+test('the narrow nav keeps a reachable overflow affordance', () => {
+  // Hiding the bar entirely left clipped sections unreachable for a vertical-only wheel.
+  expect(css).toMatch(/\.nav\s*\{[^}]*scrollbar-width:\s*thin/);
+  expect(css).not.toContain('.nav::-webkit-scrollbar');
+});
+
+test('long labels wrap in the wide rail instead of spilling over the pane', () => {
+  expect(css).toMatch(/\.navItem\s*\{[^}]*white-space:\s*nowrap/);
+  // The 220px column re-enables wrapping and breaks long words.
+  expect(css).toMatch(/@container[^{]*\{[\s\S]*\.navItem\s*\{[^}]*white-space:\s*normal/);
+  expect(css).toMatch(/@container[^{]*\{[\s\S]*\.navItem\s*\{[^}]*overflow-wrap:\s*anywhere/);
+});
+
+test('the active cue follows the nav orientation', () => {
+  // Narrow row: an underline. Wide rail: a left bar. A left border in the row would
+  // butt against the previous item instead of reading as "selected".
+  expect(css).toMatch(/\.navItem\s*\{[^}]*border-bottom:\s*3px solid transparent/);
+  expect(css).toMatch(/\.navItem\[data-active='true'\]\s*\{[^}]*border-bottom-color/);
+  expect(css).toMatch(
+    /@container[^{]*\{[\s\S]*\.navItem\s*\{[^}]*border-left:\s*3px solid transparent/,
+  );
+  expect(css).toMatch(
+    /@container[^{]*\{[\s\S]*\.navItem\[data-active='true'\]\s*\{[^}]*border-left-color/,
+  );
 });

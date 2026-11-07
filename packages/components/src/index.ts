@@ -60,7 +60,11 @@ export type { KpiCardProps, KpiDeltaTone } from './KpiCard/types';
 export { KpiGrid } from './KpiGrid/KpiGrid';
 export type { KpiGridProps } from './KpiGrid/types';
 export { SettingsProfile } from './SettingsProfile/SettingsProfile';
-export type { SettingsProfileProps, SettingsSection } from './SettingsProfile/types';
+export type {
+  SettingsProfileLandmark,
+  SettingsProfileProps,
+  SettingsSection,
+} from './SettingsProfile/types';
 export { ProfileForm } from './ProfileForm/ProfileForm';
 export type { ProfileFormProps, ProfileFormValues } from './ProfileForm/types';
 export { Form, FormErrorsContext } from './Form/Form';

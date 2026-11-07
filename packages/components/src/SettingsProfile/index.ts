@@ -1,2 +1,2 @@
 export { SettingsProfile } from './SettingsProfile';
-export type { SettingsProfileProps, SettingsSection } from './types';
+export type { SettingsProfileLandmark, SettingsProfileProps, SettingsSection } from './types';

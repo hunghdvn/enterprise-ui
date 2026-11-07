@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ProfileForm } from './ProfileForm';
 import type { ProfileFormValues } from './types';
+
+const css = readFileSync(join(import.meta.dirname, 'ProfileForm.module.css'), 'utf8');
 
 const value: ProfileFormValues = {
   displayName: 'Nguyễn Văn A',
@@ -301,14 +305,49 @@ test('avatar and avatarHint render, and an omitted avatar leaves no wrapper', ()
   expect(screen.getByTestId('avatar')).toBeVisible();
   expect(screen.getByText('PNG hoặc JPG, tối đa 2 MB.')).toBeInTheDocument();
   const form = container.querySelector('form') as HTMLFormElement;
-  expect(form.children).toHaveLength(3); // avatar + grid + footer
+  expect(form.children).toHaveLength(2); // grid + footer
 
   rerender(<ProfileForm value={value} onChange={() => {}} onSubmit={() => {}} />);
 
   expect(screen.queryByTestId('avatar')).toBeNull();
   expect(screen.queryByText('PNG hoặc JPG, tối đa 2 MB.')).toBeNull();
-  // The avatar wrapper goes with it instead of leaving an empty box behind.
-  expect(form.children).toHaveLength(2); // grid + footer
+  // The avatar wrapper goes with it instead of leaving an empty box behind (it now
+  // lives outside the form, so count the root's children rather than the form's).
+  expect(container.firstElementChild?.children).toHaveLength(1); // the form
+  expect(screen.getByRole('form', { name: 'Hồ sơ cá nhân' })).toBe(
+    container.firstElementChild?.firstElementChild,
+  );
+});
+
+test('the avatar slot renders outside the form, so its buttons cannot submit', () => {
+  const onSubmit = vi.fn();
+  const { container } = render(
+    <ProfileForm
+      value={value}
+      onChange={() => {}}
+      onSubmit={onSubmit}
+      avatar={<button>Đổi ảnh</button>}
+    />,
+  );
+
+  // A caller's upload control is typically a plain <button>, which defaults to
+  // type="submit". Inside the <form> it would open the picker *and* save the profile.
+  const button = screen.getByRole('button', { name: 'Đổi ảnh' });
+  expect(container.querySelector('form')?.contains(button)).toBe(false);
+  expect(button.closest('form')).toBeNull();
+
+  fireEvent.click(button);
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+test('the root keeps a floor width so inline-size containment cannot collapse it', () => {
+  // `container-type: inline-size` makes the form contribute 0 to a shrink-to-fit parent's
+  // intrinsic width (flex item, grid auto column, width: fit-content, inline-block).
+  // A plain length, not min(…, 100%): a percentage resolves against an indefinite width
+  // in exactly the shrink-to-fit case being fixed.
+  expect(css).toMatch(/\.root\s*\{[^}]*min-inline-size:\s*15rem/);
+  // The container query must stay on the element that owns it.
+  expect(css).toMatch(/\.form\s*\{[^}]*container-type:\s*inline-size/);
 });
 
 test('className merges on the form and the form is named', () => {
