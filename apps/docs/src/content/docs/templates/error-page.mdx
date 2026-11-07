@@ -1,0 +1,72 @@
+---
+title: Error page
+description: Trang lỗi 403, 404 và 500 với nội dung mặc định, icon và hành động khôi phục do caller quyết định.
+---
+
+import { ErrorPageDemo } from '../../../components/demos/ErrorPageDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`ErrorPage` là template cấp route cho ba mã lỗi phổ biến. Component chọn sẵn icon, tiêu đề và mô tả theo `status`; bạn truyền `actions` và tự xử lý điều hướng hay retry — template không đọc URL và không gọi API.
+
+Dùng cho trang 404 công khai, màn hình 403 khi thiếu quyền, hoặc 500 trong error boundary. Khi nhúng vào một trang đã có `main`, đổi `as="div"` và thường đặt `fill={false}`.
+
+<Demo title="Chuyển giữa 403, 404, 500 và chạy hành động">
+  <ErrorPageDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Button, ErrorPage } from '@enterprise-ui/components';
+
+export function NotFoundPage() {
+  return (
+    <ErrorPage
+      status={404}
+      actions={
+        <>
+          <Button onClick={() => window.history.back()}>Quay lại</Button>
+          <Button variant="secondary" onClick={() => window.location.assign('/')}>
+            Về trang chủ
+          </Button>
+        </>
+      }
+    />
+  );
+}
+```
+
+`title`, `description` và `icon` có thể override. Chỉ `undefined` mới dùng mặc định của `status`; `description={null}` hoặc `description=""` ẩn hẳn đoạn mô tả, còn `icon={null}` ẩn icon. `title` rỗng hoặc `null` quay về tiêu đề mặc định.
+
+## Nội dung mặc định
+
+| Status | Tiêu đề                   | Mô tả                                                                                          |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `403`  | `Không có quyền truy cập` | Bạn không có quyền truy cập trang này. Liên hệ quản trị viên nếu bạn cho rằng đây là nhầm lẫn. |
+| `404`  | `Không tìm thấy trang`    | Trang bạn đang tìm không tồn tại hoặc đã được di chuyển sang địa chỉ khác.                     |
+| `500`  | `Đã xảy ra lỗi`           | Hệ thống gặp sự cố khi xử lý yêu cầu. Vui lòng thử lại sau ít phút.                            |
+
+Nếu một status ngoài ba mã lọt vào qua cast (ví dụ `502`), component vẫn hiển thị mã gốc nhưng dùng nội dung và tông màu của 500 thay vì throw — trang lỗi không được làm sập route.
+
+## Props
+
+| Prop          | Kiểu                           | Mặc định     | Mô tả                                                                                               |
+| ------------- | ------------------------------ | ------------ | --------------------------------------------------------------------------------------------------- |
+| `status`      | `403 \| 404 \| 500`            | — (bắt buộc) | Chọn bộ icon, tiêu đề và mô tả mặc định. Mã trạng thái luôn hiển thị dạng text.                     |
+| `title`       | `ReactNode`                    | Theo status  | Ghi đè tiêu đề; `null`, chuỗi rỗng hoặc `true` quay về mặc định.                                    |
+| `description` | `ReactNode`                    | Theo status  | Ghi đè mô tả; `null` hoặc `''` ẩn đoạn mô tả.                                                       |
+| `icon`        | `ReactNode`                    | Theo status  | Ghi đè icon; `null` để ẩn. Icon mặc định là decorative và `aria-hidden`.                            |
+| `actions`     | `ReactNode`                    | —            | Nút hoặc link khôi phục; caller tự xử lý điều hướng và retry. Mảng rỗng không render khung actions. |
+| `level`       | `1 \| 2 \| 3`                  | `1`          | Cấp thẻ tiêu đề; dùng `2` khi nằm dưới một `h1`, `3` khi đặt trong modal đã có `h2`.                |
+| `as`          | `'main' \| 'div' \| 'section'` | `'main'`     | Landmark của trang; dùng `div` khi trang đã có `main`, `section` cho vùng có tên trong trang dài.   |
+| `fill`        | `boolean`                      | `true`       | Chiếm toàn bộ chiều cao viewport; đặt `false` khi nhúng trong AppShell, modal hoặc khung preview.   |
+| `className`   | `string`                       | `''`         | Lớp bổ sung cho vỏ ngoài.                                                                           |
+
+Component là inline-size container: trong parent shrink-to-fit, đặt width rõ ràng cho template.
+
+## Accessibility
+
+- Mã lỗi luôn là text, không chỉ dựa vào màu; 500 dùng token danger, 403/404 giữ tông thông tin.
+- `main`/`section` được đặt tên bằng tiêu đề; `div` không nhận `aria-labelledby` vì ARIA cấm thuộc tính này trên role `generic`.
+- Trang lỗi cấp route không phải `alert` hay live region, nên không cắt ngang thông báo khác của screen reader.
+- Đặt hành động chính trước, hành động phụ sau; mỗi nút cần nhãn nói rõ kết quả (về trang chủ, thử lại, yêu cầu quyền).

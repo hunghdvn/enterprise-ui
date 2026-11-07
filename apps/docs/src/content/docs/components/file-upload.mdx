@@ -1,0 +1,89 @@
+---
+title: FileUpload
+description: Vùng kéo thả và danh sách file đã chọn; parent giữ File[], kiểm tra và upload.
+---
+
+import { FileUploadDemo } from '../../../components/demos/FileUploadDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`FileUpload` là component thuần trình bày: nó vẽ vùng kéo-thả, mở hộp chọn file và liệt kê các file parent truyền vào. Component không giữ `File` thật, không validate và không upload — parent nhận file qua `onSelect`, cập nhật state rồi truyền lại qua `files`.
+
+<Demo title="Chọn nhiều file, kiểm tra phía parent và disabled">
+  <FileUploadDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { FileUpload } from '@enterprise-ui/components';
+import type { UploadedFile } from '@enterprise-ui/components';
+
+export function Attachments() {
+  const [files, setFiles] = useState<UploadedFile[]>([]);
+
+  return (
+    <FileUpload
+      files={files}
+      accept="image/*,.pdf"
+      multiple
+      onSelect={(picked) => {
+        setFiles((prev) => [
+          ...prev,
+          ...picked.map((file) => ({ name: file.name, size: file.size, type: file.type })),
+        ]);
+      }}
+      onRemove={(index) => setFiles((prev) => prev.filter((_, i) => i !== index))}
+    />
+  );
+}
+```
+
+## Kiểm tra trước khi nhận file
+
+`accept` chỉ là gợi ý cho hộp chọn file; file kéo-thả **không** bị trình duyệt lọc theo `accept`. Hãy kiểm tra `type` và `size` trong `onSelect` rồi chỉ thêm file hợp lệ vào state:
+
+```tsx
+import type { UploadedFile } from '@enterprise-ui/components';
+
+const MAX_BYTES = 2 * 1024 * 1024;
+
+export function acceptFiles(picked: File[]): UploadedFile[] {
+  return picked
+    .filter((file) => file.size <= MAX_BYTES)
+    .map((file) => ({ name: file.name, size: file.size, type: file.type }));
+}
+```
+
+Lỗi, tiến trình upload và thông báo “tệp quá lớn” cũng do parent render; component không có prop `error` hay `progress`. Dùng `role="alert"` hoặc `aria-live` cho thông báo để trình đọc màn hình không bỏ sót.
+
+## Props
+
+| Prop         | Kiểu                      | Mặc định                                  | Mô tả                                                       |
+| ------------ | ------------------------- | ----------------------------------------- | ----------------------------------------------------------- |
+| `files`      | `UploadedFile[]`          | —                                         | Danh sách file đã chọn; parent quản lý hoàn toàn.           |
+| `onSelect`   | `(files: File[]) => void` | —                                         | Gọi khi người dùng chọn hoặc kéo-thả file.                  |
+| `onRemove`   | `(index: number) => void` | —                                         | Gọi khi xoá một file, theo index trong `files`.             |
+| `accept`     | `string`                  | —                                         | Chuyển xuống `<input type="file">` và hiện gợi ý định dạng. |
+| `multiple`   | `boolean`                 | `false`                                   | Cho phép chọn nhiều file.                                   |
+| `disabled`   | `boolean`                 | `false`                                   | Chặn chọn/kéo-thả và vô hiệu hoá nút xoá.                   |
+| `dragLabel`  | `string`                  | `'Kéo thả file vào đây hoặc bấm để chọn'` | Nhãn của vùng drop.                                         |
+| `aria-label` | `string`                  | `dragLabel`                               | Nhãn a11y cho vùng drop.                                    |
+| `className`  | `string`                  | —                                         | Lớp bổ sung cho wrapper ngoài cùng.                         |
+
+### UploadedFile
+
+| Trường | Kiểu     | Mô tả                              |
+| ------ | -------- | ---------------------------------- |
+| `name` | `string` | Tên file hiển thị trong danh sách. |
+| `size` | `number` | Kích thước tính bằng byte.         |
+| `type` | `string` | MIME type; có thể là chuỗi rỗng.   |
+
+## Accessibility
+
+- Vùng drop dùng `role="button"`, `tabIndex={0}` và mở hộp chọn bằng Enter hoặc Space; `aria-label` mặc định lấy từ `dragLabel`.
+- `<input type="file">` được ẩn khỏi cây truy cập (`aria-hidden`, `tabIndex={-1}`) và chỉ kích hoạt qua vùng drop.
+- Danh sách file có `aria-label="Danh sách file đã chọn"`; mỗi nút xoá có nhãn `Xóa <tên file>`.
+- Khi `disabled`, vùng drop có `aria-disabled`, không nằm trong thứ tự tab và mọi thao tác chọn/xoá đều bị chặn; danh sách vẫn hiển thị để người dùng đọc.
+- Component không có trạng thái loading hay progress; nếu upload bất đồng bộ, hiển thị tiến trình và lỗi ở parent kèm vùng thông báo sống.
+- Tên file trùng được cảnh báo ở môi trường dev vì key hiển thị dựa trên tên và index; parent nên chống trùng nếu danh sách có thể có nhiều file cùng tên.

@@ -1,0 +1,99 @@
+---
+title: Auth
+description: Màn hình đăng nhập dựng từ AuthLayout và LoginForm, có validate, lỗi theo field và trạng thái thành công.
+---
+
+import { AuthDemo } from '../../../components/demos/AuthDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`AuthLayout` lo phần khung — thương hiệu, tiêu đề, cột marketing và landmark — còn `LoginForm` lo form đăng nhập controlled. Cả hai không gọi API và không tự validate: bạn giữ state, kiểm tra dữ liệu rồi quyết định chuyển route.
+
+Dùng template này cho route đăng nhập độc lập, màn hình xác thực lại trong `AppShell` hoặc form đăng nhập trong modal. Nếu chỉ cần form, dùng `LoginForm` trực tiếp.
+
+<Demo title="Đăng nhập, lỗi validate và trạng thái thành công">
+  <AuthDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { AuthLayout, LoginForm } from '@enterprise-ui/components';
+import type { LoginFormValues } from '@enterprise-ui/components';
+
+export function LoginPage() {
+  const [value, setValue] = useState<LoginFormValues>({
+    email: '',
+    password: '',
+    remember: true,
+  });
+
+  return (
+    <AuthLayout
+      brand={<strong>Enterprise UI</strong>}
+      title="Đăng nhập"
+      subtitle="Dùng tài khoản công ty để tiếp tục."
+      footer={<span>© 2026 Enterprise UI</span>}
+    >
+      <LoginForm
+        value={value}
+        onChange={setValue}
+        onSubmit={(next) => {
+          console.log('Đăng nhập', next);
+        }}
+      />
+    </AuthLayout>
+  );
+}
+```
+
+`LoginForm` đọc giá trị từ DOM khi submit, nên autofill của trình quản lý mật khẩu vẫn được gửi kèm dù không phát `onChange`. Hãy validate trong `onSubmit` và trả lỗi qua `errors` (theo field) hoặc `error` (cấp form).
+
+## Props
+
+### AuthLayout
+
+| Prop         | Kiểu                           | Mặc định | Mô tả                                                                           |
+| ------------ | ------------------------------ | -------- | ------------------------------------------------------------------------------- |
+| `brand`      | `ReactNode`                    | —        | Logo hoặc tên sản phẩm phía trên tiêu đề.                                       |
+| `title`      | `ReactNode`                    | —        | Tiêu đề trang, bắt buộc.                                                        |
+| `subtitle`   | `ReactNode`                    | —        | Mô tả ngắn dưới tiêu đề.                                                        |
+| `children`   | `ReactNode`                    | —        | Form hoặc nội dung chính của màn hình.                                          |
+| `footer`     | `ReactNode`                    | —        | Liên kết phụ hoặc ghi chú pháp lý dưới nội dung.                                |
+| `aside`      | `ReactNode`                    | —        | Panel marketing; chỉ hiện khi layout nhận được container rộng từ 769px.         |
+| `asideLabel` | `string`                       | —        | Tên truy cập cho landmark `complementary` của panel.                            |
+| `level`      | `1 \| 2`                       | `1`      | Cấp thẻ tiêu đề; dùng `2` khi template nằm dưới một `h1` khác.                  |
+| `as`         | `'main' \| 'div' \| 'section'` | `'main'` | Landmark của cột nội dung; dùng `div` khi trang đã có `main`.                   |
+| `fill`       | `boolean`                      | `true`   | Chiếm toàn bộ chiều cao viewport; đặt `false` khi nhúng trong trang hoặc modal. |
+| `className`  | `string`                       | `''`     | Lớp bổ sung cho vỏ ngoài.                                                       |
+
+Layout là inline-size container: trong parent shrink-to-fit (inline-block, flex item không có width) cần đặt width rõ ràng.
+
+### LoginForm
+
+| Prop             | Kiểu                                             | Mặc định              | Mô tả                                                                                             |
+| ---------------- | ------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------- |
+| `value`          | `LoginFormValues`                                | — (bắt buộc)          | Giá trị controlled: `{ email, password, remember }`.                                              |
+| `onChange`       | `(value: LoginFormValues) => void`               | — (bắt buộc)          | Nhận toàn bộ giá trị kế tiếp sau mỗi lần sửa.                                                     |
+| `onSubmit`       | `(value: LoginFormValues) => void`               | — (bắt buộc)          | Nhận giá trị đọc từ DOM khi submit; component đã `preventDefault`.                                |
+| `error`          | `ReactNode`                                      | —                     | Lỗi cấp form (sai tài khoản, tài khoản bị khoá), hiển thị với `role="alert"`.                     |
+| `errors`         | `Partial<Record<'email' \| 'password', string>>` | —                     | Lỗi theo field; `Field` gắn `aria-invalid` và `aria-describedby`.                                 |
+| `loading`        | `boolean`                                        | `false`               | Form `aria-busy`, nút submit quay và bị khoá.                                                     |
+| `disabled`       | `boolean`                                        | `false`               | Khoá toàn bộ control.                                                                             |
+| `emailLabel`     | `string`                                         | `'Email'`             | Nhãn field email.                                                                                 |
+| `passwordLabel`  | `string`                                         | `'Mật khẩu'`          | Nhãn field mật khẩu.                                                                              |
+| `rememberLabel`  | `string`                                         | `'Ghi nhớ đăng nhập'` | Nhãn checkbox ghi nhớ.                                                                            |
+| `submitLabel`    | `string`                                         | `'Đăng nhập'`         | Nhãn nút submit.                                                                                  |
+| `showRemember`   | `boolean`                                        | `true`                | Đặt `false` để ẩn checkbox; slot quên mật khẩu vẫn hiện nếu có.                                   |
+| `forgotPassword` | `ReactNode`                                      | —                     | Link hoặc nút quên mật khẩu, đặt đối diện checkbox.                                               |
+| `children`       | `ReactNode`                                      | —                     | Nội dung sau nút submit và nằm ngoài `<form>` (SSO, ghi chú); nút thường ở đây không submit form. |
+| `className`      | `string`                                         | `''`                  | Lớp bổ sung cho `<form>`.                                                                         |
+| `...rest`        | `FormHTMLAttributes<HTMLFormElement>`            | —                     | Thuộc tính form gốc khác; `aria-label` mặc định là `'Đăng nhập'`.                                 |
+
+## Accessibility
+
+- `AuthLayout` mặc định render `main`; khi nhúng trong trang đã có `main`, truyền `as="div"` để tránh hai landmark lồng nhau.
+- Panel `aside` là landmark `complementary`; đặt `asideLabel` để screen reader đọc được tên vùng.
+- `LoginForm` có tên form mặc định, field bắt buộc và lỗi field được nối bằng `aria-describedby`; lỗi cấp form là `role="alert"`.
+- Nội dung trong `children` nằm ngoài `<form>`, nên nút SSO không vô tình submit.
+- Template không tự focus khi mount và không tự điều hướng sau khi đăng nhập.

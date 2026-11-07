@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Danh mục component của Enterprise UI, kèm trạng thái tài liệu.
+description: Danh mục đầy đủ component của Enterprise UI, chia theo primitives, layout, data và feedback.
 ---
 
 Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, **data** và **feedback**. Mỗi trang component có demo sống, bảng props và mã sử dụng thực tế.
@@ -20,6 +20,10 @@ Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, *
     <strong>Select</strong>
     <span>Native select bọc token, chọn một giá trị.</span>
   </a>
+  <a class="component-card" href="/enterprise-ui/components/combobox/">
+    <strong>Combobox</strong>
+    <span>Select có tìm kiếm, chọn một hoặc nhiều dạng chip.</span>
+  </a>
   <a class="component-card" href="/enterprise-ui/components/checkbox/">
     <strong>Checkbox</strong>
     <span>Chọn nhiều, nhãn liền kề, 2 kích thước.</span>
@@ -36,6 +40,10 @@ Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, *
     <strong>Tooltip</strong>
     <span>Chú thích 4 hướng, hiện khi hover hoặc focus.</span>
   </a>
+  <a class="component-card" href="/enterprise-ui/components/form/">
+    <strong>Form</strong>
+    <span>Form + Field, validate, lỗi và trạng thái submit.</span>
+  </a>
   <a class="component-card" href="/enterprise-ui/components/empty-spin/">
     <strong>Empty & Spin</strong>
     <span>Trạng thái rỗng và đang tải.</span>
@@ -45,19 +53,19 @@ Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, *
 ## Layout
 
 <div class="component-grid">
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/app-shell/">
     <strong>AppShell</strong>
-    <span>Khung ứng dụng với sidebar và header.</span>
+    <span>Sidebar, header, breadcrumb và vùng nội dung.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/page-header/">
     <strong>PageHeader</strong>
-    <span>Tiêu đề trang, breadcrumb và hành động.</span>
+    <span>Tiêu đề trang, breadcrumb, nút quay lại và actions.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/split-view/">
     <strong>SplitView</strong>
-    <span>Hai pane co giãn, có resize.</span>
+    <span>Hai pane co giãn, có resize và chế độ mobile.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/pagination/">
     <strong>Pagination</strong>
     <span>Phân trang 1-based với cửa sổ 5 trang.</span>
   </a>
@@ -70,39 +78,43 @@ Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, *
     <strong>Table</strong>
     <span>Lưới dữ liệu: sort, chọn dòng, lọc, nhóm, virtual.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/filter-bar/">
     <strong>FilterBar</strong>
     <span>Thanh lọc tổng hợp cho danh sách.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
-    <strong>KpiCard / KpiGrid</strong>
-    <span>Thẻ chỉ số và lưới KPI.</span>
+  <a class="component-card" href="/enterprise-ui/components/kpi-card/">
+    <strong>KpiCard</strong>
+    <span>Thẻ chỉ số, delta và sparkline.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/kpi-grid/">
+    <strong>KpiGrid</strong>
+    <span>Lưới KPI responsive theo chiều rộng.</span>
+  </a>
+  <a class="component-card" href="/enterprise-ui/components/steps/">
     <strong>Steps</strong>
-    <span>Tiến trình nhiều bước.</span>
+    <span>Tiến trình nhiều bước, có điều hướng.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/date-range-picker/">
     <strong>DateRangePicker</strong>
-    <span>Chọn khoảng ngày.</span>
+    <span>Chọn khoảng ngày với preset.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/calendar/">
     <strong>Calendar</strong>
-    <span>Lịch tháng và sự kiện.</span>
+    <span>Lịch tháng, sự kiện và điều hướng bàn phím.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/kanban/">
     <strong>Kanban</strong>
-    <span>Bảng công việc kéo thả.</span>
+    <span>Bảng công việc kéo thả theo cột.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/tree/">
     <strong>Tree</strong>
     <span>Cây phân cấp có chọn và mở rộng.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/saved-views/">
     <strong>SavedViews</strong>
     <span>Lưu và khôi phục bộ lọc.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/file-upload/">
     <strong>FileUpload</strong>
     <span>Vùng kéo thả và danh sách file.</span>
   </a>
@@ -115,20 +127,18 @@ Thư viện được tổ chức theo bốn nhóm: **primitives**, **layout**, *
     <strong>Modal</strong>
     <span>Hộp thoại trap focus, đóng bằng Escape.</span>
   </a>
+  <a class="component-card" href="/enterprise-ui/components/drawer/">
+    <strong>Drawer</strong>
+    <span>Panel trượt từ cạnh màn hình.</span>
+  </a>
   <a class="component-card" href="/enterprise-ui/components/toast/">
     <strong>Toast</strong>
     <span>Thông báo tạm thời 3 tone.</span>
   </a>
-  <a class="component-card" aria-disabled="true">
-    <strong>Drawer</strong>
-    <span>Panel trượt từ cạnh màn hình.</span>
-  </a>
-  <a class="component-card" aria-disabled="true">
+  <a class="component-card" href="/enterprise-ui/components/notification-center/">
     <strong>NotificationCenter</strong>
-    <span>Danh sách thông báo.</span>
+    <span>Danh sách thông báo, đánh dấu đã đọc.</span>
   </a>
 </div>
 
-## Trạng thái tài liệu
-
-Các thẻ mờ là component đã có trong package nhưng chưa có trang docs riêng. Chúng vẫn dùng được qua import từ `@enterprise-ui/components`; tài liệu sẽ được bổ sung theo thứ tự ưu tiên sử dụng.
+Mọi component public trong `@enterprise-ui/components` đều có trang riêng. Nếu API hoặc hành vi trong trang chưa khớp với phiên bản bạn đang dùng, hãy mở issue kèm phiên bản package.

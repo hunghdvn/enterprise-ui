@@ -1,0 +1,42 @@
+.frame {
+  height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.search {
+  width: 140px;
+}
+
+.pageBody {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 16px;
+}
+
+.pageText {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .search {
+    display: none;
+  }
+}

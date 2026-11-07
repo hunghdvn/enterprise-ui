@@ -1,0 +1,96 @@
+---
+title: Tree
+description: Cây phân cấp controlled với mở/đóng nhánh, chọn node và điều hướng bàn phím theo APG.
+---
+
+import { TreeDemo } from '../../../components/demos/TreeDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Tree` hiển thị dữ liệu phân cấp như cơ cấu tổ chức, danh mục hay cây quyền. Component là controlled hoàn toàn: parent giữ `expandedIds` và `selectedId`, còn tree chỉ báo thay đổi qua `onToggleExpand` / `onSelect`.
+
+<Demo title="Cây tổ chức, node khoá và trạng thái rỗng">
+  <TreeDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Tree } from '@enterprise-ui/components';
+import type { TreeNode } from '@enterprise-ui/components';
+
+const org: TreeNode[] = [
+  {
+    id: 'org',
+    label: 'Công ty Sao Mai',
+    children: [
+      { id: 'tech', label: 'Khối kỹ thuật', children: [{ id: 'fe', label: 'Frontend' }] },
+      { id: 'sales', label: 'Khối kinh doanh' },
+      { id: 'hr', label: 'Nhân sự', disabled: true },
+    ],
+  },
+];
+
+export function OrgTree() {
+  const [expandedIds, setExpandedIds] = useState<string[]>(['org']);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  return (
+    <Tree
+      nodes={org}
+      expandedIds={expandedIds}
+      onToggleExpand={(id) =>
+        setExpandedIds((current) =>
+          current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+        )
+      }
+      selectedId={selectedId}
+      onSelect={setSelectedId}
+      aria-label="Cơ cấu tổ chức"
+    />
+  );
+}
+```
+
+## Mô hình dữ liệu
+
+```ts
+import type { ReactNode } from 'react';
+
+interface TreeNode {
+  id: string;
+  label: ReactNode;
+  children?: TreeNode[];
+  disabled?: boolean;
+}
+```
+
+`label` nhận `ReactNode` nên có thể gắn badge hoặc số lượng thành viên. `children` rỗng hoặc không có đều được coi là node lá.
+
+## Props
+
+| Prop             | Kiểu                   | Mặc định | Mô tả                                           |
+| ---------------- | ---------------------- | -------- | ----------------------------------------------- |
+| `nodes`          | `TreeNode[]`           | —        | Gốc của cây.                                    |
+| `expandedIds`    | `string[]`             | —        | Các node đang mở. Bắt buộc (controlled).        |
+| `onToggleExpand` | `(id: string) => void` | —        | Bắt buộc; gọi khi click hoặc dùng phím mở/đóng. |
+| `selectedId`     | `string \| null`       | —        | Node đang chọn. Bắt buộc; `null` là không chọn. |
+| `onSelect`       | `(id: string) => void` | —        | Gọi khi node được chọn.                         |
+| `className`      | `string`               | —        | Lớp bổ sung cho vỏ cây.                         |
+| `aria-label`     | `string`               | —        | Tên của cây với screen reader.                  |
+
+## Hành vi
+
+- Controlled hoàn toàn: click hay phím mũi tên chỉ gọi `onToggleExpand`; nếu parent không cập nhật `expandedIds`, nhánh không đổi.
+- Click vào node cha gọi `onToggleExpand`; đồng thời gọi `onSelect` nếu node không bị khoá.
+- `disabled` chỉ chặn chọn, không chặn mở/đóng nhánh. Muốn khoá cả nhánh, hãy bỏ `children` hoặc không render node đó.
+- `selectedId` không nhất thiết phải nằm trong cây; nếu không khớp, không node nào có `aria-selected`.
+- Cây rỗng hiển thị “Không có dữ liệu”. Không có virtual scroll — với cây rất lớn, hãy giới hạn nhánh hoặc lọc dữ liệu trước.
+
+## Accessibility
+
+- Dùng `role="tree"` / `role="treeitem"` với `aria-level`, `aria-expanded` và `aria-selected`.
+- Roving tabindex: chỉ node đang active nằm trong tab order; `Tab` vào cây một lần rồi di chuyển bằng mũi tên.
+- `↑`/`↓` chuyển giữa các node đang hiển thị; `→` mở nhánh hoặc đi vào con đầu tiên; `←` đóng nhánh hoặc về node cha gần nhất.
+- `Enter`/`Space` chọn node. Node `disabled` vẫn được focus để screen reader đọc `aria-disabled` nhưng không thể chọn.
+- Nên truyền `aria-label` vì cây không có tiêu đề hiển thị bên trong.

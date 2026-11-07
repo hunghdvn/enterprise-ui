@@ -3,7 +3,29 @@ title: Templates
 description: Các màn hình dựng sẵn từ component nền tảng — đăng nhập, lỗi và cài đặt hồ sơ.
 ---
 
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
 Templates là composition của component nền tảng, không phải component nguyên tử. Chúng đóng gói bố cục và hành vi phổ biến để bạn không phải dựng lại từ đầu, nhưng vẫn nhận dữ liệu và sự kiện qua props.
+
+Mỗi template có một trang riêng với demo sống và bảng props đầy đủ:
+
+<CardGrid>
+  <LinkCard
+    title="Auth"
+    description="AuthLayout + LoginForm cho màn hình đăng nhập một hoặc hai cột."
+    href="/enterprise-ui/templates/auth/"
+  />
+  <LinkCard
+    title="Error page"
+    description="ErrorPage cho 403, 404 và 500, có hành động phục hồi."
+    href="/enterprise-ui/templates/error-page/"
+  />
+  <LinkCard
+    title="Settings"
+    description="SettingsProfile + ProfileForm cho màn cài đặt nhiều section."
+    href="/enterprise-ui/templates/settings/"
+  />
+</CardGrid>
 
 ## Auth
 

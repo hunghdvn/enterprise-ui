@@ -22,6 +22,12 @@
   --sl-color-text-accent: #93c5fd;
 }
 
+/* Starlight hardcodes a 6.25em theme select, which clips the Vietnamese
+   "Tự động" label. Give the control enough room for the longest option. */
+starlight-theme-select select {
+  width: 8.5em;
+}
+
 /* Starlight's default prose width is tuned for long guides. Component pages
    carry props tables and demos, so widen the content column a little. */
 .sl-markdown-content :where(table) {
@@ -29,7 +35,8 @@
 }
 
 .sl-markdown-content :where(code):not(:where(pre code)) {
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Prop tables carry long union types; let code wrap instead of forcing a

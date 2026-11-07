@@ -1,0 +1,73 @@
+---
+title: Pagination
+description: Phân trang controlled với khoảng hiển thị, cửa sổ 5 số trang và ô “Đi tới”.
+---
+
+import { PaginationDemo } from '../../../components/demos/PaginationDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Pagination` chỉ hiển thị điều khiển phân trang; component không cắt dữ liệu và không giữ trang hiện tại. Caller truyền `page`, `pageSize`, `total` và xử lý `onChange`, nên cùng một component dùng được cho dữ liệu tải sẵn lẫn phân trang phía server.
+
+<Demo title="Dữ liệu theo trang, nhiều trang và trạng thái rỗng">
+  <PaginationDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Pagination } from '@enterprise-ui/components';
+
+export function OrdersFooter({ total }: { total: number }) {
+  const [page, setPage] = useState(1);
+
+  return <Pagination page={page} pageSize={20} total={total} onChange={setPage} />;
+}
+```
+
+## Props
+
+| Prop       | Kiểu                     | Mặc định | Mô tả                                                   |
+| ---------- | ------------------------ | -------- | ------------------------------------------------------- |
+| `page`     | `number`                 | —        | Trang hiện tại, bắt đầu từ 1 (controlled).              |
+| `pageSize` | `number`                 | —        | Số dòng mỗi trang; làm tròn xuống và tối thiểu là 1.    |
+| `total`    | `number`                 | —        | Tổng số dòng, dùng để tính số trang và khoảng hiển thị. |
+| `onChange` | `(page: number) => void` | —        | Gọi khi người dùng chuyển trang hoặc dùng ô “Đi tới”.   |
+
+## Cách hoạt động
+
+- `page` được kẹp vào khoảng `1…totalPages`. Nếu prop nằm ngoài khoảng (ví dụ `total` co lại sau khi lọc), component render trang đã kẹp và gọi `onChange` một lần với giá trị đúng để caller đồng bộ state.
+- Cửa sổ số trang hiển thị tối đa 5 nút quanh trang hiện tại. Các trang xa hơn không có nút riêng; dùng ô “Đi tới” để nhảy trực tiếp.
+- Ô “Đi tới” chỉ nhận chữ số, tự kẹp vào `1…totalPages` và submit bằng nút “Đi” hoặc phím `Enter`. Giá trị không hợp lệ sẽ được đưa về trang hiện tại.
+- Bấm lại trang đang chọn hoặc bấm nút điều hướng đã bị vô hiệu hoá không phát `onChange`.
+- `total={0}` hiển thị `0-0 / 0`, chỉ còn một trang và cả hai nút trước/sau đều bị vô hiệu hoá.
+
+## Phân trang phía server
+
+`Pagination` không tải dữ liệu. Với API phân trang, `total` là tổng số dòng server báo về; mỗi lần `onChange` nhận trang mới, caller tải trang đó rồi truyền lại `page`:
+
+```tsx
+import { useState } from 'react';
+import { Pagination } from '@enterprise-ui/components';
+
+export function ServerPager({ total }: { total: number }) {
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  function handleChange(next: number) {
+    setPage(next);
+    // Gọi API với next và pageSize, sau đó cập nhật total nếu cần.
+  }
+
+  return <Pagination page={page} pageSize={pageSize} total={total} onChange={handleChange} />;
+}
+```
+
+Nếu `total` thay đổi sau khi lọc và `page` hiện tại vượt quá số trang mới, component tự gọi `onChange` với trang đã kẹp — hãy cập nhật state để dữ liệu và UI khớp nhau.
+
+## Accessibility
+
+- Toàn bộ điều khiển nằm trong `<nav aria-label="Phân trang">`, nên screen reader nhận ra vùng điều hướng.
+- Mỗi nút có nhãn “Trang N”; trang hiện tại có `aria-current="page"` và dùng variant nổi bật.
+- Nút trước/sau có nhãn “Trang trước”/“Trang sau” và trạng thái `disabled` đúng biên.
+- Ô nhập có nhãn “Đi tới trang” và nằm trong `<form>`, nên `Enter` hoạt động như bấm “Đi”.

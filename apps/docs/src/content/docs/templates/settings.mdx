@@ -1,0 +1,112 @@
+---
+title: Settings
+description: Trang cài đặt nhiều mục với SettingsProfile và form hồ sơ controlled bằng ProfileForm.
+---
+
+import { SettingsDemo } from '../../../components/demos/SettingsDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`SettingsProfile` dựng phần khung của trang cài đặt: tiêu đề, nav mục và các pane nội dung. `ProfileForm` là form hồ sơ năm field, thuần controlled. Cả hai không tự lưu hay tải dữ liệu — bạn giữ state và gọi API bên ngoài.
+
+Dùng khi màn hình có từ hai nhóm cài đặt trở lên (hồ sơ, thông báo, bảo mật). Pane không active vẫn được mount với `hidden`, nên giá trị đang gõ ở mục khác không mất khi chuyển qua lại.
+
+<Demo title="Chuyển mục cài đặt và lưu hồ sơ">
+  <SettingsDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { ProfileForm, SettingsProfile } from '@enterprise-ui/components';
+import type { ProfileFormValues } from '@enterprise-ui/components';
+
+const INITIAL_PROFILE: ProfileFormValues = {
+  displayName: 'Nguyễn Văn A',
+  email: 'an.nguyen@congty.vn',
+  phone: '0901 234 567',
+  jobTitle: 'Trưởng nhóm vận hành',
+  department: 'Vận hành',
+};
+
+export function AccountSettings() {
+  const [active, setActive] = useState('profile');
+  const [profile, setProfile] = useState<ProfileFormValues>(INITIAL_PROFILE);
+
+  return (
+    <SettingsProfile
+      activeKey={active}
+      onSectionChange={setActive}
+      sections={[
+        {
+          key: 'profile',
+          label: 'Hồ sơ',
+          description: 'Thông tin hiển thị với đồng nghiệp.',
+          content: (
+            <ProfileForm
+              value={profile}
+              onChange={setProfile}
+              onSubmit={(next) => {
+                console.log('Lưu hồ sơ', next);
+              }}
+            />
+          ),
+        },
+        {
+          key: 'notifications',
+          label: 'Thông báo',
+          content: <p>Bật/tắt kênh nhận thông báo.</p>,
+        },
+      ]}
+    />
+  );
+}
+```
+
+Mỗi phần tử của `sections` gồm `key` (định danh), `label` (nhãn nav và tiêu đề pane), `description` tuỳ chọn và `content`. Ở chế độ controlled, click chỉ gọi `onSectionChange`; pane không tự đổi cho tới khi bạn cập nhật `activeKey`.
+
+## Props
+
+### SettingsProfile
+
+| Prop               | Kiểu                           | Mặc định          | Mô tả                                                                                             |
+| ------------------ | ------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------- |
+| `sections`         | `SettingsSection[]`            | — (bắt buộc)      | Danh sách mục; pane không active vẫn mount với `hidden`.                                          |
+| `title`            | `ReactNode`                    | `'Cài đặt'`       | Tiêu đề trang.                                                                                    |
+| `subtitle`         | `ReactNode`                    | —                 | Dòng mô tả dưới tiêu đề.                                                                          |
+| `actions`          | `ReactNode`                    | —                 | Vùng hành động bên phải header (mời thành viên, xuất dữ liệu).                                    |
+| `activeKey`        | `string`                       | —                 | Chế độ controlled; key không khớp section nào sẽ rơi về section đầu tiên.                         |
+| `defaultActiveKey` | `string`                       | `sections[0].key` | Section mở đầu khi uncontrolled; chỉ là giá trị khởi tạo, không dùng cho section đến bất đồng bộ. |
+| `onSectionChange`  | `(key: string) => void`        | —                 | Gọi khi người dùng chọn một mục; chạy cả ở chế độ uncontrolled.                                   |
+| `navLabel`         | `string`                       | `'Mục cài đặt'`   | Tên landmark của nav.                                                                             |
+| `level`            | `1 \| 2`                       | `1`               | Cấp tiêu đề trang; pane dùng `h2`, hoặc `h3` khi `level={2}`.                                     |
+| `as`               | `'main' \| 'div' \| 'section'` | `'main'`          | Thẻ bao ngoài; dùng `div` khi trang đã có `main`, `section` cho region có tên.                    |
+| `className`        | `string`                       | `''`              | Lớp bổ sung cho vỏ ngoài.                                                                         |
+
+### ProfileForm
+
+| Prop                                                | Kiểu                                               | Mặc định                   | Mô tả                                                                                                 |
+| --------------------------------------------------- | -------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `value`                                             | `ProfileFormValues`                                | — (bắt buộc)               | Năm khoá `displayName`, `email`, `phone`, `jobTitle`, `department`; component không tự giữ state.     |
+| `onChange`                                          | `(value: ProfileFormValues) => void`               | — (bắt buộc)               | Nhận cả object mới sau mỗi lần sửa.                                                                   |
+| `onSubmit`                                          | `(value: ProfileFormValues) => void`               | — (bắt buộc)               | Nhận giá trị đọc từ DOM khi submit, gồm cả autofill không phát `onChange`.                            |
+| `errors`                                            | `Partial<Record<keyof ProfileFormValues, string>>` | —                          | Lỗi theo field; caller tự validate, thông báo lỗi có `role="alert"`.                                  |
+| `required`                                          | `readonly (keyof ProfileFormValues)[]`             | `['displayName', 'email']` | Field bắt buộc: hiện dấu hoa thị và đặt `aria-required`.                                              |
+| `loading`                                           | `boolean`                                          | `false`                    | Form `aria-busy`, khoá submit và chặn submit bằng Enter; nút Huỷ vẫn dùng được.                       |
+| `disabled`                                          | `boolean`                                          | `false`                    | Khoá toàn bộ input và cả hai nút.                                                                     |
+| `avatar`                                            | `ReactNode`                                        | —                          | Khối ảnh đại diện hoặc chữ viết tắt phía trên các field; caller tự lo upload.                         |
+| `avatarHint`                                        | `ReactNode`                                        | —                          | Gợi ý dưới avatar; chỉ render khi có `avatar`.                                                        |
+| `onCancel`                                          | `() => void`                                       | —                          | Có mặt thì render thêm nút Huỷ loại secondary.                                                        |
+| `displayNameLabel`, `emailLabel`, `phoneLabel`, ... | `string`                                           | Nhãn tiếng Việt            | Nhãn từng field (`displayNameLabel`, `emailLabel`, `phoneLabel`, `jobTitleLabel`, `departmentLabel`). |
+| `submitLabel`                                       | `string`                                           | `'Lưu thay đổi'`           | Nhãn nút submit.                                                                                      |
+| `cancelLabel`                                       | `string`                                           | `'Huỷ'`                    | Nhãn nút huỷ.                                                                                         |
+| `className`                                         | `string`                                           | `''`                       | Lớp cho **root wrapper** (phần tử nằm trong layout), không phải thẻ `<form>` bên trong.               |
+| `...rest`                                           | `HTMLAttributes<HTMLDivElement>`                   | —                          | Thuộc tính đặt lên root wrapper: `hidden`, `style`, `id`, `data-*`.                                   |
+
+## Accessibility
+
+- Nav của `SettingsProfile` là landmark `navigation` với button; mục active mang `aria-current="true"`, không phải `page`, vì trang là route.
+- Mỗi pane là `region` được đặt tên bằng tiêu đề và mô tả bằng `description`; pane ẩn bị loại khỏi cây truy cập và tab order nhưng vẫn giữ state.
+- Dùng `level={2}` khi template nằm dưới một `h1` khác, và `as="div"` khi trang đã có `main`.
+- `ProfileForm` gắn `aria-invalid` cùng `aria-describedby` cho field lỗi; avatar nằm ngoài `<form>` nên nút upload không vô tình submit.
+- Khi `loading`, form báo bận và chặn submit bằng Enter; nút Huỷ vẫn bấm được để thoát.

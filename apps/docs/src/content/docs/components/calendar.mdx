@@ -1,0 +1,80 @@
+---
+title: Calendar
+description: Lịch tháng thuần trình bày, chọn một ngày, đánh dấu sự kiện và khoá ngày.
+---
+
+import { CalendarDemo } from '../../../components/demos/CalendarDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Calendar` là lịch tháng **presentational**: component vẽ lưới ngày và báo lựa chọn ra ngoài, còn `value` cùng tháng đang xem nằm trong state của bạn. Dùng cho chọn ngày hẹn, lịch công việc hoặc bộ lọc theo một ngày; cần chọn khoảng ngày thì dùng `DateRangePicker`.
+
+<Demo title="Chọn ngày, sự kiện và ngày bị khoá">
+  <CalendarDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Calendar } from '@enterprise-ui/components';
+
+export function AppointmentPicker() {
+  const [date, setDate] = useState<Date | null>(null);
+  const [view, setView] = useState(new Date(2026, 10, 1));
+
+  return (
+    <Calendar
+      value={date}
+      onChange={setDate}
+      view={view}
+      onViewChange={setView}
+      events={{ '2026-11-12': ['Demo khách hàng', 'Sinh nhật'] }}
+      isDisabled={(day) => day.getDay() === 0 || day.getDay() === 6}
+      aria-label="Chọn ngày hẹn"
+    />
+  );
+}
+```
+
+`value` là ngày đang chọn; truyền `null` để không chọn ngày nào. `view` là tháng đang hiển thị. Nếu truyền `view` mà không xử lý `onViewChange`, các nút chuyển tháng và PageUp/PageDown sẽ không có tác dụng vì component không tự đổi tháng. Bỏ cả hai prop này để `Calendar` tự quản lý tháng đang xem.
+
+## Sự kiện trên ngày
+
+`events` nhận object với key là ngày ISO (`YYYY-MM-DD`). Một node render một dòng, một mảng render mỗi node một dòng. Ô `size="sm"` chỉ hiện một dòng và `size="md"` hiện hai dòng; phần còn lại vẫn nằm trong mô tả dành cho screen reader của ngày, không bị mất.
+
+`isDisabled` nhận predicate theo `Date`. Ngày bị khoá vẫn hiển thị trong lưới nhưng không nhận focus, không click được và không phát `onChange`. Dùng nó cho cuối tuần, ngày nghỉ hoặc ngày đã qua.
+
+## Props
+
+| Prop           | Kiểu                        | Mặc định                       | Mô tả                                                    |
+| -------------- | --------------------------- | ------------------------------ | -------------------------------------------------------- |
+| `value`        | `Date \| null`              | `null`                         | Ngày đang chọn (controlled).                             |
+| `onChange`     | `(date: Date) => void`      | —                              | Gọi khi người dùng chốt một ngày.                        |
+| `view`         | `Date`                      | Tháng của `value` hoặc hôm nay | Tháng đang xem (controlled).                             |
+| `onViewChange` | `(view: Date) => void`      | —                              | Gọi với ngày đầu tháng khi người dùng yêu cầu đổi tháng. |
+| `events`       | `Record<string, ReactNode>` | —                              | Sự kiện theo key ISO; mảng node render nhiều dòng.       |
+| `isDisabled`   | `(date: Date) => boolean`   | —                              | Predicate vô hiệu hoá ngày.                              |
+| `size`         | `'sm' \| 'md'`              | `'sm'`                         | Kích thước ô ngày.                                       |
+| `className`    | `string`                    | —                              | Lớp bổ sung cho phần vỏ.                                 |
+| `aria-label`   | `string`                    | Lấy từ tiêu đề tháng           | Nhãn cho lưới lịch.                                      |
+
+## Bàn phím
+
+- <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>: chốt ngày trước/sau hoặc cách một tuần, bỏ
+  qua ngày bị khoá. Vượt ranh giới tháng thì đổi tháng và phát `onViewChange`.
+- <kbd>Home</kbd> / <kbd>End</kbd>: chốt ngày bắt đầu/cuối tháng đang hiển thị, bỏ qua ngày bị khoá.
+- <kbd>PageUp</kbd> / <kbd>PageDown</kbd>: lùi/tiến một tháng, **không** chốt ngày. Con trỏ dừng ở
+  ngày đang chọn nếu ngày đó thuộc tháng mới, nếu không thì giữ ngày trong tháng và nhảy qua ngày bị
+  khoá.
+- <kbd>Enter</kbd> / <kbd>Space</kbd>: chốt ngày đang focus. Khi focus ở chính lưới, chỉ chốt nếu
+  con trỏ đang ở tháng hiển thị và không bị khoá.
+
+Khi lưới đang giữ focus mà tháng đổi — do người dùng hay do parent tự điều hướng — focus chuyển sang ngày con trỏ dừng. Tháng bị khoá toàn bộ thì focus vào chính lưới để vẫn dùng được bàn phím.
+
+## Accessibility
+
+- Lưới dùng `role="grid"`, mỗi ngày là một `<button role="gridcell">` với nhãn đầy đủ dạng “20 tháng 10, 2026”.
+- Chỉ một ngày là tab stop tại mỗi thời điểm; `Tab` vào lưới một lần rồi di chuyển bằng phím mũi tên. Tháng bị khoá toàn bộ thì chính lưới là tab stop.
+- Ngày đang chọn có `aria-selected`, hôm nay có `aria-current="date"`, ngày bị khoá có `aria-disabled` và thuộc tính `disabled`.
+- Đổi tháng được thông báo qua vùng `aria-live="polite"`; toàn bộ danh sách sự kiện nằm trong `aria-describedby` của ngày kể cả khi ô bị cắt bớt.
+- Luôn truyền `aria-label` khi lịch không có tiêu đề hiển thị ngay cạnh, ví dụ “Lịch hẹn khách hàng”.

@@ -1,0 +1,52 @@
+---
+title: KpiGrid
+description: Lưới thẻ KPI tự động xuống dòng theo chiều rộng tối thiểu của mỗi thẻ.
+---
+
+import { KpiGridDemo } from '../../../components/demos/KpiGridDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`KpiGrid` xếp các thẻ KPI thành lưới đáp ứng: mỗi thẻ giữ chiều rộng tối thiểu, số cột tăng khi khung chứa rộng ra và giảm khi hẹp lại. Component chỉ lo bố cục — nó không đọc dữ liệu, không tính toán KPI và không giới hạn số thẻ.
+
+<Demo title="Lưới mặc định và điều chỉnh chiều rộng thẻ">
+  <KpiGridDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { KpiCard, KpiGrid } from '@enterprise-ui/components';
+
+export function RevenueKpis() {
+  return (
+    <KpiGrid minCardWidth={200}>
+      <KpiCard label="Đơn hàng" value="1.284" delta="+8,2%" deltaTone="green" />
+      <KpiCard label="Doanh thu" value="₫ 2,45 tỷ" delta="+12,5%" deltaTone="green" />
+      <KpiCard label="Khách mới" value="312" delta="-3,1%" deltaTone="red" />
+      <KpiCard label="Tồn kho" value="86%" delta="Không đổi" deltaTone="neutral" />
+    </KpiGrid>
+  );
+}
+```
+
+## Props
+
+| Prop           | Kiểu        | Mặc định | Mô tả                                                                                                      |
+| -------------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `children`     | `ReactNode` | —        | Các thẻ `KpiCard` hoặc phần tử bất kỳ cần xếp vào lưới.                                                    |
+| `minCardWidth` | `number`    | `220`    | Chiều rộng tối thiểu mỗi thẻ, tính bằng px. Giá trị dưới 120 bị nâng lên 120; `NaN`/`Infinity` rơi về 220. |
+
+`minCardWidth` được ghi thẳng vào `grid-template-columns: repeat(auto-fill, minmax(<n>px, 1fr))`. Không có prop số cột, khoảng cách hay chiều cao hàng — muốn thay đổi sâu hơn, hãy đặt `KpiGrid` trong một container có style riêng hoặc dùng CSS grid của bạn.
+
+## Chọn chiều rộng thẻ
+
+- `120–160px`: nhiều cột, phù hợp dashboard dày đặc nhưng nhãn dài bị cắt bằng dấu ba chấm và delta có thể xuống dòng.
+- `200–240px`: cân bằng giữa mật độ và khả năng đọc; 220 là mặc định.
+- Lớn hơn bề rộng khung chứa: lưới vẫn giữ một cột và có thể tràn ngang, vì vậy tránh đặt giá trị cố định quá lớn cho màn hình hẹp.
+
+## Accessibility
+
+- Thứ tự đọc là thứ tự DOM của các thẻ, không phụ thuộc số cột hiển thị.
+- `KpiGrid` không tạo danh sách hay heading; nếu các KPI thuộc một nhóm, đặt tiêu đề `<h2>`/`<h3>` ngay trước lưới.
+- Đừng đặt `minCardWidth` quá lớn khiến nội dung phải cuộn ngang trên mobile; ưu tiên để lưới tự xuống dòng.
+- Mỗi thẻ vẫn cần `label` rõ nghĩa; lưới không thêm ngữ cảnh cho screen reader.

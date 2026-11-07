@@ -1,0 +1,84 @@
+---
+title: NotificationCenter
+description: Chuông thông báo kèm panel dropdown, badge chưa đọc và các hành động trên từng mục.
+---
+
+import { NotificationCenterDemo } from '../../../components/demos/NotificationCenterDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`NotificationCenter` gồm một nút chuông có badge số chưa đọc và panel dropdown liệt kê thông báo. Giống các component dữ liệu khác của thư viện, nó thuần trình bày: caller giữ mảng `notifications`, tự cập nhật trạng thái đã đọc/xoá khi nhận callback và truyền mảng mới trở lại. Component không tự fetch, không tự đánh dấu đã đọc và không điều hướng khi chọn mục.
+
+<Demo title="Đầy đủ hành động, kích thước, trạng thái trống và disabled">
+  <NotificationCenterDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { NotificationCenter } from '@enterprise-ui/components';
+import type { Notification } from '@enterprise-ui/components';
+
+const initial: Notification[] = [
+  { id: 'n1', title: 'Đơn mới cần duyệt', time: 'vừa xong', unread: true, kind: 'warning' },
+];
+
+export function NotificationBell() {
+  const [items, setItems] = useState<Notification[]>(initial);
+
+  return (
+    <NotificationCenter
+      notifications={items}
+      onMarkRead={(id) =>
+        setItems((list) => list.map((item) => (item.id === id ? { ...item, unread: false } : item)))
+      }
+      onMarkAllRead={() => setItems((list) => list.map((item) => ({ ...item, unread: false })))}
+      onRemove={(id) => setItems((list) => list.filter((item) => item.id !== id))}
+    />
+  );
+}
+```
+
+## Props
+
+| Prop            | Kiểu                   | Mặc định      | Mô tả                                                    |
+| --------------- | ---------------------- | ------------- | -------------------------------------------------------- |
+| `notifications` | `Notification[]`       | —             | Danh sách thông báo; caller sở hữu toàn bộ trạng thái.   |
+| `onMarkRead`    | `(id: string) => void` | —             | Bắt buộc theo type; hiện nút ✓ trên mỗi mục `unread`.    |
+| `onMarkAllRead` | `() => void`           | —             | Hiện nút “Đánh dấu đã đọc tất cả” khi có mục chưa đọc.   |
+| `onRemove`      | `(id: string) => void` | —             | Hiện nút × trên từng mục.                                |
+| `onSelect`      | `(id: string) => void` | —             | Hiện nút → trên từng mục; component không tự điều hướng. |
+| `size`          | `'sm' \| 'md'`         | `'sm'`        | Kích thước nút chuông.                                   |
+| `disabled`      | `boolean`              | `false`       | Vô hiệu hoá nút chuông; panel không thể mở.              |
+| `className`     | `string`               | —             | Class bổ sung cho wrapper.                               |
+| `aria-label`    | `string`               | `'Thông báo'` | Nhãn cho nút chuông và panel dialog.                     |
+
+### Notification
+
+| Trường   | Kiểu                                           | Mặc định | Mô tả                                                         |
+| -------- | ---------------------------------------------- | -------- | ------------------------------------------------------------- |
+| `id`     | `string`                                       | —        | Khoá ổn định; id trùng trong một danh sách bị cảnh báo ở dev. |
+| `title`  | `string`                                       | —        | Tiêu đề thông báo.                                            |
+| `body`   | `string`                                       | —        | Mô tả phụ, chỉ render khi có.                                 |
+| `time`   | `string`                                       | —        | Chuỗi thời gian đã định dạng sẵn, ví dụ “2 phút trước”.       |
+| `unread` | `boolean`                                      | `false`  | Tô nền mục và hiện nút đánh dấu đã đọc.                       |
+| `kind`   | `'info' \| 'success' \| 'warning' \| 'danger'` | `'info'` | Chọn icon mặc định; không đổi màu chữ.                        |
+| `icon`   | `ReactNode`                                    | —        | Icon riêng thay cho icon theo `kind`.                         |
+
+`icon` là trường của từng `Notification`, không phải prop cấp component. Badge hiển thị `9+` khi có hơn 9 mục chưa đọc nhưng nhãn `aria-label` luôn đọc đúng tổng số.
+
+## Hành vi
+
+- Panel định vị `fixed` theo nút chuông; tự đặt lại vị trí khi độ dài danh sách thay đổi hoặc cửa sổ resize. Cuộn trang sẽ đóng panel.
+- Mở panel sẽ đưa focus vào panel; `Escape` đóng và trả focus về chuông.
+- Bấm ra ngoài, cuộn trang hoặc chuyển focus ra khỏi widget đều đóng panel.
+- Các hành động trên mục không tự đóng panel; caller cập nhật mảng và panel render lại.
+- Danh sách rỗng hiện trạng thái “Không có thông báo”.
+
+## Accessibility
+
+- Nút chuông có `aria-haspopup="dialog"`, `aria-expanded` và `aria-controls` trỏ tới panel khi mở.
+- Badge có nhãn “N thông báo chưa đọc”; phần hiển thị `9+` chỉ là rút gọn thị giác.
+- Panel là `dialog` có tên lấy từ `aria-label`; danh sách dùng `ul`/`li` nên screen reader đếm được số mục.
+- Mỗi nút hành động có nhãn kèm tiêu đề thông báo, không chỉ là icon.
+- Nút chuông `disabled` là button native nên không nhận focus; đừng dựa vào `disabled` để ẩn thông báo khẩn cấp.

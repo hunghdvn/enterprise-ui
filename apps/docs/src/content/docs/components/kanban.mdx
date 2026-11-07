@@ -1,0 +1,105 @@
+---
+title: Kanban
+description: Bảng công việc kéo-thả với cột, thẻ, ưu tiên và người phụ trách; parent sở hữu toàn bộ dữ liệu.
+---
+
+import { KanbanDemo } from '../../../components/demos/KanbanDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Kanban` là bảng công việc dạng cột. Component chỉ trình bày dữ liệu: parent giữ mảng `columns`, nhận `onMove` rồi tự cập nhật state. Nhờ vậy có thể nối với API, undo/redo hoặc optimistic update mà component không cần biết.
+
+<Demo title="Kéo thả, thêm thẻ và chọn thẻ">
+  <KanbanDemo client:load />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Kanban } from '@enterprise-ui/components';
+import type { KanbanColumn } from '@enterprise-ui/components';
+
+const initialColumns: KanbanColumn[] = [
+  { id: 'todo', title: 'Cần làm', cards: [{ id: 'c1', title: 'Chốt phạm vi Q4' }] },
+  { id: 'doing', title: 'Đang làm', cards: [{ id: 'c2', title: 'Thiết kế luồng' }] },
+  { id: 'done', title: 'Hoàn thành', cards: [] },
+];
+
+export function Board() {
+  const [columns, setColumns] = useState(initialColumns);
+
+  const moveCard = (cardId: string, from: string, to: string, toIndex: number) => {
+    setColumns((prev) => {
+      const next = prev.map((column) => ({ ...column, cards: [...column.cards] }));
+      const fromColumn = next.find((column) => column.id === from);
+      const toColumn = next.find((column) => column.id === to);
+      if (!fromColumn || !toColumn) return prev;
+
+      const index = fromColumn.cards.findIndex((card) => card.id === cardId);
+      if (index === -1) return prev;
+
+      const [card] = fromColumn.cards.splice(index, 1);
+      if (!card) return prev;
+      toColumn.cards.splice(toIndex, 0, card);
+      return next;
+    });
+  };
+
+  return <Kanban columns={columns} onMove={moveCard} />;
+}
+```
+
+## Mô hình dữ liệu
+
+```ts
+interface KanbanAssignee {
+  name: string;
+  avatar?: string;
+}
+
+interface KanbanCard {
+  id: string;
+  title: string;
+  description?: string;
+  tags?: string[];
+  assignee?: KanbanAssignee;
+  due?: string;
+  priority?: 'low' | 'medium' | 'high';
+}
+
+interface KanbanColumn {
+  id: string;
+  title: string;
+  cards: KanbanCard[];
+  color?: string;
+}
+```
+
+`due` là chuỗi tự do (ngày, nhãn hoặc thời hạn). `color` áp thành viền trái 3px của cột và nhận mọi giá trị CSS hợp lệ — nên dùng token như `var(--color-blue-600)` thay vì mã màu.
+
+## Props
+
+| Prop          | Kiểu                                                  | Mặc định | Mô tả                                               |
+| ------------- | ----------------------------------------------------- | -------- | --------------------------------------------------- |
+| `columns`     | `KanbanColumn[]`                                      | —        | Cột và thẻ cần hiển thị.                            |
+| `onMove`      | `(cardId, fromColumnId, toColumnId, toIndex) => void` | —        | Báo vị trí đích khi kéo thả hoặc bấm nút di chuyển. |
+| `onCardClick` | `(card: KanbanCard) => void`                          | —        | Gọi khi bấm thẻ hoặc nhấn Enter/Space trên thẻ.     |
+| `onAddCard`   | `(columnId: string) => void`                          | —        | Hiện nút “+” trên header cột và báo khi bấm.        |
+| `size`        | `'sm' \| 'md'`                                        | `'sm'`   | Khoảng cách giữa các cột: 12px hoặc 16px.           |
+| `className`   | `string`                                              | —        | Lớp bổ sung cho vỏ bảng.                            |
+
+## Kéo thả và bàn phím
+
+- Thả lên một thẻ để chèn tại vị trí đó; thả vào vùng trống của cột để nối vào cuối.
+- `toIndex` là vị trí chèn sau khi thẻ đã được bỏ khỏi cột nguồn. Với di chuyển trong cùng cột, parent xử lý bằng remove rồi insert như ví dụ trên.
+- Mỗi thẻ có nút chuyển cột trước/sau và lên/xuống khi focus — đường thay thế cho người dùng bàn phím hoặc thiết bị cảm ứng.
+- Component không tự sửa `columns`: không truyền `onMove` thì kéo thả và các nút di chuyển không làm thay đổi dữ liệu.
+- `onAddCard` chỉ là tín hiệu mở form; component không tự tạo thẻ hay hỏi nội dung.
+
+## Accessibility
+
+- Mỗi cột là `<section>` có `aria-label` theo `title`.
+- Thẻ là phần tử focus được; Enter/Space kích hoạt `onCardClick`.
+- Các nút di chuyển có `aria-label` tiếng Việt và tự vô hiệu hoá ở biên cột hoặc danh sách.
+- Sau khi parent cập nhật, focus được đưa trở lại thẻ vừa di chuyển nếu vị trí mới tồn tại.
+- Cột rỗng hiển thị “Kéo thả thẻ vào đây” để vùng thả không bị vô hình.
