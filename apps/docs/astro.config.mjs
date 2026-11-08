@@ -4,9 +4,12 @@ import react from '@astrojs/react';
 
 // Deployed to GitHub Pages as a project site: https://<owner>.github.io/enterprise-ui/
 // Keep `base` in sync with the deploy target; Starlight prefixes its own links.
+// Content uses relative links, which resolve against a trailing slash. Making
+// that explicit keeps dev, preview and GitHub Pages on the same URL shape.
 export default defineConfig({
   site: 'https://hunghdvn.github.io',
   base: '/enterprise-ui/',
+  trailingSlash: 'always',
   integrations: [
     starlight({
       title: 'Enterprise UI',
