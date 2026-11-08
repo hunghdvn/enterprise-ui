@@ -45,28 +45,41 @@ function contentFiles(dir) {
  * Extract fenced code blocks with their language. A fence that opens but
  * never closes is an error — silently truncating the last snippet would keep
  * CI green while the page renders differently from what was checked.
+ *
+ * Opening fences may be indented (list items) and carry an info string such
+ * as `tsx title="App.tsx"`; the language is the first word. An opening fence
+ * with no language is rejected instead of silently becoming unchecked prose.
+ * Body lines are dedented by the fence's indentation so the snippet typechecks
+ * as a reader would copy it.
  */
 function extractFences(source, file) {
   const lines = source.split('\n');
   const blocks = [];
   let open = null;
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     if (!open) {
-      const match = line.match(/^```([\w-]*)\s*$/);
-      if (match) open = { lang: match[1].toLowerCase(), body: [], line: 0 };
+      const match = line.match(/^(\s*)(`{3,})(.*)$/);
+      if (!match) continue;
+      const info = match[3].trim();
+      const lang = info.split(/\s+/)[0]?.toLowerCase() ?? '';
+      if (!lang) {
+        throw new Error(`${file}:${index + 1}: code fence is missing a language`);
+      }
+      open = { lang, indent: match[1], body: [], line: index + 1 };
       continue;
     }
-    if (/^```\s*$/.test(line)) {
+    if (/^\s*`{3,}\s*$/.test(line)) {
       blocks.push(open);
       open = null;
       continue;
     }
-    open.body.push(line);
+    open.body.push(line.startsWith(open.indent) ? line.slice(open.indent.length) : line);
   }
 
   if (open) {
-    throw new Error(`${file}: unclosed \`\`\`${open.lang} fence`);
+    throw new Error(`${file}:${open.line}: unclosed \`\`\`${open.lang} fence`);
   }
   return blocks;
 }

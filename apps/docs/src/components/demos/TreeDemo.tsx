@@ -30,17 +30,15 @@ const ORG: TreeNode[] = [
   },
 ];
 
-const LABELS: Record<string, string> = {
-  org: 'Công ty Sao Mai',
-  tech: 'Khối kỹ thuật',
-  fe: 'Nhóm Frontend',
-  be: 'Nhóm Backend',
-  platform: 'Nhóm Platform',
-  sales: 'Khối kinh doanh',
-  north: 'Vùng miền Bắc',
-  south: 'Vùng miền Nam',
-  hr: 'Nhân sự (đang khoá)',
-};
+function collectLabels(nodes: TreeNode[], labels: Map<string, string>): void {
+  for (const node of nodes) {
+    if (typeof node.label === 'string') labels.set(node.id, node.label);
+    if (node.children) collectLabels(node.children, labels);
+  }
+}
+
+const LABELS = new Map<string, string>();
+collectLabels(ORG, LABELS);
 
 export function TreeDemo() {
   const [expandedIds, setExpandedIds] = useState<string[]>(['org', 'tech']);
@@ -64,7 +62,7 @@ export function TreeDemo() {
             aria-label="Cơ cấu tổ chức"
           />
           <p className={styles.helper}>
-            Đang chọn: <strong>{selectedId ? (LABELS[selectedId] ?? selectedId) : '—'}</strong>.
+            Đang chọn: <strong>{selectedId ? (LABELS.get(selectedId) ?? selectedId) : '—'}</strong>.
             Node “Nhân sự” bị khoá nên không thể chọn.
           </p>
         </section>

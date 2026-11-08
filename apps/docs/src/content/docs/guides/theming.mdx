@@ -10,7 +10,9 @@ import Demo from '../../../components/Demo.astro';
 Hai trục hiển thị độc lập: **theme** (sáng/tối) và **mật độ** (compact/comfortable). Cả hai được điều khiển bằng một attribute trên phần tử bao ngoài, nên component không cần biết gì về cơ chế lưu trữ.
 
 <Demo title="Đổi theme và mật độ trong một vùng riêng">
-  <ThemeDemo client:load />
+  <ThemeDemo client:only="react">
+    <p slot="fallback">Đang tải demo…</p>
+  </ThemeDemo>
 </Demo>
 
 ## Cách hoạt động
@@ -42,25 +44,33 @@ Hook `useTheme()` trả về `{ theme, density, setTheme, setDensity }` và ch�
 
 ## Tạo theme tùy chỉnh
 
-Bạn không cần fork component. Chỉ cần override token trên một selector có độ ưu tiên cao hơn:
+Bạn không cần fork component. Hãy **giữ `data-theme="light"`** để nhận toàn bộ token nền, rồi thêm một attribute thương hiệu và override trên selector ghép:
+
+```html
+<div data-enterprise-ui data-theme="light" data-brand="acme">
+  <!-- ứng dụng -->
+</div>
+```
 
 ```css
-[data-theme='brand'] {
+[data-theme='light'][data-brand='acme'] {
   --color-blue-600: #0f766e;
+  --color-blue-700: #115e59;
+  --action-text: #0f766e;
+  --row-hover-bg: #f0fdfa;
+  --row-selected-bg: #ccfbf1;
+  --row-selected-marker: #0f766e;
+  --nav-active-bg: #f0fdfa;
   --focus-ring: #0f766e;
-  --on-primary: #ffffff;
-}
-
-[data-theme='brand'] .app {
-  --bg: #f0fdfa;
-  --surface: #ffffff;
-  --border: #99f6e4;
-  --text: #134e4a;
-  --text-muted: #5f8b86;
+  --today-ring: #115e59;
 }
 ```
 
-Sau đó đặt `data-theme="brand"` lên wrapper. Vì `ThemeProvider` chỉ chấp nhận `'light'` hoặc `'dark'`, theme thương hiệu thường được gắn trực tiếp lên phần tử gốc của app thay vì đi qua provider.
+`--color-blue-600` đổi nền nút primary; các token ngữ nghĩa như `--action-text`, `--row-selected-marker` và `--focus-ring` phải override riêng vì `theme-light.css` hardcode giá trị cho chúng. Làm tương tự với `[data-theme='dark'][data-brand='acme']` nếu cần bản tối.
+
+Đừng đổi `data-theme="light"` thành `data-theme="brand"` nếu bạn chỉ định nghĩa vài token: selector đó sẽ bỏ qua toàn bộ token nền (`--scrim`, `--row-hover-bg`, `--nav-active-bg`, các token blocked-selection…). Nếu thật sự cần một tên theme riêng, hãy copy đầy đủ `theme-light.css` sang selector mới rồi mới thêm phần thương hiệu.
+
+Vì `ThemeProvider` chỉ chấp nhận `'light'` hoặc `'dark'`, attribute thương hiệu thường được gắn trực tiếp lên phần tử gốc của app thay vì đi qua provider.
 
 <Aside type="caution" title="Đừng hardcode màu trong component">
   Component trong thư viện chỉ dùng `var(--…)`. Nếu một component cần màu mới, thêm token vào

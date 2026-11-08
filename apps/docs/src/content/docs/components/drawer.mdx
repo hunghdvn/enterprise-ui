@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `Drawer` là panel trượt từ cạnh phải, dùng cho luồng phụ mà người dùng không nên rời khỏi danh sách: xem nhanh chi tiết, bộ lọc, nhật ký hoạt động. Component controlled qua `open` + `onClose`; nó không tự mở, tự đóng hay giữ dữ liệu. Dùng `Modal` khi cần chặn hoàn toàn và yêu cầu quyết định; dùng `Drawer` khi vẫn muốn giữ ngữ cảnh trang phía sau.
 
 <Demo title="Nội dung dài, chi tiết đơn và bộ lọc">
-  <DrawerDemo client:load />
+  <DrawerDemo client:visible />
 </Demo>
 
 ## Cách dùng

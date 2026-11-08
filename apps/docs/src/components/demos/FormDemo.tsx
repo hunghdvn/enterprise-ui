@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Checkbox, Field, Form, Input, Select } from '@enterprise-ui/components';
 import styles from './demos.module.css';
+import { withoutKey } from './demoUtils';
 
 export function FormDemo() {
   const [email, setEmail] = useState('');
@@ -8,15 +9,6 @@ export function FormDemo() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const [profileSaved, setProfileSaved] = useState(false);
-
-  function clearError(key: string) {
-    setErrors((prev) => {
-      if (!(key in prev)) return prev;
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  }
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,7 +46,7 @@ export function FormDemo() {
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                clearError('email');
+                setErrors((prev) => withoutKey(prev, 'email'));
               }}
             />
           </Field>
@@ -65,7 +57,7 @@ export function FormDemo() {
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                clearError('password');
+                setErrors((prev) => withoutKey(prev, 'password'));
               }}
             />
           </Field>

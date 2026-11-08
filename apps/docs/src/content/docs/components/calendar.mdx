@@ -9,7 +9,9 @@ import Demo from '../../../components/Demo.astro';
 `Calendar` là lịch tháng **presentational**: component vẽ lưới ngày và báo lựa chọn ra ngoài, còn `value` cùng tháng đang xem nằm trong state của bạn. Dùng cho chọn ngày hẹn, lịch công việc hoặc bộ lọc theo một ngày; cần chọn khoảng ngày thì dùng `DateRangePicker`.
 
 <Demo title="Chọn ngày, sự kiện và ngày bị khoá">
-  <CalendarDemo client:load />
+  <CalendarDemo client:only="react">
+    <p slot="fallback">Đang tải demo…</p>
+  </CalendarDemo>
 </Demo>
 
 ## Cách dùng

@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `Pagination` chỉ hiển thị điều khiển phân trang; component không cắt dữ liệu và không giữ trang hiện tại. Caller truyền `page`, `pageSize`, `total` và xử lý `onChange`, nên cùng một component dùng được cho dữ liệu tải sẵn lẫn phân trang phía server.
 
 <Demo title="Dữ liệu theo trang, nhiều trang và trạng thái rỗng">
-  <PaginationDemo client:load />
+  <PaginationDemo client:visible />
 </Demo>
 
 ## Cách dùng

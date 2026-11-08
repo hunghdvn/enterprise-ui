@@ -44,7 +44,7 @@ export function EmptySpinDemo() {
         </p>
       </section>
 
-      <Spin fullscreen={busy} tip="Đang xử lý…" />
+      {busy && <Spin fullscreen tip="Đang xử lý…" />}
     </div>
   );
 }

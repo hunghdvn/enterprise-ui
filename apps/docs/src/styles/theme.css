@@ -28,6 +28,13 @@ starlight-theme-select select {
   width: 8.5em;
 }
 
+/* Starlight isolates the main pane, which traps the fixed overlays rendered by
+   demos (Modal, Drawer, Toast, fullscreen Spin) below the fixed header and
+   sidebar. Let those overlays participate in the root stacking context. */
+.main-pane {
+  isolation: auto;
+}
+
 /* Starlight's default prose width is tuned for long guides. Component pages
    carry props tables and demos, so widen the content column a little. */
 .sl-markdown-content :where(table) {
@@ -49,79 +56,6 @@ starlight-theme-select select {
 /* ------------------------------------------------------------------------- */
 /* Landing page                                                              */
 /* ------------------------------------------------------------------------- */
-
-.home-hero {
-  display: grid;
-  gap: 1rem;
-  padding-block: 1rem 2rem;
-}
-
-.home-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: fit-content;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--sl-color-hairline);
-  border-radius: 999px;
-  color: var(--sl-color-text-accent);
-  font-size: var(--sl-text-xs);
-  font-weight: 600;
-}
-
-.home-kicker::before {
-  content: '';
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: #f97316;
-}
-
-.home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.home-actions a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--sl-color-accent);
-  border-radius: var(--sl-radius, 6px);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.home-actions a:first-child {
-  background: var(--sl-color-accent);
-  color: #fff;
-}
-
-.home-actions a:not(:first-child):hover {
-  background: var(--sl-color-accent-low);
-}
-
-.home-preview {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  border: 1px solid var(--sl-color-hairline);
-  border-radius: 10px;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(249 115 22 / 12%), transparent 45%),
-    var(--sl-color-bg-sidebar);
-}
-
-.home-preview-label {
-  margin-bottom: 0.75rem;
-  color: var(--sl-color-gray-3);
-  font-size: var(--sl-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
 
 .feature-grid {
   display: grid;
@@ -159,14 +93,6 @@ starlight-theme-select select {
   margin-block: 1.25rem;
 }
 
-/* Starlight adds `margin-top` to every adjacent block inside markdown,
-   including grid children. That pushes the second column/row down by
-   `--sl-content-gap-y` even though the grid already owns spacing via `gap`.
-   Keep all cells on the same line. */
-.sl-markdown-content :where(.feature-grid, .swatch-grid, .component-grid) > * {
-  margin-top: 0;
-}
-
 .component-card {
   display: flex;
   flex-direction: column;
@@ -193,11 +119,6 @@ starlight-theme-select select {
 .component-card span {
   color: var(--sl-color-gray-3);
   font-size: var(--sl-text-sm);
-}
-
-.component-card[aria-disabled='true'] {
-  opacity: 0.55;
-  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -230,26 +151,4 @@ starlight-theme-select select {
 
 .swatch-meta code {
   font-size: var(--sl-text-xs);
-}
-
-/* ------------------------------------------------------------------------- */
-/* Small utilities                                                           */
-/* ------------------------------------------------------------------------- */
-
-.docs-stack {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.docs-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.docs-caption {
-  margin: 0;
-  color: var(--sl-color-gray-3);
-  font-size: var(--sl-text-sm);
 }

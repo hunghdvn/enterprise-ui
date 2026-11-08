@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `SavedViews` là widget quản lý bộ lọc đã lưu. Component không biết cấu trúc filter: `value` là snapshot do parent định nghĩa (generic `T`), còn parent chịu trách nhiệm áp snapshot đó vào state tìm kiếm, trạng thái hay khoảng ngày.
 
 <Demo title="Áp, lưu và xoá view cùng FilterBar">
-  <SavedViewsDemo client:load />
+  <SavedViewsDemo client:visible />
 </Demo>
 
 ## Cách dùng

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FilterBar, Input, Select, ThemeProvider } from '@enterprise-ui/components';
+import { FilterBar, Input, Select } from '@enterprise-ui/components';
 import styles from './demos.module.css';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -25,41 +25,41 @@ export function FilterBarDemo() {
     <div className={styles.stack}>
       <section className={styles.section}>
         <h4 className={styles.sectionTitle}>Tìm kiếm, bộ lọc và đặt lại</h4>
-        <ThemeProvider>
-          <FilterBar
-            searchValue={search}
-            onSearch={setSearch}
-            searchPlaceholder="Tìm mã đơn, khách hàng…"
-            filters={
-              <>
-                <Select
-                  aria-label="Trạng thái"
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="open">Chờ duyệt</option>
-                  <option value="shipping">Đang giao</option>
-                  <option value="done">Hoàn thành</option>
-                </Select>
-                <Input
-                  type="date"
-                  aria-label="Từ ngày"
-                  value={from}
-                  onChange={(event) => setFrom(event.target.value)}
-                />
-              </>
-            }
-            onReset={resetAll}
-          />
-        </ThemeProvider>
+        <FilterBar
+          searchValue={search}
+          onSearch={setSearch}
+          searchPlaceholder="Tìm mã đơn, khách hàng…"
+          densityToggle={false}
+          filters={
+            <>
+              <Select
+                aria-label="Trạng thái"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="open">Chờ duyệt</option>
+                <option value="shipping">Đang giao</option>
+                <option value="done">Hoàn thành</option>
+              </Select>
+              <Input
+                type="date"
+                aria-label="Từ ngày"
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+              />
+            </>
+          }
+          onReset={resetAll}
+        />
         <p className={styles.helper}>
           Từ khoá: <strong>{search || '—'}</strong> · Trạng thái:{' '}
           <strong>{STATUS_LABEL[status]}</strong> · Từ ngày: <strong>{from || '—'}</strong>
         </p>
         <p className={styles.helper}>
-          Demo bọc trong <code>ThemeProvider</code> nên nút mật độ hiện mặc định. Bấm để đổi giữa
-          Gọn và Thoáng; trạng thái lọc vẫn nằm ở component cha.
+          Nút mật độ chỉ hiện khi <code>FilterBar</code> nằm trong <code>ThemeProvider</code>; demo
+          này tắt nút để không ghi đè theme/mật độ của trang docs. Trạng thái lọc vẫn nằm ở
+          component cha.
         </p>
       </section>
 

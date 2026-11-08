@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `Kanban` là bảng công việc dạng cột. Component chỉ trình bày dữ liệu: parent giữ mảng `columns`, nhận `onMove` rồi tự cập nhật state. Nhờ vậy có thể nối với API, undo/redo hoặc optimistic update mà component không cần biết.
 
 <Demo title="Kéo thả, thêm thẻ và chọn thẻ">
-  <KanbanDemo client:load />
+  <KanbanDemo client:visible />
 </Demo>
 
 ## Cách dùng

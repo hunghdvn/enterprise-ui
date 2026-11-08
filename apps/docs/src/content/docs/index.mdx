@@ -7,11 +7,11 @@ hero:
   tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
   actions:
     - text: Bắt đầu
-      link: /enterprise-ui/getting-started/
+      link: getting-started/
       icon: right-arrow
       variant: primary
     - text: Xem components
-      link: /enterprise-ui/components/
+      link: components/
       icon: puzzle
       variant: secondary
 ---
@@ -21,7 +21,7 @@ import { HomePreview } from '../../components/demos/HomePreview.tsx';
 import Demo from '../../components/Demo.astro';
 
 <Demo title="Bảng điều khiển mẫu" hint="Component thật, chạy trực tiếp trong trang docs">
-  <HomePreview client:load />
+  <HomePreview client:visible />
 </Demo>
 
 <div class="feature-grid not-content">
@@ -73,22 +73,22 @@ export function App() {
   <LinkCard
     title="Cài đặt"
     description="Yêu cầu hệ thống, cấu trúc package và cách nhúng vào ứng dụng."
-    href="/enterprise-ui/getting-started/"
+    href="getting-started/"
   />
   <LinkCard
     title="Design tokens"
     description="Màu, chữ, khoảng cách và bán kính góc — nền tảng của mọi component."
-    href="/enterprise-ui/foundations/tokens/"
+    href="foundations/tokens/"
   />
   <LinkCard
     title="Components"
     description="Thư viện component kèm demo sống, props và mã sử dụng."
-    href="/enterprise-ui/components/"
+    href="components/"
   />
   <LinkCard
     title="Templates"
     description="Màn hình dựng sẵn cho đăng nhập, lỗi và cài đặt hồ sơ."
-    href="/enterprise-ui/templates/"
+    href="templates/"
   />
 </CardGrid>
 

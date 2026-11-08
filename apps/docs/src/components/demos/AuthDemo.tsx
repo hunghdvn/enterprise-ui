@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AuthLayout, Button, Icon, LoginForm } from '@enterprise-ui/components';
 import type { LoginFormValues } from '@enterprise-ui/components';
 import styles from './demos.module.css';
+import { withoutKey } from './demoUtils';
 
 type FieldKey = 'email' | 'password';
 
@@ -10,17 +11,6 @@ const INITIAL: LoginFormValues = {
   password: '',
   remember: true,
 };
-
-/** Drops one field error without allocating a new object when the key is absent. */
-function withoutKey(
-  errors: Partial<Record<FieldKey, string>>,
-  key: FieldKey,
-): Partial<Record<FieldKey, string>> {
-  if (!(key in errors)) return errors;
-  const next = { ...errors };
-  delete next[key];
-  return next;
-}
 
 export function AuthDemo() {
   const [value, setValue] = useState<LoginFormValues>(INITIAL);

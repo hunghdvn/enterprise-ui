@@ -11,7 +11,9 @@ import Demo from '../../../components/Demo.astro';
 Component phù hợp với hộp thư, danh sách đơn hàng, cây tài liệu — những nơi người dùng chọn một mục rồi xem nội dung mà không rời ngữ cảnh.
 
 <Demo title="Master–detail, kéo đổi kích thước và trục dọc">
-  <SplitViewDemo client:load />
+  <SplitViewDemo client:only="react">
+    <p slot="fallback">Đang tải demo…</p>
+  </SplitViewDemo>
 </Demo>
 
 ## Cách dùng

@@ -10,8 +10,14 @@ const initialFiles: UploadedFile[] = [
   { name: 'anh-san-pham.png', size: 96_400, type: 'image/png' },
 ];
 
-function isAllowedType(type: string): boolean {
-  return type === 'application/pdf' || type.startsWith('image/');
+function isAllowedFile(file: File): boolean {
+  // Drag-and-drop can report an empty MIME type even for a PDF. The picker
+  // already accepts `.pdf` by extension, so match that behaviour here too.
+  return (
+    file.type === 'application/pdf' ||
+    file.type.startsWith('image/') ||
+    (file.type === '' && file.name.toLowerCase().endsWith('.pdf'))
+  );
 }
 
 export function FileUploadDemo() {
@@ -25,7 +31,7 @@ export function FileUploadDemo() {
     for (const file of picked) {
       if (file.size > MAX_BYTES) {
         nextRejected.push(`${file.name} (quá 2 MB)`);
-      } else if (!isAllowedType(file.type)) {
+      } else if (!isAllowedFile(file)) {
         nextRejected.push(`${file.name} (sai định dạng)`);
       } else {
         accepted.push({ name: file.name, size: file.size, type: file.type });

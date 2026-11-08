@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `Tabs` giữ nội dung trong cùng một ngữ cảnh thay vì mở trang mới. Component hỗ trợ controlled và uncontrolled, với `role="tablist"` cùng điều hướng bằng phím mũi tên.
 
 <Demo title="Bốn biến thể: line, segmented, pills, enclosed">
-  <TabsDemo client:load />
+  <TabsDemo client:visible />
 </Demo>
 
 ## Cách dùng
@@ -39,7 +39,7 @@ export function OrderTabs() {
 | `activeKey`        | `string`                                         | —             | Tab đang chọn ở chế độ controlled.                    |
 | `defaultActiveKey` | `string`                                         | Item đầu tiên | Tab khởi tạo ở chế độ uncontrolled.                   |
 | `onChange`         | `(key: string) => void`                          | —             | Gọi khi tab thay đổi.                                 |
-| `size`             | `'sm' \| 'md'`                                   | `'sm'`        | Kích thước tab list.                                  |
+| `size`             | `'sm' \| 'md'`                                   | `'md'`        | Kích thước tab list.                                  |
 | `variant`          | `'line' \| 'segmented' \| 'pills' \| 'enclosed'` | `'line'`      | Kiểu trình bày tab list.                              |
 | `className`        | `string`                                         | —             | Class thêm cho wrapper.                               |
 

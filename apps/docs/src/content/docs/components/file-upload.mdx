@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `FileUpload` là component thuần trình bày: nó vẽ vùng kéo-thả, mở hộp chọn file và liệt kê các file parent truyền vào. Component không giữ `File` thật, không validate và không upload — parent nhận file qua `onSelect`, cập nhật state rồi truyền lại qua `files`.
 
 <Demo title="Chọn nhiều file, kiểm tra phía parent và disabled">
-  <FileUploadDemo client:load />
+  <FileUploadDemo client:visible />
 </Demo>
 
 ## Cách dùng
@@ -42,6 +42,8 @@ export function Attachments() {
 ## Kiểm tra trước khi nhận file
 
 `accept` chỉ là gợi ý cho hộp chọn file; file kéo-thả **không** bị trình duyệt lọc theo `accept`. Hãy kiểm tra `type` và `size` trong `onSelect` rồi chỉ thêm file hợp lệ vào state:
+
+Một số trình duyệt trả `file.type === ''` khi kéo-thả, kể cả với PDF. Khi đó kiểm tra thêm đuôi file thay vì từ chối oan, ví dụ `file.type === 'application/pdf' || /\\.pdf$/i.test(file.name)`.
 
 ```tsx
 import type { UploadedFile } from '@enterprise-ui/components';

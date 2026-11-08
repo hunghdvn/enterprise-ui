@@ -9,7 +9,7 @@ import Demo from '../../../components/Demo.astro';
 `NotificationCenter` gồm một nút chuông có badge số chưa đọc và panel dropdown liệt kê thông báo. Giống các component dữ liệu khác của thư viện, nó thuần trình bày: caller giữ mảng `notifications`, tự cập nhật trạng thái đã đọc/xoá khi nhận callback và truyền mảng mới trở lại. Component không tự fetch, không tự đánh dấu đã đọc và không điều hướng khi chọn mục.
 
 <Demo title="Đầy đủ hành động, kích thước, trạng thái trống và disabled">
-  <NotificationCenterDemo client:load />
+  <NotificationCenterDemo client:visible />
 </Demo>
 
 ## Cách dùng

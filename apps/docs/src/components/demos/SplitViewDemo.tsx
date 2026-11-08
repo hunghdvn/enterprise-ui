@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { Button, PageHeader, SplitView } from '@enterprise-ui/components';
 import styles from './demos.module.css';
 import splitStyles from './SplitViewDemo.module.css';
@@ -10,8 +10,6 @@ interface Order {
   status: string;
   amount: string;
 }
-
-const subscribeNoop = () => () => {};
 
 const ORDERS: Order[] = [
   {
@@ -118,13 +116,6 @@ function OrderDetail({ order }: { order: Order | null }) {
 }
 
 export function SplitViewDemo() {
-  // SplitView đọc matchMedia đồng bộ khi render (mobile layout), nên render nó
-  // ở client sau khi hydrate để HTML server và lần hydrate đầu khớp nhau.
-  const mounted = useSyncExternalStore(
-    subscribeNoop,
-    () => true,
-    () => false,
-  );
   const [selected, setSelected] = useState<string | null>(ORDERS[0].id);
   const [width, setWidth] = useState(260);
   const [height, setHeight] = useState(150);
@@ -147,22 +138,18 @@ export function SplitViewDemo() {
           </Button>
         </div>
         <div className={splitStyles.frame}>
-          {mounted ? (
-            <SplitView
-              masterWidth={width}
-              minSize={200}
-              maxSize={420}
-              onMasterWidthChange={setWidth}
-              resizable={!locked}
-              selectedKey={selected}
-              onBack={() => setSelected(null)}
-              backLabel="Về danh sách"
-              master={<OrderList items={ORDERS} selected={selected} onSelect={setSelected} />}
-              detail={<OrderDetail order={selectedOrder} />}
-            />
-          ) : (
-            <p className={splitStyles.loading}>Đang tải demo…</p>
-          )}
+          <SplitView
+            masterWidth={width}
+            minSize={200}
+            maxSize={420}
+            onMasterWidthChange={setWidth}
+            resizable={!locked}
+            selectedKey={selected}
+            onBack={() => setSelected(null)}
+            backLabel="Về danh sách"
+            master={<OrderList items={ORDERS} selected={selected} onSelect={setSelected} />}
+            detail={<OrderDetail order={selectedOrder} />}
+          />
         </div>
         <p className={styles.helper}>
           Ở desktop, chiều rộng pane master là <strong>{width}px</strong>.{' '}
@@ -175,24 +162,20 @@ export function SplitViewDemo() {
       <section className={styles.section}>
         <h4 className={styles.sectionTitle}>Trục dọc (orientation=&quot;vertical&quot;)</h4>
         <div className={`${splitStyles.frame} ${splitStyles.frameVertical}`}>
-          {mounted ? (
-            <SplitView
-              orientation="vertical"
-              masterHeight={height}
-              minSize={100}
-              maxSize={220}
-              onMasterHeightChange={setHeight}
-              selectedKey={selected}
-              onBack={() => setSelected(null)}
-              backLabel="Về danh sách"
-              master={
-                <OrderList items={ORDERS.slice(0, 3)} selected={selected} onSelect={setSelected} />
-              }
-              detail={<OrderDetail order={selectedOrder} />}
-            />
-          ) : (
-            <p className={splitStyles.loading}>Đang tải demo…</p>
-          )}
+          <SplitView
+            orientation="vertical"
+            masterHeight={height}
+            minSize={100}
+            maxSize={220}
+            onMasterHeightChange={setHeight}
+            selectedKey={selected}
+            onBack={() => setSelected(null)}
+            backLabel="Về danh sách"
+            master={
+              <OrderList items={ORDERS.slice(0, 3)} selected={selected} onSelect={setSelected} />
+            }
+            detail={<OrderDetail order={selectedOrder} />}
+          />
         </div>
         <p className={styles.helper}>
           Ở desktop, master nằm trên với chiều cao <strong>{height}px</strong>. Trên mobile cả hai

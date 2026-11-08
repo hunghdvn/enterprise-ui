@@ -11,7 +11,7 @@ import Demo from '../../../components/Demo.astro';
 Dùng cho trang 404 công khai, màn hình 403 khi thiếu quyền, hoặc 500 trong error boundary. Khi nhúng vào một trang đã có `main`, đổi `as="div"` và thường đặt `fill={false}`.
 
 <Demo title="Chuyển giữa 403, 404, 500 và chạy hành động">
-  <ErrorPageDemo client:load />
+  <ErrorPageDemo client:visible />
 </Demo>
 
 ## Cách dùng

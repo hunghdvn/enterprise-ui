@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { Button, Calendar } from '@enterprise-ui/components';
 import styles from './demos.module.css';
-
-function formatDate(date: Date | null): string {
-  if (!date) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}/${date.getFullYear()}`;
-}
+import { formatDate } from './demoUtils';
 
 const NOV_2026 = new Date(2026, 10, 1);
 
