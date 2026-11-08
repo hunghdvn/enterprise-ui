@@ -1,0 +1,106 @@
+---
+title: SplitView
+description: Bố cục master–detail hai pane trên desktop, một pane kèm nút quay lại trên mobile.
+---
+
+import { SplitViewDemo } from '../../../components/demos/SplitViewDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`SplitView` chia màn hình thành pane danh sách (master) và pane chi tiết (detail). Trên desktop hai pane nằm cạnh nhau và có thể kéo để đổi kích thước; từ 768px trở xuống component tự chuyển sang một pane, dùng `selectedKey` để quyết định đang xem danh sách hay chi tiết.
+
+Component phù hợp với hộp thư, danh sách đơn hàng, cây tài liệu — những nơi người dùng chọn một mục rồi xem nội dung mà không rời ngữ cảnh.
+
+<Demo title="Master–detail, kéo đổi kích thước và trục dọc">
+  <SplitViewDemo client:only="react">
+    <p slot="fallback">Đang tải demo…</p>
+  </SplitViewDemo>
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { SplitView } from '@enterprise-ui/components';
+
+interface Order {
+  id: string;
+  name: string;
+  customer: string;
+}
+
+const orders: Order[] = [
+  { id: 'SO-1042', name: 'Đơn SO-1042', customer: 'Công ty Minh Phát' },
+  { id: 'SO-1041', name: 'Đơn SO-1041', customer: 'Nhà máy Đông Á' },
+  { id: 'SO-1040', name: 'Đơn SO-1040', customer: 'Siêu thị An Khang' },
+];
+
+export function Orders() {
+  const [selected, setSelected] = useState<string | null>('SO-1042');
+  const [width, setWidth] = useState(320);
+  const order = orders.find((item) => item.id === selected) ?? null;
+
+  return (
+    <SplitView
+      masterWidth={width}
+      minSize={240}
+      maxSize={480}
+      onMasterWidthChange={setWidth}
+      selectedKey={selected}
+      onBack={() => setSelected(null)}
+      backLabel="Về danh sách"
+      master={
+        <div>
+          {orders.map((item) => (
+            <button key={item.id} type="button" onClick={() => setSelected(item.id)}>
+              {item.name} — {item.customer}
+            </button>
+          ))}
+        </div>
+      }
+      detail={order ? <h2>{order.name}</h2> : <p>Chọn một đơn hàng ở cột bên trái.</p>}
+    />
+  );
+}
+```
+
+## Props
+
+| Prop                   | Kiểu                         | Mặc định       | Mô tả                                                                                         |
+| ---------------------- | ---------------------------- | -------------- | --------------------------------------------------------------------------------------------- |
+| `master`               | `ReactNode`                  | —              | Pane danh sách, thường là `FilterBar` + `Table`.                                              |
+| `detail`               | `ReactNode`                  | —              | Pane chi tiết, thường bắt đầu bằng `PageHeader`.                                              |
+| `selectedKey`          | `string \| null`             | —              | `null` = chưa chọn gì; trên mobile pane master hiển thị một mình.                             |
+| `onBack`               | `() => void`                 | —              | Gọi khi người dùng bấm nút quay lại trên mobile. Caller tự đặt `selectedKey` về `null`.       |
+| `masterWidth`          | `number`                     | `380`          | Chiều rộng master (px) trên trục ngang. Giá trị non-finite fallback về 380.                   |
+| `masterHeight`         | `number`                     | `280`          | Chiều cao master (px) trên trục dọc. Giá trị non-finite fallback về 280.                      |
+| `orientation`          | `'horizontal' \| 'vertical'` | `'horizontal'` | Trục bố cục; `vertical` xếp master lên trên và kéo đổi chiều cao.                             |
+| `resizable`            | `boolean`                    | `true`         | Cho phép kéo tay cầm. `false` khoá pane: không có splitter, size render đúng như truyền vào.  |
+| `minSize`              | `number`                     | `280`          | Giới hạn nhỏ nhất khi pane resizable; giá trị dưới 1 được nâng lên 1.                         |
+| `maxSize`              | `number`                     | `0.8 × track`  | Giới hạn lớn nhất khi pane resizable. `Infinity` = bỏ trần; `NaN` fallback về trần mặc định.  |
+| `onMasterWidthChange`  | `(size: number) => void`     | —              | Báo chiều rộng mới khi kéo hoặc dùng phím; cũng báo một lần khi clamp sửa giá trị truyền vào. |
+| `onMasterHeightChange` | `(size: number) => void`     | —              | Bản trục dọc của `onMasterWidthChange`.                                                       |
+| `backLabel`            | `string`                     | `'Quay lại'`   | Nhãn nút quay lại trên mobile.                                                                |
+
+## Kích thước controlled
+
+`SplitView` không tự lưu kích thước pane. Caller truyền `masterWidth` hoặc `masterHeight` và cập nhật state từ `onMasterWidthChange` / `onMasterHeightChange`. Nếu không truyền handler, tay cầm vẫn render nhưng không phản hồi thao tác kéo hay bàn phím. Callback cũng không được gọi khi pane đang khoá (`resizable={false}`) hoặc trên mobile, vì component không tự render kích thước ở hai chế độ đó.
+
+Khi một giá trị nằm ngoài `minSize`/`maxSize` (hoặc vượt trần đo được từ khung), component render giá trị đã clamp và báo lại đúng một lần để state của caller hội tụ với UI. Với `resizable={false}`, pane là tĩnh: component render đúng con số bạn truyền, không áp dụng bounds và không render splitter.
+
+Bàn phím: focus tay cầm rồi dùng `←`/`→` (trục ngang) hoặc `↑`/`↓` (trục dọc), mỗi bước 8px; giữ `Shift` để bước 32px; `Delete` hoặc `Backspace` đưa về kích thước mặc định.
+
+## Mobile
+
+Từ 768px trở xuống, `SplitView` chỉ render một pane:
+
+- `selectedKey={null}` — hiển thị master.
+- `selectedKey` khác `null` — hiển thị detail kèm nút quay lại; `onBack` do caller xử lý (thường đặt `selectedKey` về `null`).
+
+Khi người dùng chọn một mục, focus được chuyển vào heading đầu tiên của detail; khi quay lại, focus trở về pane master. Component không tự kiểm tra `selectedKey` có tồn tại trong dữ liệu hay không — đó là trách nhiệm của caller.
+
+## Accessibility
+
+- Splitter dùng `role="separator"`, có `aria-valuemin`, `aria-valuenow` (và `aria-valuemax` khi có trần) cùng `aria-orientation` đúng trục.
+- Tay cầm có thể focus bằng `Tab`; phím mũi tên đổi kích thước, `Delete`/`Backspace` đặt lại mặc định.
+- Trên mobile, nút quay lại có tên từ `backLabel` và focus được quản lý khi chuyển pane.
+- Nội dung master và detail nên có heading rõ ràng; screen reader dựa vào heading để định hướng sau khi pane đổi.

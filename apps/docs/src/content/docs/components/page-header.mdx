@@ -1,0 +1,71 @@
+---
+title: PageHeader
+description: Tiêu đề trang kèm mô tả, nút quay lại và khu vực hành động.
+---
+
+import { PageHeaderDemo } from '../../../components/demos/PageHeaderDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`PageHeader` gom tiêu đề, mô tả ngắn và các hành động chính của một trang vào một hàng. Component phù hợp với trang danh sách, trang chi tiết và luồng master–detail nơi người dùng cần quay lại bước trước.
+
+<Demo title="Tiêu đề, mô tả, hành động và nút quay lại">
+  <PageHeaderDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Button, PageHeader } from '@enterprise-ui/components';
+
+export function OrderDetail() {
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <PageHeader
+      title="Đơn hàng SO-1042"
+      subtitle="Công ty Minh Phát · 12 dòng hàng"
+      level={1}
+      onBack={() => history.back()}
+      backLabel="Về danh sách"
+      actions={
+        <>
+          <Button variant="secondary" size="sm">
+            In hoá đơn
+          </Button>
+          <Button size="sm" onClick={() => setEditing((value) => !value)}>
+            {editing ? 'Đang chỉnh sửa' : 'Chỉnh sửa'}
+          </Button>
+        </>
+      }
+    />
+  );
+}
+```
+
+## Props
+
+| Prop        | Kiểu         | Mặc định     | Mô tả                                                    |
+| ----------- | ------------ | ------------ | -------------------------------------------------------- |
+| `title`     | `ReactNode`  | —            | Tiêu đề trang (bắt buộc).                                |
+| `subtitle`  | `ReactNode`  | —            | Dòng mô tả ngắn dưới tiêu đề.                            |
+| `actions`   | `ReactNode`  | —            | Khu vực hành động bên phải — thường là các nút.          |
+| `onBack`    | `() => void` | —            | Khi được truyền, component render thêm nút quay lại.     |
+| `backLabel` | `string`     | `'Quay lại'` | Nhãn của nút quay lại.                                   |
+| `level`     | `1 \| 2`     | `2`          | Cấp thẻ heading của tiêu đề; trang nên dùng `level={1}`. |
+| `className` | `string`     | `''`         | Class CSS bổ sung cho vùng header.                       |
+
+## Cấp heading
+
+`level` chỉ đổi thẻ ngữ nghĩa (`h1` hoặc `h2`), không đổi kích thước hiển thị. Trang thật nên dùng `level={1}` cho tiêu đề chính; khi `PageHeader` nằm trong một section đã có heading cấp 1, dùng mặc định `level={2}`. Các demo trong trang tài liệu giữ mặc định để không sinh thêm `h1`.
+
+## Nội dung dài
+
+Tiêu đề và mô tả được giới hạn một dòng với `text-overflow: ellipsis`; phần actions không co lại và có thể xuống hàng khi thiếu chỗ. Nội dung đầy đủ vẫn nằm trong DOM nên screen reader đọc được, nhưng nếu tiêu đề là thông tin quan trọng, hãy đặt nó ở nơi rộng hơn thay vì phụ thuộc vào ellipsis.
+
+## Accessibility
+
+- `title` là bắt buộc; chọn `level` khớp với cấu trúc heading của trang, không nhảy cấp.
+- Nút quay lại dùng `backLabel` làm tên truy cập; nhãn rỗng sẽ fallback về “Quay lại”.
+- Actions nên là `<button>` hoặc `<a>` có tên rõ ràng; tránh icon đơn lẻ không có `aria-label`.
+- Khu vực actions nằm sau tiêu đề trong DOM, nên thứ tự đọc tự nhiên là tiêu đề → mô tả → hành động.

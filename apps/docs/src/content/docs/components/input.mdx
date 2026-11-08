@@ -1,0 +1,62 @@
+---
+title: Input
+description: Ô nhập một dòng với hai kích thước, trạng thái lỗi và hỗ trợ đầy đủ thuộc tính native.
+---
+
+import { InputDemo } from '../../../components/demos/InputDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Input` bọc `<input>` native, thêm hai kích thước và vùng thông báo lỗi. Component tự sinh `id` nếu bạn không truyền, và tự nối `aria-describedby` với thông báo lỗi.
+
+<Demo title="Nhãn, lỗi, disabled và tìm kiếm có kiểm soát">
+  <InputDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Input } from '@enterprise-ui/components';
+
+export function EmailField() {
+  return (
+    <div>
+      <label htmlFor="email">Email</label>
+      <Input id="email" type="email" placeholder="ten@congty.vn" />
+    </div>
+  );
+}
+```
+
+## Props
+
+| Prop           | Kiểu                                             | Mặc định | Mô tả                                                       |
+| -------------- | ------------------------------------------------ | -------- | ----------------------------------------------------------- |
+| `size`         | `'sm' \| 'md'`                                   | `'sm'`   | Chiều cao ô nhập.                                           |
+| `error`        | `string`                                         | —        | Thông báo lỗi; tự đặt `aria-invalid` và `aria-describedby`. |
+| `value`        | `string`                                         | —        | Giá trị controlled.                                         |
+| `defaultValue` | `string`                                         | —        | Giá trị khởi tạo uncontrolled.                              |
+| `onChange`     | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi giá trị.                                      |
+| `disabled`     | `boolean`                                        | `false`  | Vô hiệu hoá ô nhập.                                         |
+| `type`         | `HTMLInputTypeAttribute`                         | `'text'` | `text`, `search`, `email`, `password`, `number`…            |
+
+Các thuộc tính native khác (`placeholder`, `name`, `required`, `autoComplete`, `aria-*`) được forward nguyên vẹn.
+
+## Nhãn và lỗi
+
+Luôn gắn `<label htmlFor>` với `id` của input. Không dùng placeholder thay cho nhãn: placeholder biến mất khi gõ và không được trình đọc màn hình đọc ổn định.
+
+```tsx
+import { Input } from '@enterprise-ui/components';
+
+<div>
+  <label htmlFor="tax-code">Mã số thuế</label>
+  <Input id="tax-code" error="Mã số thuế phải có 10 hoặc 13 chữ số." />
+</div>;
+```
+
+## Accessibility
+
+- `error` render trong `role="alert"`, được đọc ngay khi xuất hiện.
+- `aria-invalid` được đặt tự động khi có lỗi.
+- Focus ring dùng token `--focus-ring`, đạt tương phản ở cả hai theme.
+- Với ô tìm kiếm, dùng `type="search"` để có nút xoá native trên nhiều trình duyệt.

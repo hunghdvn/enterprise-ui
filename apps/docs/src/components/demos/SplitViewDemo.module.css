@@ -1,0 +1,117 @@
+.frame {
+  height: 340px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.frame > div {
+  height: 100%;
+}
+
+.frameVertical {
+  height: 320px;
+}
+
+.list {
+  display: grid;
+}
+
+.listItem {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listItem:last-child {
+  border-bottom: 0;
+}
+
+.listItem:hover {
+  background: var(--surface-muted);
+}
+
+.listItem[data-active='true'] {
+  background: var(--nav-active-bg);
+  border-left-color: var(--color-blue-600);
+}
+
+.listItem:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.listName {
+  font-weight: 600;
+}
+
+.listMeta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.detailBody {
+  display: grid;
+  gap: 1rem;
+}
+
+.fields {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.fields > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fields > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.fields dt {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.fields dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.placeholder {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .frame,
+  .frameVertical {
+    height: auto;
+    min-height: 280px;
+  }
+
+  .lockButton {
+    display: none;
+  }
+}

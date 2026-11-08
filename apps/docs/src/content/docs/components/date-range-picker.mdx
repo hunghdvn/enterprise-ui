@@ -1,0 +1,66 @@
+---
+title: DateRangePicker
+description: Chọn khoảng ngày qua lịch tháng và các preset nhanh, có trạng thái disabled.
+---
+
+import { DateRangePickerDemo } from '../../../components/demos/DateRangePickerDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`DateRangePicker` gồm một trigger hiển thị khoảng đang chọn và một panel lịch tháng với bốn preset. Component thuần trình bày: bạn giữ `value: DateRange` trong state, còn mọi ràng buộc như ngày tối thiểu/tối đa hay kiểm tra hợp lệ đều do parent quyết định.
+
+<Demo title="Khoảng ngày, preset và trạng thái disabled">
+  <DateRangePickerDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { DateRangePicker } from '@enterprise-ui/components';
+import type { DateRange } from '@enterprise-ui/components';
+
+export function ReportRange() {
+  const [range, setRange] = useState<DateRange>({ from: null, to: null });
+
+  return (
+    <DateRangePicker
+      value={range}
+      onChange={setRange}
+      placeholder="Chọn khoảng ngày báo cáo"
+      aria-label="Khoảng ngày báo cáo"
+    />
+  );
+}
+```
+
+`value` và `onChange` là bắt buộc — không có chế độ uncontrolled hay `defaultValue`. Khi chưa chọn, trigger hiện `placeholder`. Khi chỉ có một đầu, trigger hiện dạng `02/11/2026 → ...`.
+
+## Cách chọn
+
+- Click ngày lần đầu đặt `from` và xoá `to`.
+- Click ngày lần hai đặt `to`; nếu ngày đó sớm hơn `from`, hai đầu được hoán đổi để `from <= to`.
+- Click lần ba bắt đầu một khoảng mới.
+- Bốn preset cố định: **Hôm nay**, **7 ngày qua**, **30 ngày qua**, **Tháng này**. Preset phát `onChange` và đóng panel, trả focus về trigger.
+- Chọn ngày thường không tự đóng panel; bấm <kbd>Escape</kbd>, click ra ngoài, cuộn trang hoặc chuyển focus ra khỏi vùng để đóng.
+
+## Props
+
+| Prop          | Kiểu                         | Mặc định                        | Mô tả                                          |
+| ------------- | ---------------------------- | ------------------------------- | ---------------------------------------------- |
+| `value`       | `DateRange`                  | —                               | Khoảng ngày đang chọn (controlled, bắt buộc).  |
+| `onChange`    | `(range: DateRange) => void` | —                               | Nhận khoảng mới khi chọn ngày hoặc bấm preset. |
+| `placeholder` | `string`                     | `'Chọn khoảng ngày'`            | Chữ hiện trên trigger khi chưa có đầu nào.     |
+| `size`        | `'sm' \| 'md'`               | `'sm'`                          | Chiều cao trigger.                             |
+| `disabled`    | `boolean`                    | `false`                         | Vô hiệu hoá trigger và không cho mở panel.     |
+| `className`   | `string`                     | —                               | Lớp bổ sung cho phần vỏ.                       |
+| `aria-label`  | `string`                     | — (panel: `'Chọn khoảng ngày'`) | Nhãn cho trigger; panel dùng cùng nhãn.        |
+
+`DateRange` là object `{ from: Date | null; to: Date | null }`: cả hai đầu đều có thể là `null`, và `from <= to` được component đảm bảo khi bạn chọn ngày.
+
+## Accessibility
+
+- Trigger là `<button>` với `aria-haspopup="dialog"`, `aria-expanded` và `aria-controls` trỏ tới panel khi mở.
+- Panel có `role="dialog"` và nhận focus khi mở; <kbd>Escape</kbd> đóng panel và trả focus về trigger.
+- Mỗi ngày là một `<button>` thật, nên <kbd>Tab</kbd> và <kbd>Enter</kbd>/<kbd>Space</kbd> hoạt động theo mặc định của trình duyệt; hai đầu khoảng có `aria-selected="true"`.
+- Click ra ngoài, cuộn trang hoặc focus rời khỏi vùng đều đóng panel. Vì panel định vị `fixed`, nó không bị cắt bởi container cuộn.
+- Component không tự giới hạn ngày hay báo lỗi; nếu nghiệp vụ cần `min`/`max`, hãy lọc trong `onChange` và hiển thị thông báo bên ngoài.

@@ -1,0 +1,59 @@
+---
+title: Toast
+description: Thông báo tạm thời ở góc phải dưới với ba tone, tự ẩn và xếp chồng.
+---
+
+import { ToastDemo } from '../../../components/demos/ToastDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Toast` dành cho phản hồi ngắn sau một hành động: đã lưu, đồng bộ xong, hoặc lỗi mạng. Toasts sống trong một region cố định và tự biến mất; chúng không chặn tương tác.
+
+<Demo title="Ba tone và xếp chồng">
+  <ToastDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Button, ToastProvider, useToast } from '@enterprise-ui/components';
+
+function SaveButton() {
+  const { toast } = useToast();
+  return <Button onClick={() => toast.success('Đã lưu đơn hàng')}>Lưu</Button>;
+}
+
+export function App() {
+  return (
+    <ToastProvider duration={3000}>
+      <SaveButton />
+    </ToastProvider>
+  );
+}
+```
+
+## ToastProvider
+
+| Prop       | Kiểu        | Mặc định | Mô tả                                        |
+| ---------- | ----------- | -------- | -------------------------------------------- |
+| `children` | `ReactNode` | —        | Cây ứng dụng cần gọi `useToast()`.           |
+| `duration` | `number`    | `3000`   | Thời gian tự ẩn của mỗi toast, tính bằng ms. |
+
+Provider lồng nhau có duration riêng. Đặt provider gần khu vực cần thông báo, không cần bọc toàn app nếu chỉ một màn hình dùng.
+
+## API `useToast()`
+
+| Thành viên      | Kiểu                                          | Mô tả                                |
+| --------------- | --------------------------------------------- | ------------------------------------ |
+| `toast.success` | `(message: string) => void`                   | Toast tone thành công.               |
+| `toast.error`   | `(message: string) => void`                   | Toast tone lỗi, dùng `role="alert"`. |
+| `toast.show`    | `(message: string, tone?: ToastTone) => void` | Tone tùy chọn, mặc định `info`.      |
+| `toasts`        | `ToastItem[]`                                 | Danh sách toast đang hiển thị.       |
+
+Không có tone `warning`; chọn `error` hoặc `info` tùy ngữ cảnh.
+
+## Accessibility
+
+- Region dùng `aria-live="polite"`; tone lỗi dùng `role="alert"` để được đọc ngay.
+- Mỗi toast có nút đóng, huỷ timer tương ứng.
+- Khi provider unmount, mọi timer đang chờ được dọn sạch.
+- Không dùng toast cho thông tin cần người dùng quyết định; dùng modal hoặc inline message.

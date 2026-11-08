@@ -1,0 +1,76 @@
+---
+title: Drawer
+description: Bảng trượt neo cạnh phải cho nội dung phụ, khoá cuộn nền và trap focus.
+---
+
+import { DrawerDemo } from '../../../components/demos/DrawerDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Drawer` là panel trượt từ cạnh phải, dùng cho luồng phụ mà người dùng không nên rời khỏi danh sách: xem nhanh chi tiết, bộ lọc, nhật ký hoạt động. Component controlled qua `open` + `onClose`; nó không tự mở, tự đóng hay giữ dữ liệu. Dùng `Modal` khi cần chặn hoàn toàn và yêu cầu quyết định; dùng `Drawer` khi vẫn muốn giữ ngữ cảnh trang phía sau.
+
+<Demo title="Nội dung dài, chi tiết đơn và bộ lọc">
+  <DrawerDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Button, Drawer, Input } from '@enterprise-ui/components';
+
+export function FilterDrawer() {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Bộ lọc
+      </Button>
+      <Drawer open={open} onClose={() => setOpen(false)} title="Bộ lọc đơn hàng">
+        <label htmlFor="order-search">Tìm kiếm</label>
+        <Input
+          id="order-search"
+          placeholder="Mã đơn, khách hàng…"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="ghost" onClick={() => setSearch('')}>
+            Đặt lại
+          </Button>
+          <Button onClick={() => setOpen(false)}>Áp dụng</Button>
+        </div>
+      </Drawer>
+    </>
+  );
+}
+```
+
+## Props
+
+| Prop       | Kiểu         | Mặc định | Mô tả                                                          |
+| ---------- | ------------ | -------- | -------------------------------------------------------------- |
+| `open`     | `boolean`    | —        | Trạng thái mở; khi `false` component không render gì.          |
+| `onClose`  | `() => void` | —        | Gọi khi bấm ✕, nhấn `Escape` hoặc bấm vùng nền.                |
+| `title`    | `string`     | —        | Tiêu đề header, đồng thời là `aria-label` của panel. Bắt buộc. |
+| `children` | `ReactNode`  | —        | Nội dung thân drawer, kể cả hàng nút hành động.                |
+
+Component không có prop `placement`, `size`, `footer` hay `closeOnOverlay`. Panel luôn neo bên phải với chiều rộng `min(360px, 90vw)` và chiều cao toàn màn hình; muốn bố cục khác, hãy đặt nội dung tương ứng vào `children`.
+
+## Hành vi
+
+- Thanh cuộn trang nền bị khoá trong lúc drawer mở.
+- Focus được đưa vào panel sau khi mount, ưu tiên control `autoFocus` nếu caller đã chỉ định; `Tab`/`Shift+Tab` quẩn trong panel.
+- `Escape` và bấm vùng nền gọi `onClose`; click bên trong panel không đóng.
+- Overlay chỉ đóng khi thao tác nhấn bắt đầu trên chính overlay — kéo chọn chữ trong panel rồi thả ra ngoài không vô tình đóng drawer.
+- Khi đóng, focus trả về phần tử đã mở drawer. Drawer mở chồng trên modal: lớp trên cùng nhận `Escape`, `Tab` và focus ban đầu.
+- Nội dung dài tự cuộn trong thân drawer; header giữ nguyên.
+
+## Accessibility
+
+- `title` là bắt buộc để panel có tên; không có drawer không tên.
+- Nút đóng có nhãn `Đóng`; giữ thứ tự tab tự nhiên, đặt hành động chính ở cuối `children`.
+- Không mở drawer ngay khi trang tải — luôn bắt đầu từ hành động của người dùng.
+- Panel có `role="dialog"`, `aria-modal="true"`; nội dung phía sau không nhận focus trong lúc mở.
+- Với form dài, đặt nút Lưu/Áp dụng trong `children` để chúng nằm trong vùng trap focus.

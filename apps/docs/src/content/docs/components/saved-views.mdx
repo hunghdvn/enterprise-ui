@@ -1,0 +1,102 @@
+---
+title: SavedViews
+description: Lưu và áp lại bộ lọc đã đặt tên, kèm popover quản lý view và trạng thái vô hiệu hoá.
+---
+
+import { SavedViewsDemo } from '../../../components/demos/SavedViewsDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`SavedViews` là widget quản lý bộ lọc đã lưu. Component không biết cấu trúc filter: `value` là snapshot do parent định nghĩa (generic `T`), còn parent chịu trách nhiệm áp snapshot đó vào state tìm kiếm, trạng thái hay khoảng ngày.
+
+<Demo title="Áp, lưu và xoá view cùng FilterBar">
+  <SavedViewsDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { SavedViews } from '@enterprise-ui/components';
+import type { SavedView } from '@enterprise-ui/components';
+
+interface Filters {
+  search: string;
+  status: string;
+}
+
+const EMPTY: Filters = { search: '', status: '' };
+
+export function OrderViews() {
+  const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [views, setViews] = useState<SavedView<Filters>[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  return (
+    <SavedViews<Filters>
+      views={views}
+      activeId={activeId}
+      onApply={(id) => {
+        const view = views.find((item) => item.id === id);
+        if (!view) return;
+        setFilters(view.value);
+        setActiveId(id);
+      }}
+      onSave={(label) => {
+        const id = `view-${Date.now()}`;
+        setViews((current) => [...current, { id, label, value: filters }]);
+        setActiveId(id);
+      }}
+      onDelete={(id) => {
+        setViews((current) => current.filter((view) => view.id !== id));
+        setActiveId((current) => (current === id ? null : current));
+      }}
+    />
+  );
+}
+```
+
+## Mô hình dữ liệu
+
+```ts
+interface SavedView<T> {
+  id: string;
+  label: string;
+  /** Snapshot bộ lọc — parent tự định nghĩa T. */
+  value: T;
+}
+```
+
+`value` nên là bản chụp tại thời điểm lưu. Nếu chọn lưu một object filter có thể bị mutate, hãy clone trước; React state thường đã tạo object mới nên ví dụ trên an toàn.
+
+## Props
+
+| Prop              | Kiểu                      | Mặc định        | Mô tả                                                   |
+| ----------------- | ------------------------- | --------------- | ------------------------------------------------------- |
+| `views`           | `SavedView<T>[]`          | —               | Danh sách view đã lưu.                                  |
+| `activeId`        | `string \| null`          | —               | View đang áp; `null` nghĩa là bộ lọc tự do.             |
+| `onApply`         | `(id: string) => void`    | —               | Bắt buộc; gọi khi chọn một view.                        |
+| `onSave`          | `(label: string) => void` | —               | Bắt buộc; nhận label đã trim.                           |
+| `onDelete`        | `(id: string) => void`    | —               | Truyền vào để hiện nút × trên từng view.                |
+| `size`            | `'sm' \| 'md'`            | `'sm'`          | Chiều cao trigger.                                      |
+| `disabled`        | `boolean`                 | `false`         | Vô hiệu hoá trigger và đóng popover đang mở.            |
+| `savePlaceholder` | `string`                  | `'Tên view...'` | Placeholder của ô nhập tên view.                        |
+| `label`           | `string`                  | `'Views'`       | Nhãn trigger khi chưa áp view nào.                      |
+| `className`       | `string`                  | —               | Lớp bổ sung cho vỏ widget.                              |
+| `aria-label`      | `string`                  | —               | Ghi đè tên trigger; mặc định lấy từ nhãn đang hiển thị. |
+
+## Hành vi
+
+- Trigger hiển thị label của view đang áp; khi `activeId` là `null` hoặc không khớp view nào, trigger dùng `label`.
+- Ô lưu cắt khoảng trắng; nút lưu bị khoá khi tên rỗng. `Enter` trong ô lưu cũng lưu view và đóng popover.
+- Chọn view hoặc lưu view sẽ đóng popover; xoá view thì popover vẫn mở để xoá tiếp.
+- Xoá view đang áp **không** tự đổi `activeId` — parent phải đặt lại như ví dụ trên.
+- `id` phải duy nhất. Component cảnh báo trong môi trường dev nếu phát hiện id trùng.
+- Sửa bộ lọc bên ngoài không tự bỏ `activeId`; parent nên đặt `activeId` về `null` khi người dùng thay đổi filter tự do.
+
+## Accessibility
+
+- Trigger dùng `role="combobox"` với `aria-haspopup="listbox"`, `aria-expanded` và `aria-activedescendant` theo APG select-only.
+- Danh sách dùng `role="listbox"` / `role="option"`; view đang áp có `aria-selected="true"`.
+- Nút xoá là phần tử anh em của option, không nằm trong `role="option"` — tránh anti-pattern ARIA.
+- Bàn phím: `↑`/`↓` mở popover và di chuyển highlight; `Enter` áp view đang highlight khi popover mở; `Escape` đóng. Focus giữ trên trigger.
+- Không nên đặt `aria-label` nếu nhãn hiển thị đã đủ nghĩa: tên mặc định lấy từ label để giữ quy tắc label-in-name.

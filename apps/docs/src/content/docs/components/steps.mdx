@@ -1,0 +1,77 @@
+---
+title: Steps
+description: Thanh tiến trình nhiều bước có điều hướng, dùng cho wizard và màn hình theo dõi trạng thái.
+---
+
+import { StepsDemo } from '../../../components/demos/StepsDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Steps` hiển thị các bước của một quy trình và cho phép quay lại bước đã qua hoặc tiến tới bước kế tiếp. Component thuần trình bày: parent giữ `currentStep` và nội dung từng bước, `Steps` chỉ vẽ indicator cùng các nút điều hướng.
+
+<Demo title="Wizard tạo đơn và chế độ chỉ đọc">
+  <StepsDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Steps } from '@enterprise-ui/components';
+import type { Step } from '@enterprise-ui/components';
+
+const steps: Step[] = [
+  { id: 'info', label: 'Thông tin đơn' },
+  { id: 'detail', label: 'Chi tiết', optional: true },
+  { id: 'confirm', label: 'Xác nhận' },
+];
+
+export function NewOrderWizard() {
+  const [step, setStep] = useState(0);
+  const done = step >= steps.length;
+
+  if (done) return <p>Đã tạo đơn thành công.</p>;
+
+  return <Steps steps={steps} currentStep={step} onChange={setStep} aria-label="Tạo đơn mới" />;
+}
+```
+
+`currentStep` là index **0-based**. Giá trị bằng `steps.length` nghĩa là đã hoàn tất: mọi marker chuyển sang trạng thái done và component hiện dòng “Hoàn tất tất cả các bước.” Giá trị ngoài khoảng được kẹp về `0…steps.length` khi render.
+
+Nút **Hoàn tất** ở bước cuối phát `onChange(steps.length)`, không phải `steps.length - 1`. Parent dùng chính tín hiệu này để chuyển sang màn hình thành công. Nếu không truyền `onChange`, thanh chỉ để đọc và không render nút điều hướng.
+
+## Props
+
+| Prop          | Kiểu                      | Mặc định     | Mô tả                                                     |
+| ------------- | ------------------------- | ------------ | --------------------------------------------------------- |
+| `steps`       | `Step[]`                  | —            | Danh sách bước, bắt buộc.                                 |
+| `currentStep` | `number`                  | —            | Index bước hiện tại (0-based); `steps.length` = hoàn tất. |
+| `onChange`    | `(index: number) => void` | —            | Nhận index mới, hoặc `steps.length` khi bấm “Hoàn tất”.   |
+| `size`        | `'sm' \| 'md'`            | `'sm'`       | Kích thước marker.                                        |
+| `disabled`    | `boolean`                 | `false`      | Vô hiệu hoá marker và ẩn toàn bộ nút điều hướng.          |
+| `className`   | `string`                  | —            | Lớp bổ sung cho phần vỏ.                                  |
+| `aria-label`  | `string`                  | `'Các bước'` | Nhãn cho danh sách bước.                                  |
+
+### Step
+
+| Trường        | Kiểu        | Mô tả                                                           |
+| ------------- | ----------- | --------------------------------------------------------------- |
+| `id`          | `string`    | Khoá ổn định cho mỗi bước.                                      |
+| `label`       | `ReactNode` | Nhãn hiển thị cạnh marker và trong tên truy cập của nút.        |
+| `description` | `string`    | Có trong type nhưng **hiện chưa được render**; đừng dựa vào nó. |
+| `optional`    | `boolean`   | Hiện gợi ý “tuỳ chọn”; không chặn việc hoàn tất.                |
+
+## Hành vi
+
+- Bấm marker của bước đã hoàn thành hoặc bước hiện tại để quay lại; marker của bước chưa tới bị `disabled`.
+- Bước hiện tại có `aria-current="step"`; bước đã qua hiện icon check thay cho số.
+- Nút **Tiếp theo** chỉ hiện khi còn bước phía sau; **Hoàn tất** thay thế ở bước cuối; **Quay lại** chỉ hiện khi đã qua bước đầu.
+- `disabled` ẩn cả hai nút điều hướng và vô hiệu hoá mọi marker — phù hợp màn hình chỉ xem tiến độ.
+- Component không render nội dung bước; parent tự đặt form hoặc mô tả bên dưới theo `currentStep`.
+
+## Accessibility
+
+- Danh sách bước là `<ol>` có `aria-label` (mặc định “Các bước”).
+- Mỗi marker là `<button>` thật với tên truy cập dạng “1. Thông tin đơn”, nên screen reader đọc được cả số thứ tự và nhãn.
+- Bước hiện tại có `aria-current="step"`; bước chưa tới dùng `disabled` thay vì chỉ làm mờ.
+- Gợi ý “tuỳ chọn” là chữ hiển thị, không chỉ dựa vào màu sắc.
+- Khi wizard chuyển bước, đặt focus vào tiêu đề hoặc trường đầu tiên của nội dung mới để người dùng bàn phím không bị mất ngữ cảnh.

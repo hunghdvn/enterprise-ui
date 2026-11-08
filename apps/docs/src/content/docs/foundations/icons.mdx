@@ -1,0 +1,59 @@
+---
+title: Icon
+description: Bộ icon Lucide đóng gói sẵn, render SVG inline và không cần thêm dependency.
+---
+
+import { IconGallery } from '@enterprise-ui/demo-shared';
+
+Icon được generate từ Lucide và đóng gói trong package dưới dạng SVG inline. Không có icon font, không có request mạng, không cần cài thêm gì.
+
+## Cách dùng
+
+```tsx
+import { Icon } from '@enterprise-ui/components';
+
+export function SearchButton() {
+  return (
+    <button type="button" aria-label="Tìm kiếm">
+      <Icon name="search" size={16} />
+    </button>
+  );
+}
+```
+
+`Icon` mặc định là trang trí: SVG có `aria-hidden="true"`. Khi icon là nội dung duy nhất mang nghĩa, truyền `label`:
+
+```tsx
+import { Icon } from '@enterprise-ui/components';
+
+<Icon name="check-circle" label="Đã xác minh" />;
+```
+
+## Kích thước
+
+`size` nhận số pixel. Các giá trị hay dùng là `14` (trong nút nhỏ), `16` (sidebar, toolbar) và `20–24` (empty state, tiêu đề).
+
+```tsx
+import { Icon } from '@enterprise-ui/components';
+
+<>
+  <Icon name="bell" size={14} />
+  <Icon name="bell" size={16} />
+  <Icon name="bell" size={24} />
+</>;
+```
+
+## Bộ icon đầy đủ
+
+Gõ để lọc theo tên. Bộ icon khá lớn, gallery hiển thị theo trang để giữ trang nhẹ.
+
+<div class="not-content">
+  <IconGallery client:visible headingLevel={2} />
+</div>
+
+## Quy ước
+
+- Tên icon dùng kebab-case, khớp với Lucide: `chevron-down`, `alert-circle`, `file-text`.
+- Icon trong nút nên đặt qua prop `icon` của `Button` để được bọc `aria-hidden` đúng cách.
+- Không dùng icon thay cho nhãn nếu không có `aria-label` hoặc text đi kèm.
+- Nếu cần icon mới, thêm vào pipeline generate trong `packages/components/src/Icon` — đừng chèn SVG thủ công vào component.

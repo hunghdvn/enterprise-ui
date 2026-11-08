@@ -1,0 +1,90 @@
+---
+title: AppShell
+description: Khung ứng dụng quản trị gồm sidebar điều hướng, breadcrumb, header và vùng nội dung.
+---
+
+import { AppShellDemo } from '../../../components/demos/AppShellDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`AppShell` là khung xương cho ứng dụng quản trị: sidebar điều hướng bên trái, header có breadcrumb và khu vực hành động, cùng vùng nội dung bên dưới. Component dựng bố cục, giữ trạng thái thu gọn sidebar và phát sự kiện — việc đổi trang, tải dữ liệu và quản lý nội dung vẫn thuộc về ứng dụng.
+
+Dùng `AppShell` khi bạn cần một khung nhất quán cho nhiều màn hình. Với trang đơn lẻ hoặc landing page, một bố cục đơn giản hơn sẽ phù hợp hơn.
+
+<Demo title="Điều hướng, breadcrumb và thu gọn sidebar">
+  <AppShellDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { AppShell, Icon, Input } from '@enterprise-ui/components';
+import type { NavItem } from '@enterprise-ui/components';
+
+const items: NavItem[] = [
+  { key: 'dashboard', label: 'Tổng quan', icon: <Icon name="home" size={16} /> },
+  { key: 'orders', label: 'Đơn hàng', icon: <Icon name="inbox" size={16} />, badge: 12 },
+  { key: 'customers', label: 'Khách hàng', icon: <Icon name="users" size={16} /> },
+];
+
+export function AdminShell() {
+  const [activeKey, setActiveKey] = useState('dashboard');
+  const [collapsed, setCollapsed] = useState(false);
+  const current = items.find((item) => item.key === activeKey) ?? items[0];
+
+  return (
+    <AppShell
+      sidebar={items}
+      activeKey={activeKey}
+      onNavigate={setActiveKey}
+      sidebarCollapsed={collapsed}
+      onSidebarToggle={setCollapsed}
+      breadcrumb={`Trang chủ / ${current.label}`}
+      headerRight={<Input size="sm" placeholder="Tìm kiếm..." aria-label="Tìm kiếm" />}
+    >
+      <h2>{current.label}</h2>
+    </AppShell>
+  );
+}
+```
+
+## NavItem
+
+Mỗi mục trong `sidebar` là một `NavItem`. `key` và `label` là bắt buộc.
+
+| Trường  | Kiểu        | Mô tả                                                                         |
+| ------- | ----------- | ----------------------------------------------------------------------------- |
+| `key`   | `string`    | Khoá ổn định, dùng để so với `activeKey` và phát ra trong `onNavigate`.       |
+| `label` | `string`    | Nhãn hiển thị; cũng được dùng làm `title` khi sidebar thu gọn.                |
+| `icon`  | `ReactNode` | Icon trang trí; AppShell bọc trong `aria-hidden`. Mặc định dùng icon `inbox`. |
+| `badge` | `number`    | Số hiển thị bên phải mục, ví dụ số đơn chờ xử lý. Chỉ render khi là số.       |
+
+## Props
+
+| Prop                      | Kiểu                           | Mặc định | Mô tả                                                                              |
+| ------------------------- | ------------------------------ | -------- | ---------------------------------------------------------------------------------- |
+| `sidebar`                 | `NavItem[]`                    | —        | Danh sách mục điều hướng.                                                          |
+| `activeKey`               | `string`                       | —        | Khoá của mục đang chọn.                                                            |
+| `onNavigate`              | `(key: string) => void`        | —        | Gọi khi người dùng bấm một mục trong sidebar.                                      |
+| `headerRight`             | `ReactNode`                    | —        | Nội dung bên phải header — ô tìm kiếm, nút hành động, thông báo…                   |
+| `breadcrumb`              | `string`                       | —        | Chuỗi breadcrumb bên trái header.                                                  |
+| `sidebarEmptyState`       | `ReactNode`                    | —        | Nội dung trong vùng điều hướng khi `sidebar` rỗng.                                 |
+| `sidebarCollapsed`        | `boolean`                      | —        | Trạng thái thu gọn controlled. Khi truyền, component không tự đổi.                 |
+| `defaultSidebarCollapsed` | `boolean`                      | —        | Trạng thái thu gọn ban đầu ở chế độ uncontrolled; bỏ trống thì đọc `localStorage`. |
+| `onSidebarToggle`         | `(collapsed: boolean) => void` | —        | Gọi khi người dùng bấm nút thu gọn/mở rộng.                                        |
+| `children`                | `ReactNode`                    | —        | Nội dung vùng body bên dưới header.                                                |
+
+## Thu gọn sidebar
+
+Nếu truyền `sidebarCollapsed`, component ở chế độ controlled: nó chỉ render trạng thái nhận được và gọi `onSidebarToggle` với giá trị mới. Ứng dụng phải cập nhật state, nếu không sidebar sẽ đứng yên.
+
+Ở chế độ uncontrolled, giá trị khởi tạo lấy từ `defaultSidebarCollapsed` nếu được truyền; nếu không, component đọc `localStorage` với khoá `eui-sidebar-collapsed`. Mỗi lần người dùng bấm nút, component ghi trạng thái mới vào khoá này. Vì vậy khi nhúng nhiều `AppShell` trong cùng một trang (như trang tài liệu này), hãy dùng chế độ controlled để các shell không ghi đè trạng thái của nhau.
+
+Header luôn được render kể cả khi thiếu `breadcrumb` và `headerRight`. `sidebarEmptyState` chỉ xuất hiện khi `sidebar` là mảng rỗng, nên có thể dùng nó cho trạng thái “không tìm thấy mục nào” sau khi lọc.
+
+## Accessibility
+
+- Sidebar là `<aside aria-label="Primary">` chứa `<nav>`; mục đang chọn có `aria-current="page"`.
+- Nút thu gọn có `aria-expanded` và nhãn động “Thu gọn/Mở rộng thanh điều hướng”.
+- Icon được bọc `aria-hidden`; thông tin quan trọng phải nằm trong `label`, không chỉ ở icon.
+- Ở màn hình hẹp (≤768px), sidebar thu thành rail 64px và ẩn nhãn; `title` của mỗi mục vẫn giữ tên đầy đủ cho chuột, nhưng đừng dựa vào đó thay cho biểu diễn trực quan rõ ràng.

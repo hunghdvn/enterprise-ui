@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 /**
- * check-docs-snippets — typecheck every docs page's `const code = \`...\`` snippet
- * against the built @enterprise-ui/components (S8, spec: docs/superpowers/specs/
- * 2026-10-20-docs-demo-sync-design.md).
+ * check-docs-snippets — typecheck every TSX/TS code block in the Astro docs.
  *
- * One snippet = one .tsx file = one error isolate: a broken snippet cannot mask
- * the others. Temp output lives under node_modules/.docs-snippets (gitignored,
- * wiped on install) — never inside apps/docs/src.
+ * The docs content lives under `apps/docs/src/content/docs`. Each
+ * fenced `tsx` / `ts` block is one file in a temp tsconfig, so one broken
+ * snippet cannot mask the others. Temp output lives under
+ * `node_modules/.docs-snippets` (gitignored, wiped on install) — never inside
+ * `apps/docs/src`.
  *
- * Exit codes: 0 = all snippets compile; 1 = at least one snippet failed, an
- * extraction guard tripped, or the harness itself failed.
+ * Snippets must be self-contained: they are typechecked exactly as a reader
+ * would copy them, with the docs tsconfig (which maps
+ * `@enterprise-ui/components` to the package source).
+ *
+ * Exit codes: 0 = all snippets compile; 1 = at least one snippet failed, a
+ * fence was unclosed, or the harness itself failed.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,102 +21,108 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const pagesDir = path.join(repoRoot, 'apps', 'docs', 'src', 'pages');
+const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
 const outDir = path.join(repoRoot, 'node_modules', '.docs-snippets');
 // `tsc` is not on PATH in CI/npm-scripts contexts — use the hoisted workspace
 // install directly, falling back to PATH for exotic setups.
 const tscBin = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const tscCmd = existsSync(tscBin) ? tscBin : 'tsc';
 
-/** Recursively collect *.tsx page files. */
-function pageFiles(dir) {
+const CHECKED_LANGS = new Set(['tsx', 'ts']);
+
+/** Recursively collect *.md and *.mdx content files. */
+function contentFiles(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...pageFiles(full));
-    else if (entry.name.endsWith('.tsx')) out.push(full);
+    if (entry.isDirectory()) out.push(...contentFiles(full));
+    else if (entry.name.endsWith('.md') || entry.name.endsWith('.mdx')) out.push(full);
   }
   return out;
 }
 
 /**
- * Extract the body of a top-level `const code = \`...\`` template literal.
- * The established docs pattern is exactly one such const per page, terminated
- * by `` `; ``. All three bounds are ENFORCED by the caller — a violation means
- * the checked text is not what a reader copies (or is not checked at all), so
- * it must fail loudly instead of silently shrinking coverage (round-1 #1 and
- * round-2 #1).
+ * Extract fenced code blocks with their language. A fence that opens but
+ * never closes is an error — silently truncating the last snippet would keep
+ * CI green while the page renders differently from what was checked.
+ *
+ * Opening fences may be indented (list items) and carry an info string such
+ * as `tsx title="App.tsx"`; the language is the first word. An opening fence
+ * with no language is rejected instead of silently becoming unchecked prose.
+ * Body lines are dedented by the fence's indentation so the snippet typechecks
+ * as a reader would copy it.
  */
-function extractSnippet(source) {
-  const marker = 'const code = `';
-  const start = source.indexOf(marker);
-  if (start === -1) return null; // legitimately no snippet on this page
-  const bodyStart = start + marker.length;
-  const end = source.indexOf('`;', bodyStart);
-  if (end === -1) {
-    return {
-      error:
-        "marker found but the snippet is not terminated by '`;' — extend the harness before changing the terminator (ASI/split lines count as a violation)",
-    };
+function extractFences(source, file) {
+  const lines = source.split('\n');
+  const blocks = [];
+  let open = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!open) {
+      const match = line.match(/^(\s*)(`{3,})(.*)$/);
+      if (!match) continue;
+      const info = match[3].trim();
+      const lang = info.split(/\s+/)[0]?.toLowerCase() ?? '';
+      if (!lang) {
+        throw new Error(`${file}:${index + 1}: code fence is missing a language`);
+      }
+      open = { lang, indent: match[1], body: [], line: index + 1 };
+      continue;
+    }
+    if (/^\s*`{3,}\s*$/.test(line)) {
+      blocks.push(open);
+      open = null;
+      continue;
+    }
+    open.body.push(line.startsWith(open.indent) ? line.slice(open.indent.length) : line);
   }
-  return {
-    body: source.slice(bodyStart, end),
-    // A second marker means a page grew a multi-snippet layout the harness
-    // does not cover yet.
-    markers: source.split(marker).length - 1,
-  };
+
+  if (open) {
+    throw new Error(`${file}:${open.line}: unclosed \`\`\`${open.lang} fence`);
+  }
+  return blocks;
 }
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-const files = pageFiles(pagesDir);
+const files = contentFiles(contentDir);
 let snippets = 0;
 const guardFailures = [];
 
 for (const file of files) {
-  const rel = path.relative(pagesDir, file);
-  const name = rel.replace(/[/.]/g, '-').replace(/\.tsx$/, '');
-  const found = extractSnippet(readFileSync(file, 'utf8'));
-  if (found === null) {
-    console.log(`SKIP  ${rel} (no const code snippet)`);
+  const rel = path.relative(contentDir, file);
+  const source = readFileSync(file, 'utf8');
+  const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
+  let blocks;
+  try {
+    blocks = extractFences(source, rel);
+  } catch (error) {
+    guardFailures.push(String(error instanceof Error ? error.message : error));
     continue;
   }
-  if (found.error) {
-    guardFailures.push(`${rel}: ${found.error}`);
-    continue;
-  }
-  // Soundness guards: silently checking a fragment (nested backtick) or
-  // skipping a second snippet would keep CI green while the real snippet is
-  // broken — report and fail instead (round-1 review #1).
-  if (found.markers > 1) {
-    guardFailures.push(
-      `${rel}: ${found.markers} 'const code' snippets found — the harness checks one per page; extend it before adding a second.`,
-    );
-    continue;
-  }
-  if (found.body.includes('`')) {
-    guardFailures.push(
-      `${rel}: snippet contains a nested backtick — the extractor truncates at the first closing backtick-plus-semicolon; extend it before teaching template literals.`,
-    );
-    continue;
-  }
-  snippets += 1;
-  // Re-escape nothing: the snippet body is written verbatim — it must
-  // typecheck exactly as a reader would copy it.
-  writeFileSync(path.join(outDir, `${name}.tsx`), found.body);
+
+  blocks.forEach((block, index) => {
+    if (!CHECKED_LANGS.has(block.lang)) return;
+    const body = block.body.join('\n');
+    if (!body.trim()) return;
+    snippets += 1;
+    const ext = block.lang === 'ts' ? 'ts' : 'tsx';
+    writeFileSync(path.join(outDir, `${name}-${index}.${ext}`), `${body}\n`);
+  });
 }
 
 if (guardFailures.length > 0) {
-  console.error(`\n✖ ${guardFailures.length} extraction guard failure(s):`);
-  for (const f of guardFailures) console.error(`  ✖ ${f}`);
+  console.error(`\n✖ ${guardFailures.length} docs fence failure(s):`);
+  for (const failure of guardFailures) console.error(`  ✖ ${failure}`);
   process.exit(1);
 }
 
 const tsconfig = {
   extends: path.relative(outDir, path.join(repoRoot, 'apps', 'docs', 'tsconfig.json')),
   compilerOptions: { noEmit: true },
-  include: ['*.tsx'],
+  include: ['*.ts', '*.tsx'],
 };
 writeFileSync(path.join(outDir, 'tsconfig.json'), `${JSON.stringify(tsconfig, null, 2)}\n`);
 
@@ -127,12 +137,12 @@ try {
   const broken = new Set(
     tsc
       .split('\n')
-      .map((line) => line.match(/\.docs-snippets[/\\](.+?\.tsx)\(/)?.[1])
+      .map((line) => line.match(/\.docs-snippets[/\\](.+?\.(?:tsx|ts))\(/)?.[1])
       .filter(Boolean),
   );
   if (broken.size > 0) {
     console.error(`\n✖ ${broken.size} snippet(s) failed typecheck:`);
-    for (const f of broken) console.error(`  ✖ ${f}`);
+    for (const file of broken) console.error(`  ✖ ${file}`);
     console.error('\nFull compiler output:\n');
     console.error(tsc);
     process.exit(1);

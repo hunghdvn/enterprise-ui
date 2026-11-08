@@ -1,0 +1,122 @@
+---
+title: Form
+description: Form và Field phối hợp để gắn nhãn, mô tả và phân phối lỗi cho control con.
+---
+
+import { FormDemo } from '../../../components/demos/FormDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Form` là `<form>` không validation native, nhận map `errors` và chia sẻ qua context. `Field` bọc một control duy nhất, tự sinh `id`, nối `<label>` cùng các thuộc tính ARIA, và lấy lỗi theo `name`.
+
+<Demo title="Kiểm tra khi submit, lỗi tường minh và bố cục lưới">
+  <FormDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+Đặt `name` trên `Field` trùng với khoá trong `errors`; không cần truyền `error` cho từng field. `Form` luôn đặt `noValidate`, nên hãy tự kiểm tra dữ liệu trong `onSubmit` rồi cập nhật `errors`.
+
+```tsx
+import { useState, type FormEvent } from 'react';
+import { Button, Field, Form, Input } from '@enterprise-ui/components';
+
+export function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next: Record<string, string> = {};
+
+    if (!email.includes('@')) next.email = 'Email không hợp lệ.';
+    if (password.length < 6) next.password = 'Mật khẩu tối thiểu 6 ký tự.';
+    setErrors(next);
+  }
+
+  return (
+    <Form errors={errors} onSubmit={handleSubmit}>
+      <Field label="Email" name="email" required>
+        <Input
+          type="email"
+          placeholder="ban@congty.vn"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </Field>
+      <Field label="Mật khẩu" name="password" required>
+        <Input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </Field>
+      <Button type="submit">Đăng nhập</Button>
+    </Form>
+  );
+}
+```
+
+## Lỗi từ context
+
+`Field` ưu tiên prop `error` tường minh; nếu không có, nó tra `errors[name]` từ `Form`. Nhờ vậy một map lỗi duy nhất phục vụ cả form:
+
+```tsx
+import { Field, Form, Input } from '@enterprise-ui/components';
+
+const errors = {
+  email: 'Email đã được sử dụng.',
+  taxCode: 'Mã số thuế không hợp lệ.',
+};
+
+export function AccountFields() {
+  return (
+    <Form errors={errors}>
+      <Field label="Email" name="email">
+        <Input type="email" />
+      </Field>
+      <Field label="Mã số thuế" name="taxCode" hint="10 hoặc 13 chữ số">
+        <Input />
+      </Field>
+    </Form>
+  );
+}
+```
+
+## Props
+
+### Form
+
+| Prop        | Kiểu                                          | Mặc định | Mô tả                                                                 |
+| ----------- | --------------------------------------------- | -------- | --------------------------------------------------------------------- |
+| `errors`    | `Record<string, string>`                      | `{}`     | Map lỗi theo `name` của Field; Field khớp sẽ tự hiển thị và gắn ARIA. |
+| `onSubmit`  | `(event: FormEvent<HTMLFormElement>) => void` | —        | Chuẩn HTML; gọi `preventDefault()` nếu không muốn tải lại trang.      |
+| `className` | `string`                                      | `''`     | Gộp vào class của `<form>` để đổi bố cục, ví dụ lưới nhiều cột.       |
+| `...rest`   | `FormHTMLAttributes<HTMLFormElement>`         | —        | Các thuộc tính form native khác (`action`, `method`, `aria-*`…).      |
+
+### Field
+
+| Prop       | Kiểu           | Mặc định | Mô tả                                                                 |
+| ---------- | -------------- | -------- | --------------------------------------------------------------------- |
+| `label`    | `string`       | —        | Bắt buộc; render `<label htmlFor>` trỏ tới id của control.            |
+| `children` | `ReactElement` | —        | Một control duy nhất như `Input`, `Select`, `Checkbox`.               |
+| `name`     | `string`       | —        | Khoá tra trong `errors` của Form.                                     |
+| `error`    | `string`       | —        | Lỗi tường minh cho riêng field; ưu tiên hơn lỗi cùng tên từ context.  |
+| `hint`     | `string`       | —        | Chú thích dưới control, nối vào `aria-describedby` chứ không vào tên. |
+| `required` | `boolean`      | `false`  | Hiện dấu `*` và gắn `aria-required` nếu control chưa tự khai báo.     |
+
+## Ghi chú
+
+- `Form` luôn có `noValidate`; không thể tắt qua props. Trình duyệt sẽ không chặn submit hay hiện bong bóng lỗi mặc định.
+- `Field` nhân bản control để gắn `id`, `aria-invalid`, `aria-required` và `aria-describedby`; chỉ truyền đúng một phần tử React, không dùng fragment hoặc nhiều control.
+- `id` có sẵn trên control được giữ nguyên; nếu thiếu, Field tự sinh. `aria-describedby` cũ được gộp với id của hint và error.
+- `Field` chỉ nhận diện trực tiếp `Checkbox` là control tự render label. Với component tự vẽ label khác, Field vẫn render thêm `<label>` và có thể tạo hai nhãn cho một control.
+- `Field` không có prop `className`; muốn canh cột hoặc style wrapper, bọc nó trong một `<div>` của bạn.
+
+## Accessibility
+
+- Nhãn hiển thị luôn gắn với control qua `htmlFor`/`id`; không dùng placeholder thay cho nhãn.
+- Lỗi render trong `role="alert"` và tự đặt `aria-invalid` trên control, nên được đọc ngay khi xuất hiện.
+- Hint và error nằm trong `aria-describedby`; chúng không lẫn vào tên truy cập của control.
+- Dấu `*` của `required` được ẩn với trình đọc màn hình; thông tin bắt buộc truyền qua `aria-required`.
+- Với `Checkbox`, Field dùng văn bản thay vì thêm `<label>` để tránh nhân đôi tên truy cập.

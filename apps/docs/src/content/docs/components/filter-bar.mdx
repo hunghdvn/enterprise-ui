@@ -1,0 +1,79 @@
+---
+title: FilterBar
+description: Thanh lọc dữ liệu gồm ô tìm kiếm, các control lọc thêm, nút đặt lại và nút chuyển mật độ.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { FilterBarDemo } from '../../../components/demos/FilterBarDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`FilterBar` gom ô tìm kiếm, các control lọc do bạn truyền vào, nút **Đặt lại** và nút chuyển mật độ thành một hàng. Component chỉ hiển thị và báo thay đổi qua callback — nó không tự lọc dữ liệu, không debounce và không giữ state. Dùng phía trên `Table`, danh sách đơn hàng hoặc bất kỳ màn hình dữ liệu nào cần lọc.
+
+<Demo title="Tìm kiếm, bộ lọc và đặt lại">
+  <FilterBarDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { FilterBar, Select } from '@enterprise-ui/components';
+
+export function OrdersFilterBar() {
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+
+  return (
+    <FilterBar
+      searchValue={search}
+      onSearch={setSearch}
+      searchPlaceholder="Tìm mã đơn, khách hàng…"
+      filters={
+        <Select
+          aria-label="Trạng thái"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+        >
+          <option value="">Tất cả trạng thái</option>
+          <option value="open">Chờ duyệt</option>
+          <option value="done">Hoàn thành</option>
+        </Select>
+      }
+      onReset={() => {
+        setSearch('');
+        setStatus('');
+      }}
+    />
+  );
+}
+```
+
+`onSearch` được gọi sau **mỗi lần gõ**, với toàn bộ chuỗi mới. Nếu việc lọc tốn kém, hãy debounce ở phía parent trước khi gọi API. `onReset` chỉ hiện nút; parent phải tự xoá toàn bộ state lọc khi nhận callback.
+
+`filters` nhận bất kỳ `ReactNode` nào — thường là `Select`, `Input type="date"` hoặc một nhóm nút. Các control này cần nhãn riêng (`aria-label` hoặc `<label>`), vì `FilterBar` không bọc chúng trong fieldset hay đặt nhãn chung.
+
+## Props
+
+| Prop                | Kiểu                      | Mặc định                                             | Mô tả                                         |
+| ------------------- | ------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| `searchValue`       | `string`                  | —                                                    | Giá trị ô tìm kiếm (controlled, bắt buộc).    |
+| `onSearch`          | `(value: string) => void` | —                                                    | Gọi mỗi khi nội dung ô tìm kiếm đổi.          |
+| `filters`           | `ReactNode`               | —                                                    | Các control lọc thêm, render cạnh ô tìm kiếm. |
+| `onReset`           | `() => void`              | —                                                    | Hiện nút “Đặt lại” và gọi khi bấm.            |
+| `densityToggle`     | `boolean`                 | `true` trong `ThemeProvider`, `false` ngoài provider | Hiện nút chuyển mật độ.                       |
+| `searchPlaceholder` | `string`                  | `'Tìm kiếm…'`                                        | Chữ gợi ý trong ô tìm kiếm.                   |
+
+Không có prop `className` hay `aria-label`: vỏ thanh là `role="search"`, ô nhập luôn có nhãn “Tìm kiếm”. Nếu trang có nhiều vùng tìm kiếm, hãy đặt tiêu đề hiển thị cho từng vùng để người dùng phân biệt.
+
+<Aside type="caution" title="densityToggle ngoài ThemeProvider">
+  Truyền `densityToggle` (tức `true`) khi không có `ThemeProvider` sẽ **ném lỗi**, vì không có gì để
+  chuyển mật độ. Bỏ prop này để tự động bật/tắt theo provider, hoặc truyền `false` nếu muốn ẩn nút.
+</Aside>
+
+## Accessibility
+
+- Thanh có `role="search"`, ô nhập là `type="search"` với nhãn cố định “Tìm kiếm”.
+- Nút **Đặt lại** dùng chữ hiển thị; nút mật độ có `aria-label` dạng “Mật độ: Gọn”/“Mật độ: Thoáng” và `title` giải thích.
+- Nút mật độ thay đổi `data-density` trên `ThemeProvider`, nên mọi component bên trong đổi chiều cao cùng lúc — không cần tự xử lý.
+- Các control trong `filters` nằm trong cùng landmark tìm kiếm; đảm bảo mỗi control có nhãn và thứ tự tab hợp lý.
+- Trạng thái lọc mới không tự được thông báo; nếu kết quả thay đổi bất đồng bộ, hiển thị số lượng kết quả trong vùng `aria-live`.

@@ -1,0 +1,66 @@
+---
+title: Empty & Spin
+description: Hai trạng thái nền tảng — không có dữ liệu và đang tải.
+---
+
+import { EmptySpinDemo } from '../../../components/demos/EmptySpinDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Empty` và `Spin` xử lý hai trạng thái mà mọi màn hình dữ liệu đều gặp. Cả hai đều là component thuần trình bày: bạn quyết định khi nào hiển thị.
+
+<Demo title="Empty với hành động, Spin ba kích thước và fullscreen">
+  <EmptySpinDemo client:visible />
+</Demo>
+
+## Empty
+
+```tsx
+import { Button, Empty } from '@enterprise-ui/components';
+
+export function NoOrders() {
+  return (
+    <Empty
+      description="Chưa có đơn hàng nào trong tuần này."
+      action={<Button size="sm">Tạo đơn đầu tiên</Button>}
+    />
+  );
+}
+```
+
+### Props
+
+| Prop          | Kiểu        | Mặc định             | Mô tả                                   |
+| ------------- | ----------- | -------------------- | --------------------------------------- |
+| `description` | `string`    | `'Không có dữ liệu'` | Câu mô tả trạng thái rỗng.              |
+| `action`      | `ReactNode` | —                    | Nút hoặc liên kết gợi ý bước tiếp theo. |
+| `icon`        | `ReactNode` | Icon hộp mặc định    | Icon tùy chỉnh phía trên.               |
+
+### Khi nào dùng
+
+- Sau khi lọc không còn kết quả — mô tả rõ “Không tìm thấy…” thay vì “Không có dữ liệu”.
+- Danh sách mới chưa có phần tử — kèm CTA tạo phần tử đầu tiên.
+- Trong `Table`, truyền `status="empty"` để dùng empty state tích hợp sẵn.
+
+## Spin
+
+```tsx
+import { Spin } from '@enterprise-ui/components';
+
+export function LoadingOverlay({ busy }: { busy: boolean }) {
+  return <Spin fullscreen={busy} tip="Đang xử lý…" />;
+}
+```
+
+### Props
+
+| Prop         | Kiểu                   | Mặc định | Mô tả                                     |
+| ------------ | ---------------------- | -------- | ----------------------------------------- |
+| `size`       | `'sm' \| 'md' \| 'lg'` | `'md'`   | Kích thước vòng xoay.                     |
+| `tip`        | `string`               | —        | Nhãn hiển thị dưới vòng xoay.             |
+| `fullscreen` | `boolean`              | `false`  | Phủ toàn trang với backdrop và khoá cuộn. |
+
+### Accessibility
+
+- `Spin` dùng `role="status"` và `aria-live="polite"`, nên `tip` được đọc khi xuất hiện.
+- Với tác vụ lâu, cập nhật `tip` theo tiến trình thay vì để một nhãn chung chung.
+- Fullscreen overlay nên có đường thoát nếu tác vụ có thể thất bại.

@@ -1,0 +1,68 @@
+---
+title: Tabs
+description: Chuyển giữa các panel nội dung với bốn biến thể và điều hướng bàn phím.
+---
+
+import { TabsDemo } from '../../../components/demos/TabsDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Tabs` giữ nội dung trong cùng một ngữ cảnh thay vì mở trang mới. Component hỗ trợ controlled và uncontrolled, với `role="tablist"` cùng điều hướng bằng phím mũi tên.
+
+<Demo title="Bốn biến thể: line, segmented, pills, enclosed">
+  <TabsDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Tabs } from '@enterprise-ui/components';
+
+export function OrderTabs() {
+  return (
+    <Tabs
+      defaultActiveKey="overview"
+      items={[
+        { key: 'overview', label: 'Tổng quan', content: <p>Thông tin đơn hàng.</p> },
+        { key: 'items', label: 'Sản phẩm', content: <p>Danh sách dòng hàng.</p> },
+        { key: 'history', label: 'Lịch sử', content: <p>Nhật ký thay đổi.</p> },
+      ]}
+    />
+  );
+}
+```
+
+## Props
+
+| Prop               | Kiểu                                             | Mặc định      | Mô tả                                                 |
+| ------------------ | ------------------------------------------------ | ------------- | ----------------------------------------------------- |
+| `items`            | `TabItem[]`                                      | —             | Danh sách tab; mỗi item có `key`, `label`, `content`. |
+| `activeKey`        | `string`                                         | —             | Tab đang chọn ở chế độ controlled.                    |
+| `defaultActiveKey` | `string`                                         | Item đầu tiên | Tab khởi tạo ở chế độ uncontrolled.                   |
+| `onChange`         | `(key: string) => void`                          | —             | Gọi khi tab thay đổi.                                 |
+| `size`             | `'sm' \| 'md'`                                   | `'md'`        | Kích thước tab list.                                  |
+| `variant`          | `'line' \| 'segmented' \| 'pills' \| 'enclosed'` | `'line'`      | Kiểu trình bày tab list.                              |
+| `className`        | `string`                                         | —             | Class thêm cho wrapper.                               |
+
+```ts
+import type { ReactNode } from 'react';
+
+interface TabItem {
+  key: string;
+  label: string;
+  content: ReactNode;
+}
+```
+
+## Khi nào dùng biến thể nào
+
+- **line** — mặc định cho trang nội dung và form nhiều bước.
+- **segmented** — chuyển chế độ xem (bảng/biểu đồ) trong toolbar.
+- **pills** — bộ lọc trạng thái hoặc danh mục.
+- **enclosed** — panel nội dung liền khối, kiểu “tab folder”.
+
+## Accessibility
+
+- Tab list dùng `role="tablist"`, mỗi tab có `aria-selected` và `aria-controls`.
+- Phím `ArrowLeft`/`ArrowRight` di chuyển và chọn tab kế tiếp.
+- Chỉ panel đang chọn được render, tránh nội dung ẩn vẫn bị đọc.
+- Không lồng `Tabs` trong `Tabs` quá hai cấp; cân nhắc điều hướng cấp hai.

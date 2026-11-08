@@ -1,0 +1,50 @@
+---
+title: Tooltip
+description: Chú thích ngắn hiện khi hover hoặc focus, hỗ trợ bốn hướng và độ trễ tùy chỉnh.
+---
+
+import { TooltipDemo } from '../../../components/demos/TooltipDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Tooltip` giải thích một control mà không chiếm chỗ trên giao diện. Nội dung hiện sau một khoảng trễ, khi hover hoặc khi control nhận focus bàn phím.
+
+<Demo title="Bốn hướng, icon button và nội dung dài">
+  <TooltipDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Button, Tooltip } from '@enterprise-ui/components';
+
+export function DeleteAction() {
+  return (
+    <Tooltip content="Xoá vĩnh viễn đơn hàng này">
+      <Button variant="danger">Xoá</Button>
+    </Tooltip>
+  );
+}
+```
+
+## Props
+
+| Prop        | Kiểu                                     | Mặc định | Mô tả                                |
+| ----------- | ---------------------------------------- | -------- | ------------------------------------ |
+| `content`   | `ReactNode`                              | —        | Nội dung chú thích.                  |
+| `children`  | `ReactElement`                           | —        | Một phần tử duy nhất nhận tooltip.   |
+| `placement` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'top'`  | Hướng hiển thị.                      |
+| `delay`     | `number`                                 | `200`    | Độ trễ trước khi hiện, tính bằng ms. |
+| `className` | `string`                                 | —        | Class thêm cho wrapper.              |
+
+## Nội dung nên viết gì
+
+- Một câu ngắn, bổ sung nghĩa cho control: “Xuất báo cáo tháng 10”.
+- Không lặp lại nhãn đã hiển thị.
+- Không đặt hành động bên trong tooltip; tooltip không nhận focus và sẽ biến mất khi rê chuột.
+
+## Accessibility
+
+- Tooltip hiện cả khi focus, nên người dùng bàn phím vẫn đọc được.
+- Phần tử con được gắn `aria-describedby` trỏ tới tooltip.
+- Nội dung dài tự xuống dòng, tối đa 240px.
+- Nếu thông tin là bắt buộc để hoàn thành tác vụ, hiển thị nó trực tiếp thay vì giấu trong tooltip.

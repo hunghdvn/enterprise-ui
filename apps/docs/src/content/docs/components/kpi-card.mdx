@@ -1,0 +1,76 @@
+---
+title: KpiCard
+description: Thẻ số liệu KPI với nhãn, giá trị, delta theo tone, icon và slot biểu đồ.
+---
+
+import { KpiCardDemo } from '../../../components/demos/KpiCardDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`KpiCard` tóm tắt một chỉ số duy nhất ở đầu dashboard: số đơn, doanh thu, tỷ lệ huỷ. Component chỉ trình bày — dữ liệu, định dạng số và phép so sánh đều do caller chuẩn bị. Dùng nó khi cần một hàng KPI đồng nhất; nếu cần bảng chi tiết hoặc biểu đồ tương tác, hãy đặt chart riêng bên dưới.
+
+<Demo title="Tối giản, delta, icon và sparkline">
+  <KpiCardDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { KpiCard } from '@enterprise-ui/components';
+
+export function RevenueKpis() {
+  return (
+    <KpiCard
+      label="Doanh thu tuần"
+      value="₫ 2,45 tỷ"
+      delta="+12,5% so với tuần trước"
+      deltaTone="green"
+    />
+  );
+}
+```
+
+## Định dạng giá trị
+
+`value` nhận `ReactNode`, không tự định dạng số. Hãy format ở caller để giữ nhất quán toàn ứng dụng:
+
+```tsx
+import { KpiCard } from '@enterprise-ui/components';
+
+const vnd = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+
+export function RevenueCard({ revenue }: { revenue: number }) {
+  return (
+    <KpiCard
+      label="Doanh thu tháng"
+      value={vnd.format(revenue)}
+      delta="+9,8% so với tháng trước"
+      deltaTone="green"
+    />
+  );
+}
+```
+
+## Props
+
+| Prop        | Kiểu                            | Mặc định    | Mô tả                                                            |
+| ----------- | ------------------------------- | ----------- | ---------------------------------------------------------------- |
+| `label`     | `string`                        | —           | Nhãn nhỏ phía trên giá trị.                                      |
+| `value`     | `ReactNode`                     | —           | Giá trị chính, thường là chuỗi đã định dạng.                     |
+| `delta`     | `ReactNode`                     | —           | Chuỗi chênh lệch; `0`, chuỗi rỗng hoặc `false` bị bỏ qua.        |
+| `deltaTone` | `'green' \| 'red' \| 'neutral'` | `'neutral'` | Màu chấm delta; không đổi màu hay nội dung chữ.                  |
+| `icon`      | `ReactNode`                     | —           | Icon góc phải, được bọc trong vùng `aria-hidden`.                |
+| `children`  | `ReactNode`                     | —           | Slot biểu đồ bên dưới delta, caller tự vẽ (ví dụ sparkline SVG). |
+
+`delta` là slot tự do: component không suy ra tăng/giảm từ dấu `+` hay `-`. Hãy truyền cả nội dung mô tả lẫn `deltaTone` phù hợp để màu không phải kênh thông tin duy nhất.
+
+## Accessibility
+
+- `label` và `value` là bắt buộc, nên thẻ luôn có ngữ cảnh đọc cho screen reader.
+- Chấm delta đi kèm chữ, không dùng màu một mình để báo tăng/giảm.
+- `icon` chỉ mang tính trang trí và bị ẩn khỏi công nghệ hỗ trợ; đừng đặt thông tin quan trọng chỉ trong icon.
+- Nếu dùng `children` cho biểu đồ, cung cấp `role="img"` và nhãn mô tả xu hướng, hoặc mô tả bằng văn bản gần đó.
+- `KpiCard` render `div`, không phải heading; tiêu đề nhóm KPI do trang quyết định.

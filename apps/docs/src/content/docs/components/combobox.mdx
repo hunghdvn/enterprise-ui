@@ -1,0 +1,122 @@
+---
+title: Combobox
+description: Select có tìm kiếm, chọn một hoặc nhiều giá trị dạng chip, phù hợp danh sách dài.
+---
+
+import { ComboboxDemo } from '../../../components/demos/ComboboxDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Combobox` là select có ô tìm kiếm và popover lọc trực tiếp. Dùng khi danh sách dài hoặc người dùng cần chọn nhiều giá trị; với danh sách ngắn cố định, `Select` native nhẹ và quen thuộc hơn.
+
+<Demo title="Chọn một, chọn nhiều và disabled">
+  <ComboboxDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+Parent giữ `value` và cập nhật trong `onChange`. Ở chế độ một giá trị, `onChange` nhận `string`; khi `multiple`, nhận `string[]`. Type chung là `string | string[]` nên cần thu hẹp bằng `Array.isArray`.
+
+```tsx
+import { useState } from 'react';
+import { Combobox } from '@enterprise-ui/components';
+import type { ComboboxOption } from '@enterprise-ui/components';
+
+const countries: ComboboxOption[] = [
+  { value: 'vn', label: 'Việt Nam' },
+  { value: 'us', label: 'Hoa Kỳ' },
+  { value: 'jp', label: 'Nhật Bản' },
+];
+
+export function CountryPicker() {
+  const [country, setCountry] = useState('vn');
+
+  return (
+    <Combobox
+      options={countries}
+      value={country}
+      onChange={(next) => setCountry(Array.isArray(next) ? (next[0] ?? '') : next)}
+      placeholder="Chọn quốc gia..."
+    />
+  );
+}
+```
+
+## Chọn nhiều
+
+Bật `multiple` và truyền mảng giá trị. Mỗi lựa chọn hiển thị thành chip có nút xoá; nhấn Backspace khi ô tìm kiếm trống sẽ bỏ chip cuối cùng.
+
+```tsx
+import { useState } from 'react';
+import { Combobox } from '@enterprise-ui/components';
+import type { ComboboxOption } from '@enterprise-ui/components';
+
+const topics: ComboboxOption[] = [
+  { value: 'orders', label: 'Đơn hàng' },
+  { value: 'invoices', label: 'Hoá đơn' },
+  { value: 'customers', label: 'Khách hàng' },
+];
+
+export function TopicPicker() {
+  const [selected, setSelected] = useState<string[]>(['orders']);
+
+  return (
+    <Combobox
+      multiple
+      options={topics}
+      value={selected}
+      onChange={(next) => setSelected(Array.isArray(next) ? next : [])}
+      placeholder="Chọn chủ đề..."
+    />
+  );
+}
+```
+
+## Props
+
+| Prop                | Kiểu                                                      | Mặc định        | Mô tả                                                                        |
+| ------------------- | --------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------- |
+| `options`           | `ComboboxOption[]`                                        | —               | Danh sách lựa chọn; mỗi mục có `value`, `label`, `disabled?`, `searchText?`. |
+| `value`             | `string \| string[]`                                      | —               | Giá trị controlled; dùng mảng khi `multiple`.                                |
+| `defaultValue`      | `string \| string[]`                                      | —               | Giá trị khởi tạo uncontrolled.                                               |
+| `onChange`          | `(value: string \| string[]) => void`                     | —               | Nhận giá trị mới sau khi chọn hoặc xoá.                                      |
+| `multiple`          | `boolean`                                                 | `false`         | Bật chọn nhiều và hiển thị chip.                                             |
+| `searchable`        | `boolean`                                                 | `true`          | Cho phép gõ để lọc; tắt thì focus không mở popover.                          |
+| `placeholder`       | `string`                                                  | `'Chọn...'`     | Placeholder khi chưa chọn gì.                                                |
+| `searchPlaceholder` | `string`                                                  | `'Tìm kiếm...'` | Placeholder khi đã có ít nhất một chip.                                      |
+| `disabled`          | `boolean`                                                 | `false`         | Vô hiệu hoá input và các nút xoá chip.                                       |
+| `minSelectWidth`    | `number`                                                  | `240`           | Chiều rộng tối thiểu của widget, tính bằng px.                               |
+| `maxDropdownHeight` | `number`                                                  | `240`           | Chiều cao tối đa của popover trước khi cuộn, tính bằng px.                   |
+| `id`, `name`        | `string`                                                  | —               | Forward xuống `<input>` để gắn label và gửi trong form.                      |
+| `aria-label`        | `string`                                                  | —               | Nhãn a11y cho input; mặc định lấy từ `placeholder`.                          |
+| `aria-labelledby`   | `string`                                                  | —               | ID của phần tử làm nhãn cho input.                                           |
+| `aria-describedby`  | `string`                                                  | —               | ID mô tả/lỗi, forward xuống input.                                           |
+| `aria-invalid`      | `boolean \| 'true' \| 'false' \| 'grammar' \| 'spelling'` | —               | Đánh dấu lỗi, forward xuống input.                                           |
+| `onFocus`           | `(event: FocusEvent<HTMLInputElement>) => void`           | —               | Chạy cùng handler focus của widget: consumer trước, rồi widget mở popover.   |
+| `onKeyDown`         | `(event: KeyboardEvent<HTMLInputElement>) => void`        | —               | Chạy sau khi widget xử lý phím; kiểm tra `defaultPrevented`.                 |
+| `className`         | `string`                                                  | —               | Lớp bổ sung cho wrapper, không phải cho input.                               |
+
+### ComboboxOption
+
+`label` là `ReactNode`, nên có thể chèn icon hoặc định dạng. Khi `label` không phải chuỗi, nên truyền `searchText`; nếu thiếu, bộ lọc dùng `value` thay cho nhãn hiển thị:
+
+```ts
+import type { ComboboxOption } from '@enterprise-ui/components';
+
+const option: ComboboxOption = {
+  value: 'an',
+  label: 'Nguyễn Minh Anh',
+  searchText: 'Nguyễn Minh Anh nguyen minh anh',
+  disabled: false,
+};
+```
+
+`searchText` thay thế `label` trong phép lọc. Với nhãn tiếng Việt, thêm cả dạng không dấu vào `searchText` nếu muốn người dùng gõ nhanh mà không cần bộ gõ.
+
+## Accessibility
+
+- Input dùng `role="combobox"`, popover là `listbox`; `aria-expanded`, `aria-controls` và `aria-activedescendant` cập nhật theo trạng thái mở và mục đang highlight.
+- Phím mũi tên mở danh sách và di chuyển, có quấn vòng; Enter chọn mục đang highlight; Escape đóng popover.
+- Nút xoá chip có nhãn `Xóa <label>`; Backspace khi ô tìm kiếm trống bỏ chip cuối (chế độ một giá trị: bỏ lựa chọn).
+- Widget bỏ qua phím trong lúc IME đang gõ, nên không cắt mất ký tự tiếng Việt.
+- Luôn gắn nhãn qua `Field`, `<label htmlFor>` hoặc `aria-label`; placeholder chỉ là phương án dự phòng.
+- Giá trị rỗng không chọn được ở chế độ một giá trị; giá trị trùng bị cảnh báo ở môi trường dev vì phá vỡ định danh của option.
