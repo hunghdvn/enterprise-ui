@@ -1,0 +1,74 @@
+---
+title: Radio
+description: Lựa chọn một trong nhiều phương án với Radio và RadioGroup, có kiểm soát hoặc dùng nhóm native.
+---
+
+import { RadioDemo } from '../../../components/demos/RadioDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Radio` là một `<label>` bọc `<input type="radio">`, nên bấm vào nhãn cũng chọn ô. `RadioGroup` bọc nhóm trong `<fieldset role="radiogroup">` với một `<legend>`, tự sinh `name` dùng chung và nhận `value` + `onChange` khi cần kiểm soát.
+
+Dùng khi các phương án loại trừ nhau (kênh nhận thông báo, phương thức thanh toán). Chọn nhiều thì dùng `Checkbox`.
+
+<Demo title="Nhóm radio có kiểm soát và bố cục ngang">
+  <RadioDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Radio, RadioGroup } from '@enterprise-ui/components';
+
+export function NotificationChannel() {
+  const [channel, setChannel] = useState('email');
+  return (
+    <RadioGroup legend="Kênh nhận thông báo" name="channel" value={channel} onChange={setChannel}>
+      <Radio value="email">Email</Radio>
+      <Radio value="sms">SMS</Radio>
+      <Radio value="push">Thông báo đẩy</Radio>
+    </RadioGroup>
+  );
+}
+```
+
+Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm radio native; `defaultValue` chỉ gieo giá trị cho lần render đầu tiên.
+
+## Props
+
+### `Radio`
+
+| Prop             | Kiểu                                             | Mặc định | Mô tả                                                       |
+| ---------------- | ------------------------------------------------ | -------- | ----------------------------------------------------------- |
+| `value`          | `string`                                         | —        | **Bắt buộc.** Giá trị báo về nhóm và gửi khi submit.        |
+| `children`       | `ReactNode`                                      | —        | **Bắt buộc.** Nhãn hiển thị, đồng thời là tên của radio.    |
+| `size`           | `'sm' \| 'md'`                                   | `'sm'`   | Kích thước ô chọn và nhãn.                                  |
+| `checked`        | `boolean`                                        | —        | Trạng thái controlled (thường do nhóm quyết định).          |
+| `defaultChecked` | `boolean`                                        | —        | Trạng thái khởi tạo uncontrolled.                           |
+| `onChange`       | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi; trong nhóm vẫn chạy trước callback của nhóm. |
+| `disabled`       | `boolean`                                        | `false`  | Vô hiệu hoá.                                                |
+| `name`           | `string`                                         | —        | Ghi đè `name` do nhóm sinh ra.                              |
+
+### `RadioGroup`
+
+| Prop           | Kiểu                         | Mặc định     | Mô tả                                                             |
+| -------------- | ---------------------------- | ------------ | ----------------------------------------------------------------- |
+| `legend`       | `ReactNode`                  | —            | **Bắt buộc.** Nhãn nhóm, luôn render thành `<legend>`.            |
+| `children`     | `ReactNode`                  | —            | **Bắt buộc.** Các `Radio`.                                        |
+| `name`         | `string`                     | sinh tự động | Tên dùng chung; khuyến nghị đặt khi submit form.                  |
+| `value`        | `string`                     | —            | Giá trị đang chọn (controlled).                                   |
+| `defaultValue` | `string`                     | —            | Giá trị khởi tạo (uncontrolled), chỉ áp dụng lần render đầu.      |
+| `onChange`     | `(value: string) => void`    | —            | Nhận giá trị mới.                                                 |
+| `hint`         | `ReactNode`                  | —            | Dòng hướng dẫn dưới legend.                                       |
+| `error`        | `string`                     | —            | Lỗi; thay thế `errors[name]` từ `Form`.                           |
+| `required`     | `boolean`                    | `false`      | Thêm dấu `*` và `aria-required`.                                  |
+| `orientation`  | `'vertical' \| 'horizontal'` | `'vertical'` | `horizontal` xếp hàng và xuống dòng khi hết chỗ.                  |
+| `size`         | `'sm' \| 'md'`               | `'sm'`       | Kích thước mặc định cho các radio; radio tự đặt `size` sẽ ghi đè. |
+
+## Accessibility
+
+- `<legend>` là tên của `<fieldset role="radiogroup">`; `legend` bắt buộc nên không có nhóm nào thiếu tên.
+- Mỗi radio lấy tên từ nhãn nằm cạnh nó; không dùng `aria-label` rời.
+- `hint`/`error` được nối vào fieldset qua `aria-describedby`; `error` đồng thời đặt `aria-invalid`.
+- Nhóm uncontrolled dựa vào hành vi chọn-một của radio native; phím mũi tên chuyển lựa chọn trong cùng `name`.
+- Dùng `RadioGroup` trực tiếp bên trong `Form`, không bọc trong `Field`: nhóm tự mang legend, hint và error. `Radio` và `Switch` thì có thể đặt trong `Field` vì chúng tự mang nhãn riêng.
