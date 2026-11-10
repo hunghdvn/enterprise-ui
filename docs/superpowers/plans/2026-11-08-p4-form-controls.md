@@ -62,7 +62,7 @@
   - `export interface RadioGroupCtx { name: string; value?: string; defaultValue?: string; size: 'sm' | 'md'; onChange?: (value: string) => void }`
   - `export const RadioGroupContext: React.Context<RadioGroupCtx | null>`
   - `export function RadioGroup(props: RadioGroupProps): JSX.Element`
-  - DOM contract: group is `<fieldset role="radiogroup" aria-labelledby={<legend id>} data-size data-orientation>` (plus `aria-required`/`aria-invalid`/`aria-describedby` when set) with `<legend id>` first; radios are `<label data-size><input type="radio" value name checked/defaultChecked>{children}</label>`.
+  - DOM contract: group is `<fieldset role="radiogroup" data-size data-orientation>` (plus `aria-required`/`aria-invalid`/`aria-describedby` when set) with `<legend>` first; radios are `<label data-size><input type="radio" value name checked/defaultChecked>{children}</label>`.
   - Precedence inside a group (D3): `name` = radio prop → group name → generated; `checked` = group `value` when defined, else the radio's own props; group `defaultValue` seeds only when the radio passes neither.
   - Callback order: radio's own `onChange(event)` first, then group `onChange(value)`.
 
@@ -173,7 +173,7 @@ Expected: FAIL — cannot resolve `./Radio` / `./RadioGroup`.
 
 - [ ] **Step 4: Implement `RadioGroup`**
 
-`RadioGroup.tsx` exports `RadioGroupContext` and the `RadioGroupCtx` type from the same file (`Form.tsx` does the same with `FormErrorsContext`). Ids via `useId()` for legend/hint/error plus one for a generated name. `resolvedError = error ?? (name ? contextErrors[name] : undefined)`. `describedBy` joins `rest['aria-describedby']`, the hint id and the error id. Render `<fieldset {...rest} role="radiogroup" aria-labelledby={legendId} aria-required={required ? 'true' : undefined} aria-invalid={resolvedError ? 'true' : undefined} aria-describedby={describedBy} data-size={size} data-orientation={orientation}>`; legend first (with the `*` marker `aria-hidden`), then hint, then `<div className={styles.options}><RadioGroupContext.Provider value={{ name: name ?? generatedName, value, defaultValue, size: size ?? 'sm', onChange }}>{children}</…></div>`, then the error `role="alert"`.
+`RadioGroup.tsx` exports `RadioGroupContext` and the `RadioGroupCtx` type from the same file (`Form.tsx` does the same with `FormErrorsContext`). Ids via `useId()` for hint/error plus one for a generated name. `resolvedError = error ?? (name ? contextErrors[name] : undefined)`. `describedBy` joins `rest['aria-describedby']`, the hint id and the error id. Render `<fieldset {...rest} role="radiogroup" aria-required={required ? 'true' : undefined} aria-invalid={resolvedError ? 'true' : undefined} aria-describedby={describedBy} data-size={size} data-orientation={orientation}>`; legend first (with the `*` marker `aria-hidden`), then hint, then `<div className={styles.options}><RadioGroupContext.Provider value={{ name: name ?? generatedName, value, defaultValue, size: size ?? 'sm', onChange }}>{children}</…></div>`, then the error `role="alert"`.
 
 `RadioGroup.module.css`: fieldset reset (`border: 0; padding: 0; margin: 0`), grid gap 6px, both size variants (font-size), `.legend` weight 600, `.required` `var(--danger)`, `.hint`/`.error` 12px muted/danger, `.options` column gap 6px, `[data-orientation='horizontal'] .options` row + wrap.
 
@@ -218,7 +218,7 @@ Back up and revert, one at a time; confirm the named test fails; restore with `c
 4. callback order flipped (group first) → the order test fails.
 5. `contextErrors[name]` lookup removed → the `Form errors` test fails.
 6. hint/error omitted from the fieldset's `aria-describedby` → the wiring test fails.
-7. `aria-labelledby` dropped → the named-radiogroup test fails.
+7. `role="radiogroup"` replaced with `role="group"` → the named-radiogroup test fails.
 8. `aria-required` dropped → the required test fails.
 9. size cascade dropped (`size: undefined` in context) → the per-radio override test fails.
 10. `selfLabelled` loses `Radio` → "exactly one label" fails.
@@ -544,6 +544,6 @@ PR body: spec + plan links; the four components' API summaries; docs routes; the
 
 **Spec coverage:** §4.1 Radio → Task 1 Steps 3, 6; §4.2 RadioGroup incl. D1–D5, `role="radiogroup"` → Task 1 Steps 4, 6; §4.3 Switch + D6 → Task 2; §4.4 Textarea + D7 → Task 3; §4.5 Field composition → Tasks 1/2 Step 6; §5 a11y → per-task tests; §6.1 token + thumb contrast → Task 2 Steps 3, 6; §7 docs → Task 4; §8 tests/mutants → Tasks 1–3 + Task 5; §10 one PR → Task 5.
 
-**Reviewed and corrected after the builder read the draft:** `Radio.value`/`children` and `Switch.children` are required; the group is a `radiogroup` named by `aria-labelledby` (not a bare `fieldset` with unsupported `aria-required`); `Field`'s `selfLabelled` list grows to `Radio`/`Switch`; radio callbacks compose caller-first; the switch needs `--switch-track-on` for dark contrast. The spec's "Space toggles" test became "input keeps `type="checkbox"`" because jsdom implements no keyboard default actions — the plan pins the native mechanism instead.
+**Reviewed and corrected after the builder read the draft:** `Radio.value`/`children` and `Switch.children` are required; the group is a `radiogroup` (so `aria-required`/`aria-invalid` are supported) named by its `<legend>` — the explicit `aria-labelledby` was dropped after a mutant showed the legend already names the fieldset; `Field`'s `selfLabelled` list grows to `Radio`/`Switch`; radio callbacks compose caller-first; the switch needs `--switch-track-on` for dark contrast. The spec's "Space toggles" test became "input keeps `type="checkbox"`" because jsdom implements no keyboard default actions — the plan pins the native mechanism instead.
 
 **Type consistency:** `RadioProps`/`RadioGroupProps`/`RadioGroupCtx`/`SwitchProps`/`TextareaProps` names and prop names (`value`, `defaultValue`, `onChange(value)`, `legend`, `orientation`) are identical across Tasks 1–4 and match the docs prop tables.

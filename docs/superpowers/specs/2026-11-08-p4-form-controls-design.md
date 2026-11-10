@@ -90,8 +90,10 @@ the native event observable before the group's value update.
 ### 4.2 `RadioGroup`
 
 ```ts
-export interface RadioGroupProps
-  extends Omit<FieldsetHTMLAttributes<HTMLFieldSetElement>, 'onChange'> {
+export interface RadioGroupProps extends Omit<
+  FieldsetHTMLAttributes<HTMLFieldSetElement>,
+  'onChange'
+> {
   /** Visible group label. Always rendered as `<legend>`; required. */
   legend: ReactNode;
   /** Muted helper under the legend. */
@@ -122,14 +124,13 @@ DOM contract:
 ```html
 <fieldset
   role="radiogroup"
-  aria-labelledby="…legend…"
   data-size
   data-orientation
   aria-invalid?
   aria-required?
   aria-describedby?
 >
-  <legend id="…legend…">…<span aria-hidden>*</span></legend>
+  <legend>…<span aria-hidden>*</span></legend>
   <span class="hint" id="…">…</span>
   <div class="options">…radios…</div>
   <span class="error" role="alert" id="…">…</span>
@@ -138,11 +139,12 @@ DOM contract:
 
 `id`/`className`/`aria-*`/`data-*` from the caller land on the `<fieldset>`.
 
-**Decision (mine): `role="radiogroup"` + `aria-labelledby`.** A bare
+**Decision (mine): `role="radiogroup"`, named by its `<legend>`.** A bare
 `<fieldset>` maps to the ARIA role `group`, where `aria-required` is not
 supported; `radiogroup` supports both `aria-required` and `aria-invalid`. The
-fieldset keeps its visual `<legend>` and is named through
-`aria-labelledby="<legend id>"`, so no second visible label is introduced.
+first `<legend>` child is the fieldset's implicit accessible name in every
+browser, so an explicit `aria-labelledby` is redundant; a caller who wants one
+passes it through `...rest`.
 
 **Decisions (mine):**
 
@@ -167,10 +169,7 @@ fieldset keeps its visual `<legend>` and is named through
 ### 4.3 `Switch`
 
 ```ts
-export interface SwitchProps extends Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  'type' | 'size'
-> {
+export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
   /** Visible label text — the switch's accessible name. Required. */
   children: ReactNode;
   size?: 'sm' | 'md';
@@ -199,10 +198,7 @@ announced role; the native checked state supplies `aria-checked`.
 ### 4.4 `Textarea`
 
 ```ts
-export interface TextareaProps extends Omit<
-  TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'size'
-> {
+export interface TextareaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'size'> {
   size?: 'sm' | 'md';
   error?: string;
 }
@@ -239,8 +235,8 @@ Consequences:
 
 ## 5. Accessibility contract
 
-- `RadioGroup` renders `<fieldset role="radiogroup" aria-labelledby="<legend id>">`;
-  `legend` is required so no unnamed group can ship.
+- `RadioGroup` renders `<fieldset role="radiogroup">` whose `<legend>` is its
+  name; `legend` is required so no unnamed group can ship.
 - Radios are labelled by adjacent text inside their `<label>`; no aria-label-only
   usage.
 - The group's `error`/`hint` reach the fieldset through `aria-describedby`; an
@@ -305,6 +301,7 @@ Everything imported from `@enterprise-ui/components`, never deep imports.
 Unit tests, per component:
 
 `Radio`
+
 - label text toggles the input (click the label, not only the input);
 - `checked` + `onChange` controlled usage;
 - `defaultChecked`;
@@ -314,6 +311,7 @@ Unit tests, per component:
   each.
 
 `RadioGroup`
+
 - renders `fieldset` with `role="radiogroup"` named by its `<legend>`;
 - shared generated `name` groups radios (selecting the second unchecks the first);
 - two groups get different generated names;
@@ -328,6 +326,7 @@ Unit tests, per component:
 - clicking a radio inside a group calls the group `onChange` once.
 
 `Switch`
+
 - `getByRole('switch')` with `checked` state;
 - controlled `checked` + `onChange`;
 - `defaultChecked`;
@@ -340,6 +339,7 @@ Unit tests, per component:
   hardcoded hex).
 
 `Textarea`
+
 - renders a `<textarea>` with `rows=3` by default and a caller `rows`;
 - controlled `value` + `onChange`;
 - `error` sets `aria-invalid`, appends its id to `aria-describedby`, renders
@@ -348,12 +348,14 @@ Unit tests, per component:
 - merges a caller `className` and keeps caller `aria-*`.
 
 `Field` composition
+
 - `Field` + `Switch` renders the heading as a `<span>` and does not point a
   second `<label for>` at the switch;
 - `Field` + `Radio` does the same;
 - `Field` + `Checkbox` behaviour is unchanged.
 
 Tokens
+
 - `--switch-track-on` exists in `tokens.css` and is overridden in
   `theme-dark.css`; `all.css` still bundles every theme file.
 
@@ -369,7 +371,7 @@ Mutant checks (each new guard gets a mutant):
 8. Textarea `error` stops setting `aria-invalid` → test fails.
 9. Textarea default `rows` removed → default test fails.
 10. `size` cascade removed → override test fails.
-11. `role="radiogroup"` / `aria-labelledby` removed → name/role test fails.
+11. `role="radiogroup"` removed → the role/name test fails.
 12. `aria-required` dropped from the radiogroup → required test fails.
 13. Radio's own `onChange` dropped or reordered → composition test fails.
 14. `Field` self-labelled list no longer includes Switch/Radio → double-label
@@ -400,8 +402,8 @@ the document above rather than deferred:
 
 1. `Radio.value` and `children`/`Switch.children` are required (no `"on"`
    fallback, no unnamed control).
-2. `RadioGroup` uses `role="radiogroup"` + `aria-labelledby` so
-   `aria-required`/`aria-invalid` are actually supported.
+2. `RadioGroup` uses `role="radiogroup"` so `aria-required`/`aria-invalid` are
+   actually supported; the `<legend>` supplies the accessible name.
 3. `Field` learns `Radio`/`Switch` as self-labelled, so no second `<label for>`
    concatenates into their names; `RadioGroup` stays out of `Field`.
 4. Radio-in-group callbacks compose caller-first, group-second, once each.

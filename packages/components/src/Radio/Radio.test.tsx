@@ -1,0 +1,87 @@
+import { useState } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { RadioGroup } from '../RadioGroup/RadioGroup';
+import { Radio } from './Radio';
+
+const css = readFileSync(join(import.meta.dirname, 'Radio.module.css'), 'utf8');
+
+test('label click selects the radio (uncontrolled)', () => {
+  render(<Radio value="email">Email</Radio>);
+  const input = screen.getByRole('radio', { name: 'Email' });
+  expect(input).not.toBeChecked();
+  fireEvent.click(screen.getByText('Email'));
+  expect(input).toBeChecked();
+});
+
+test('controlled checked + onChange reflect the caller state', () => {
+  function Wrapper() {
+    const [value, setValue] = useState('email');
+    return (
+      <>
+        <Radio value="email" checked={value === 'email'} onChange={() => setValue('email')}>
+          Email
+        </Radio>
+        <Radio value="sms" checked={value === 'sms'} onChange={() => setValue('sms')}>
+          SMS
+        </Radio>
+      </>
+    );
+  }
+  render(<Wrapper />);
+  const sms = screen.getByRole('radio', { name: 'SMS' });
+  fireEvent.click(sms);
+  expect(sms).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'Email' })).not.toBeChecked();
+});
+
+test('defaultChecked starts checked (uncontrolled)', () => {
+  render(
+    <Radio value="email" defaultChecked>
+      Email
+    </Radio>,
+  );
+  expect(screen.getByRole('radio', { name: 'Email' })).toBeChecked();
+});
+
+test('disabled is a native attribute and the CSS blocks the pointer', () => {
+  render(
+    <Radio value="email" disabled>
+      Email
+    </Radio>,
+  );
+  // The browser suppresses activation on a disabled control; jsdom does not, so
+  // the disabled attribute plus its CSS is the contract testable here.
+  expect(screen.getByRole('radio', { name: 'Email' })).toBeDisabled();
+  expect(css).toContain('.box:disabled');
+  expect(css).toContain('cursor: not-allowed');
+});
+
+test('size variants set data-size on the label', () => {
+  const { container } = render(
+    <>
+      <Radio value="email">Email</Radio>
+      <Radio value="sms" size="md">
+        SMS
+      </Radio>
+    </>,
+  );
+  const labels = container.querySelectorAll('label');
+  expect(labels[0]).toHaveAttribute('data-size', 'sm');
+  expect(labels[1]).toHaveAttribute('data-size', 'md');
+});
+
+test('inside a group it fires its own onChange before the group onChange', () => {
+  const order: string[] = [];
+  render(
+    <RadioGroup legend="Kênh" onChange={() => order.push('group')}>
+      <Radio value="email" onChange={() => order.push('radio')}>
+        Email
+      </Radio>
+    </RadioGroup>,
+  );
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Email' }));
+  expect(order).toEqual(['radio', 'group']);
+});

@@ -1,0 +1,40 @@
+.group {
+  display: grid;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font);
+  color: var(--text);
+}
+.group[data-size='sm'] {
+  font-size: var(--font-size);
+}
+.group[data-size='md'] {
+  font-size: var(--font-size-md);
+}
+.legend {
+  font-weight: 600;
+  padding: 0;
+}
+.required {
+  color: var(--danger);
+}
+.hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.group[data-orientation='horizontal'] .options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
