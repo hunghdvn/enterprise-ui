@@ -30,6 +30,8 @@ export { Radio } from './Radio/Radio';
 export type { RadioProps } from './Radio/types';
 export { RadioGroup } from './RadioGroup/RadioGroup';
 export type { RadioGroupProps } from './RadioGroup/types';
+export { Switch } from './Switch/Switch';
+export type { SwitchProps } from './Switch/types';
 export { AppShell } from './AppShell/AppShell';
 export type { AppShellProps, NavItem } from './AppShell/types';
 export { Table } from './Table/Table';

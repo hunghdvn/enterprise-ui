@@ -1,6 +1,7 @@
 import { cloneElement, useContext, useId, type ReactElement } from 'react';
 import { Checkbox } from '../Checkbox/Checkbox';
 import { Radio } from '../Radio/Radio';
+import { Switch } from '../Switch/Switch';
 import { FormErrorsContext } from './Form';
 import styles from './Form.module.css';
 
@@ -56,7 +57,8 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
   // also be pointed at one: two labels for a single control concatenate the
   // accessible name, so Field stays plain text there and lets the child's label
   // own the input.
-  const selfLabelled = children.type === Checkbox || children.type === Radio;
+  const selfLabelled =
+    children.type === Checkbox || children.type === Radio || children.type === Switch;
 
   return (
     <div className={styles.field}>

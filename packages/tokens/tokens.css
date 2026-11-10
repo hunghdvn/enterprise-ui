@@ -33,4 +33,7 @@
   --control-size-sm: 16px;
   --control-size: 18px;
   --font-size-md: 15px;
+  /* Checked Switch track: the dark theme lightens it so the track stays ≥3:1
+     against the dark page while the white thumb keeps ≥3:1 on it. */
+  --switch-track-on: var(--color-blue-600);
 }
