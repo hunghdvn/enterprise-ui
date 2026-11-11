@@ -32,7 +32,7 @@ export function SaveError() {
 }
 ```
 
-`onDismiss` chỉ báo rằng người dùng đã bấm nút đóng; `Alert` không tự ẩn. Phía gọi giữ state hiển thị và quyết định có xoá alert hay không — nhờ vậy alert hoạt động đúng trong form, nơi lỗi chỉ được xoá khi dữ liệu đã hợp lệ.
+`onDismiss` chỉ báo rằng người dùng đã bấm nút đóng; `Alert` không tự ẩn. Phía gọi giữ state hiển thị và quyết định có xoá alert hay không — nhờ vậy alert hoạt động đúng trong form, nơi lỗi chỉ được xoá khi dữ liệu đã hợp lệ. Tên `onDismiss` được giữ có chủ đích: nó báo ý định đóng, không phải lệnh đóng; `Toast`, `Modal` và `Drawer` dùng `onClose` vì chúng có vòng đời đóng riêng.
 
 ## Props
 
@@ -44,7 +44,7 @@ export function SaveError() {
 | `onDismiss`    | `() => void`                                   | —                  | Hiện nút đóng và nhận sự kiện bấm; component không tự ẩn. |
 | `dismissLabel` | `string`                                       | `'Đóng thông báo'` | Tên truy cập của nút đóng.                                |
 
-`Alert` nhận toàn bộ thuộc tính của `<div>` (`className`, `id`, `role`, `aria-*`…) và chuyển chúng xuống phần tử gốc. `role` do phía gọi truyền vào sẽ thắng role mặc định của tone.
+`Alert` nhận các thuộc tính của `<div>` (`className`, `id`, `role`, `aria-*`…) và chuyển chúng xuống phần tử gốc, **trừ `title`** vì prop này được dùng làm tiêu đề hiển thị. `role` do phía gọi truyền vào sẽ thắng role mặc định của tone.
 
 ## Accessibility
 

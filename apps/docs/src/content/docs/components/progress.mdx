@@ -38,7 +38,7 @@ export function ImportProgress({ value }: { value: number }) {
 
 ## Accessibility
 
-- Phần tử gốc là `role="progressbar"` với `aria-valuemin="0"`, `aria-valuemax` và `aria-valuenow` lấy từ giá trị đã kẹp.
+- Phần tử gốc là `role="progressbar"` với `aria-valuemin="0"`, `aria-valuemax` lấy từ bound đã resolve (mặc định 100) và `aria-valuenow` lấy từ `value` đã kẹp.
 - `label` được nối bằng `aria-labelledby`; nếu không có `label`, truyền `aria-label` để thanh có tên.
 - Phần trăm hiển thị là `aria-hidden` vì `aria-valuenow` đã mang giá trị; tránh đọc hai lần.
 - Với giá trị định dạng khác phần trăm (ví dụ "Bước 2/5"), truyền `aria-valuetext`; trình đọc màn hình sẽ dùng chuỗi này thay cho con số.
