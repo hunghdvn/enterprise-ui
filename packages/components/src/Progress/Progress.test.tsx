@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
+import { cssRule } from '../internal/cssRule';
 import { Progress } from './Progress';
 
 const css = readFileSync(join(import.meta.dirname, 'Progress.module.css'), 'utf8');
@@ -77,6 +78,10 @@ test('module CSS scopes track sizes to the progress root', () => {
   expect(css).toMatch(/\.root\[data-size='sm'\] \.track/);
   expect(css).toMatch(/\.root\[data-size='md'\] \.track/);
   expect(css).not.toMatch(/^\[data-size='(sm|md)'\] \.track \{/m);
+});
+
+test('the percentage stays trailing when there is no label', () => {
+  expect(cssRule(css, '.value')).toMatch(/margin-left:\s*auto/);
 });
 
 test('module CSS pins both track sizes and the themeable fill', () => {

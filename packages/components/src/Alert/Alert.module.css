@@ -63,12 +63,17 @@
 }
 
 .close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  min-width: 24px;
+  min-height: 24px;
   background: transparent;
   border: 0;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 4px;
   border-radius: var(--radius);
 }
 

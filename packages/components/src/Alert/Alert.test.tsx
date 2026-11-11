@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { cssRule } from '../internal/cssRule';
 import { Alert } from './Alert';
 
 const css = readFileSync(join(import.meta.dirname, 'Alert.module.css'), 'utf8');
@@ -57,6 +58,12 @@ test('the default dismiss label is Vietnamese and a caller role wins', () => {
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Vùng cảnh báo' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Đóng thông báo' })).toBeInTheDocument();
+});
+
+test('module CSS gives the close button a 24px minimum target', () => {
+  const close = cssRule(css, '.close');
+  expect(close).toMatch(/min-width:\s*24px/);
+  expect(close).toMatch(/min-height:\s*24px/);
 });
 
 test('module CSS pins the tone tokens, left edge and focus ring', () => {
