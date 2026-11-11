@@ -82,6 +82,9 @@
   background: var(--text-muted);
   box-shadow: none;
 }
+.label:has(.input:disabled) {
+  color: var(--text-muted);
+}
 @media (prefers-reduced-motion: reduce) {
   .input,
   .thumb {

@@ -85,3 +85,37 @@ test('inside a group it fires its own onChange before the group onChange', () =>
   fireEvent.click(screen.getByRole('radio', { name: 'Email' }));
   expect(order).toEqual(['radio', 'group']);
 });
+
+test('a controlled group value beats the radio own checked without a React warning', () => {
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <RadioGroup legend="Kênh" value="sms">
+      <Radio value="email" checked>
+        Email
+      </Radio>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+  expect(screen.getByRole('radio', { name: 'Email' })).not.toBeChecked();
+  expect(screen.getByRole('radio', { name: 'SMS' })).toBeChecked();
+  expect(errorSpy).not.toHaveBeenCalled();
+  errorSpy.mockRestore();
+});
+
+test('a radio own checked beats the group defaultValue without a React warning', () => {
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <RadioGroup legend="Kênh" defaultValue="sms">
+      <Radio value="email" checked>
+        Email
+      </Radio>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+  // The group default must not seed a second selection when a radio owns its
+  // state, and React must not see both checked and defaultChecked on one input.
+  expect(screen.getByRole('radio', { name: 'Email' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'SMS' })).not.toBeChecked();
+  expect(errorSpy).not.toHaveBeenCalled();
+  errorSpy.mockRestore();
+});

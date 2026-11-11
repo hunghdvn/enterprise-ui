@@ -20,6 +20,25 @@ test('renders a named radiogroup sharing one generated name', () => {
   expect(radios[1].getAttribute('name')).toBe(name);
 });
 
+test('a shared generated name unchecks the first radio when the second is selected', () => {
+  render(
+    <RadioGroup legend="Kênh nhận thông báo">
+      <Radio value="email" defaultChecked>
+        Email
+      </Radio>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+
+  const group = screen.getByRole('radiogroup', { name: 'Kênh nhận thông báo' });
+  const [first, second] = within(group).getAllByRole('radio');
+  expect(first).toBeChecked();
+
+  fireEvent.click(second);
+  expect(second).toBeChecked();
+  expect(first).not.toBeChecked();
+});
+
 test('controlled value marks the matching radio and reports the pick', () => {
   const onChange = vi.fn();
   function Wrapper() {
@@ -120,6 +139,17 @@ test('required renders the marker and aria-required on the radiogroup', () => {
   const group = screen.getByRole('radiogroup', { name: 'Kênh' });
   expect(group).toHaveAttribute('aria-required', 'true');
   expect(within(group).getByText('*')).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('caller aria-required and aria-invalid survive when the props are not set', () => {
+  render(
+    <RadioGroup legend="Kênh" aria-required="true" aria-invalid="true">
+      <Radio value="email">Email</Radio>
+    </RadioGroup>,
+  );
+  const group = screen.getByRole('radiogroup', { name: 'Kênh' });
+  expect(group).toHaveAttribute('aria-required', 'true');
+  expect(group).toHaveAttribute('aria-invalid', 'true');
 });
 
 test('orientation, size and a per-radio size override land as data attributes', () => {

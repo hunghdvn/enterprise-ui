@@ -32,22 +32,22 @@ export function NotificationChannel() {
 }
 ```
 
-Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm radio native; `defaultValue` chỉ gieo giá trị cho lần render đầu tiên.
+Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm radio native; `defaultValue` chỉ gieo giá trị cho lần render đầu tiên. Mỗi `Radio` trong nhóm phải có `value` **duy nhất**: hai radio cùng `value` khiến không thể phân biệt lựa chọn. Nếu một `Radio` tự đặt `checked`/`defaultChecked`, `defaultValue` của nhóm không gieo cho radio đó.
 
 ## Props
 
 ### `Radio`
 
-| Prop             | Kiểu                                             | Mặc định | Mô tả                                                       |
-| ---------------- | ------------------------------------------------ | -------- | ----------------------------------------------------------- |
-| `value`          | `string`                                         | —        | **Bắt buộc.** Giá trị báo về nhóm và gửi khi submit.        |
-| `children`       | `ReactNode`                                      | —        | **Bắt buộc.** Nhãn hiển thị, đồng thời là tên của radio.    |
-| `size`           | `'sm' \| 'md'`                                   | `'sm'`   | Kích thước ô chọn và nhãn.                                  |
-| `checked`        | `boolean`                                        | —        | Trạng thái controlled (thường do nhóm quyết định).          |
-| `defaultChecked` | `boolean`                                        | —        | Trạng thái khởi tạo uncontrolled.                           |
-| `onChange`       | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi; trong nhóm vẫn chạy trước callback của nhóm. |
-| `disabled`       | `boolean`                                        | `false`  | Vô hiệu hoá.                                                |
-| `name`           | `string`                                         | —        | Ghi đè `name` do nhóm sinh ra.                              |
+| Prop             | Kiểu                                             | Mặc định | Mô tả                                                                     |
+| ---------------- | ------------------------------------------------ | -------- | ------------------------------------------------------------------------- |
+| `value`          | `string`                                         | —        | **Bắt buộc.** Giá trị báo về nhóm và gửi khi submit; duy nhất trong nhóm. |
+| `children`       | `ReactNode`                                      | —        | **Bắt buộc.** Nhãn hiển thị, đồng thời là tên của radio.                  |
+| `size`           | `'sm' \| 'md'`                                   | `'sm'`   | Kích thước ô chọn và nhãn.                                                |
+| `checked`        | `boolean`                                        | —        | Trạng thái controlled (thường do nhóm quyết định).                        |
+| `defaultChecked` | `boolean`                                        | —        | Trạng thái khởi tạo uncontrolled.                                         |
+| `onChange`       | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi; trong nhóm vẫn chạy trước callback của nhóm.               |
+| `disabled`       | `boolean`                                        | `false`  | Vô hiệu hoá.                                                              |
+| `name`           | `string`                                         | —        | Ghi đè `name` do nhóm sinh ra.                                            |
 
 ### `RadioGroup`
 

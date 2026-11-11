@@ -46,6 +46,7 @@ test('disabled is a native attribute and the CSS blocks the pointer', () => {
   expect(screen.getByRole('switch', { name: 'Tắt' })).toBeDisabled();
   expect(css).toContain('.input:disabled');
   expect(css).toContain('cursor: not-allowed');
+  expect(css).toContain('.label:has(.input:disabled)');
 });
 
 test('size variants set data-size on the label', () => {
