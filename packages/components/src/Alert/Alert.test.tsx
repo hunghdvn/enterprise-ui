@@ -20,6 +20,11 @@ test.each([
   expect(screen.getByRole(role)).toHaveAttribute('data-tone', tone);
 });
 
+test('defaults to the info tone and status role', () => {
+  render(<Alert>Nội dung</Alert>);
+  expect(screen.getByRole('status')).toHaveAttribute('data-tone', 'info');
+});
+
 test('title and children compose, and the icon is decorative', () => {
   const { container } = render(<Alert title="Không lưu được">Kiểm tra kết nối rồi thử lại.</Alert>);
   expect(screen.getByText('Không lưu được')).toBeInTheDocument();
@@ -67,10 +72,10 @@ test('module CSS gives the close button a 24px minimum target', () => {
 });
 
 test('module CSS pins the tone tokens, left edge and focus ring', () => {
-  expect(css).toContain("data-tone='info'");
-  expect(css).toContain('var(--color-blue-500)');
-  expect(css).toContain('var(--danger-emphasis)');
-  expect(css).toContain('border-left-width: 3px');
-  expect(css).toContain('.close:focus-visible');
-  expect(css).toContain('var(--focus-ring)');
+  expect(cssRule(css, ".alert[data-tone='info']")).toMatch(
+    /border-left-color:\s*var\(--color-blue-500\)/,
+  );
+  expect(cssRule(css, ".alert[data-tone='danger']")).toMatch(/var\(--danger-emphasis\)/);
+  expect(cssRule(css, '.alert')).toMatch(/border-left-width:\s*3px/);
+  expect(cssRule(css, '.close:focus-visible')).toMatch(/var\(--focus-ring\)/);
 });
