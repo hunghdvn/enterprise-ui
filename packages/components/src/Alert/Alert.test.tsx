@@ -20,9 +20,7 @@ test.each([
 });
 
 test('title and children compose, and the icon is decorative', () => {
-  const { container } = render(
-    <Alert title="Không lưu được">Kiểm tra kết nối rồi thử lại.</Alert>,
-  );
+  const { container } = render(<Alert title="Không lưu được">Kiểm tra kết nối rồi thử lại.</Alert>);
   expect(screen.getByText('Không lưu được')).toBeInTheDocument();
   expect(screen.getByText('Kiểm tra kết nối rồi thử lại.')).toBeInTheDocument();
   expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');

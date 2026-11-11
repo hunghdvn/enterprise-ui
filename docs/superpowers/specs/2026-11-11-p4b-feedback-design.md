@@ -87,10 +87,13 @@ DOM contract:
 <div role="alert|status" data-tone class="alert">
   <Icon aria-hidden="true" />
   <div class="body">
-    <span class="title">…</span>        <!-- when title -->
-    <div class="message">…</div>        <!-- when children -->
+    <span class="title">…</span>
+    <!-- when title -->
+    <div class="message">…</div>
+    <!-- when children -->
   </div>
-  <button type="button" aria-label="Đóng thông báo">…</button> <!-- when onDismiss -->
+  <button type="button" aria-label="Đóng thông báo">…</button>
+  <!-- when onDismiss -->
 </div>
 ```
 
@@ -183,8 +186,15 @@ width uses the exact ratio.
 DOM contract:
 
 ```html
-<div role="progressbar" aria-valuemin="0" aria-valuemax="100"
-     aria-valuenow="40" aria-labelledby="…" data-size="sm" class="root">
+<div
+  role="progressbar"
+  aria-valuemin="0"
+  aria-valuemax="100"
+  aria-valuenow="40"
+  aria-labelledby="…"
+  data-size="sm"
+  class="root"
+>
   <div class="header">
     <span id="…">…</span>
     <span aria-hidden="true">40%</span>

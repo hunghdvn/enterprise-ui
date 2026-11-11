@@ -14,9 +14,7 @@ export function Progress({
 }: ProgressProps) {
   const labelId = useId();
   const resolvedMax = Number.isFinite(max) && max > 0 ? max : 100;
-  const resolvedValue = Number.isFinite(value)
-    ? Math.min(Math.max(value, 0), resolvedMax)
-    : 0;
+  const resolvedValue = Number.isFinite(value) ? Math.min(Math.max(value, 0), resolvedMax) : 0;
   const percent = (resolvedValue / resolvedMax) * 100;
 
   return (
