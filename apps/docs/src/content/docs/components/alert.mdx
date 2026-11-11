@@ -1,0 +1,55 @@
+---
+title: Alert
+description: Thông báo nội tuyến bốn tông màu với tiêu đề tuỳ chọn và nút đóng do phía gọi quyết định.
+---
+
+import { AlertDemo } from '../../../components/demos/AlertDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Alert` giữ thông báo ngay trong luồng nội dung — tổng kết validate, cảnh báo quyền truy cập hay xác nhận đã lưu. Khác với `Toast`, alert không tự biến mất và không nổi trên trang.
+
+Tone chọn cả màu lẫn role: `info`/`success` dùng `role="status"`, `warning`/`danger` dùng `role="alert"`. Truyền `role` qua props sẽ ghi đè lựa chọn mặc định.
+
+<Demo title="Bốn tông màu, tiêu đề và nút đóng">
+  <AlertDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Alert } from '@enterprise-ui/components';
+
+export function SaveError() {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+
+  return (
+    <Alert tone="danger" title="Không lưu được" onDismiss={() => setVisible(false)}>
+      Kiểm tra kết nối rồi thử lại.
+    </Alert>
+  );
+}
+```
+
+`onDismiss` chỉ báo rằng người dùng đã bấm nút đóng; `Alert` không tự ẩn. Phía gọi giữ state hiển thị và quyết định có xoá alert hay không — nhờ vậy alert hoạt động đúng trong form, nơi lỗi chỉ được xoá khi dữ liệu đã hợp lệ.
+
+## Props
+
+| Prop           | Kiểu                                           | Mặc định           | Mô tả                                                     |
+| -------------- | ---------------------------------------------- | ------------------ | --------------------------------------------------------- |
+| `tone`         | `'info' \| 'success' \| 'warning' \| 'danger'` | `'info'`           | Tông màu và role mặc định.                                |
+| `title`        | `ReactNode`                                    | —                  | Tiêu đề đậm phía trên nội dung.                           |
+| `children`     | `ReactNode`                                    | —                  | Nội dung thông báo.                                       |
+| `onDismiss`    | `() => void`                                   | —                  | Hiện nút đóng và nhận sự kiện bấm; component không tự ẩn. |
+| `dismissLabel` | `string`                                       | `'Đóng thông báo'` | Tên truy cập của nút đóng.                                |
+
+`Alert` nhận toàn bộ thuộc tính của `<div>` (`className`, `id`, `role`, `aria-*`…) và chuyển chúng xuống phần tử gốc. `role` do phía gọi truyền vào sẽ thắng role mặc định của tone.
+
+## Accessibility
+
+- `warning` và `danger` render `role="alert"` để trình đọc màn hình đọc ngay; `info` và `success` dùng `role="status"` và chờ lượt đọc hiện tại.
+- Icon tông màu là trang trí (`aria-hidden`); màu không phải tín hiệu duy nhất vì tiêu đề và nội dung mang nghĩa.
+- Nút đóng luôn có tên truy cập: mặc định `Đóng thông báo`, đổi bằng `dismissLabel` khi có nhiều alert trên cùng màn hình.
+- Component không tự ẩn, nên thông báo không biến mất trước khi người dùng đọc xong; phía gọi chịu trách nhiệm cập nhật state.
+- Vùng nội dung không nhận focus; nếu thông báo cần hành động, đặt nút hoặc link bên trong `children`.

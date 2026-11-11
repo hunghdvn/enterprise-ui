@@ -1,0 +1,45 @@
+---
+title: Progress
+description: Thanh tiến trình xác định với nhãn, phần trăm và hai kích thước.
+---
+
+import { ProgressDemo } from '../../../components/demos/ProgressDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Progress` biểu diễn công việc đã biết tổng (nhập file, đồng bộ, lưu dài). Với trạng thái chưa biết tiến độ, dùng `Spin`.
+
+<Demo title="Phần trăm có kiểm soát, thang 5 bước và hai kích thước">
+  <ProgressDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Progress } from '@enterprise-ui/components';
+
+export function ImportProgress({ value }: { value: number }) {
+  return <Progress value={value} label="Đang nhập dữ liệu" showValue />;
+}
+```
+
+`value` bị kẹp trong `0..max`; giá trị không hữu hạn thành 0. `max` mặc định 100 và tự quay về 100 nếu không dương hoặc không hữu hạn. Phần trăm hiển thị được làm tròn, còn chiều rộng thanh dùng tỷ lệ chính xác.
+
+## Props
+
+| Prop        | Kiểu           | Mặc định | Mô tả                                              |
+| ----------- | -------------- | -------- | -------------------------------------------------- |
+| `value`     | `number`       | —        | **Bắt buộc.** Giá trị hiện tại, kẹp trong 0..max.  |
+| `max`       | `number`       | `100`    | Giá trị lớn nhất; không dương/không hữu hạn → 100. |
+| `label`     | `ReactNode`    | —        | Nhãn phía trên thanh, đồng thời là tên truy cập.   |
+| `showValue` | `boolean`      | `false`  | Hiện phần trăm đã làm tròn đối diện nhãn.          |
+| `size`      | `'sm' \| 'md'` | `'sm'`   | Chiều cao thanh: 4px hoặc 8px.                     |
+
+`Progress` nhận thuộc tính của `<div>`; `aria-label` hoặc `aria-valuetext` truyền qua đó khi cần.
+
+## Accessibility
+
+- Phần tử gốc là `role="progressbar"` với `aria-valuemin="0"`, `aria-valuemax` và `aria-valuenow` lấy từ giá trị đã kẹp.
+- `label` được nối bằng `aria-labelledby`; nếu không có `label`, truyền `aria-label` để thanh có tên.
+- Phần trăm hiển thị là `aria-hidden` vì `aria-valuenow` đã mang giá trị; tránh đọc hai lần.
+- Với giá trị định dạng khác phần trăm (ví dụ "Bước 2/5"), truyền `aria-valuetext`; trình đọc màn hình sẽ dùng chuỗi này thay cho con số.
+- Thanh không nhận focus và không phải control; nếu cần huỷ công việc, đặt nút riêng cạnh thanh.
