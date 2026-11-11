@@ -36,4 +36,9 @@
   /* Checked Switch track: the dark theme lightens it so the track stays ≥3:1
      against the dark page while the white thumb keeps ≥3:1 on it. */
   --switch-track-on: var(--color-blue-600);
+  /* Determinate Progress fill; the dark theme lightens it on the muted track. */
+  --progress-fill: var(--color-blue-600);
+  /* Skeleton base/shine; themes keep a visible difference between the two. */
+  --skeleton-base: #e2e8f0;
+  --skeleton-shine: #f1f5f9;
 }

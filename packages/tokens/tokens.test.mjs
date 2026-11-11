@@ -176,6 +176,31 @@ assertThemeTokens('root', readTokenFile('tokens.css'), ':root', {
 assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
   '--switch-track-on': 'var(--color-blue-500)',
 });
+// Progress fill: brand blue in light; dark lightens it because blue-600 is ~1.4:1
+// on the muted dark track. Light subtrees must reset it like the rings.
+assertThemeTokens('root', readTokenFile('tokens.css'), ':root', {
+  '--progress-fill': 'var(--color-blue-600)',
+});
+assertThemeTokens('light', lightCss, '[data-theme="light"]', {
+  '--progress-fill': 'var(--color-blue-600)',
+});
+assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
+  '--progress-fill': 'var(--color-blue-300)',
+});
+// Skeleton base/shine: both themes keep a visible difference between the two,
+// and the reduced-motion flat block uses the base.
+assertThemeTokens('root', readTokenFile('tokens.css'), ':root', {
+  '--skeleton-base': '#e2e8f0',
+  '--skeleton-shine': '#f1f5f9',
+});
+assertThemeTokens('light', lightCss, '[data-theme="light"]', {
+  '--skeleton-base': '#e2e8f0',
+  '--skeleton-shine': '#f1f5f9',
+});
+assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
+  '--skeleton-base': '#475569',
+  '--skeleton-shine': '#64748b',
+});
 // Like the rings, the danger cue must be reset inside a light subtree of a dark page.
 assertThemeTokens('light', lightCss, '[data-theme="light"]', {
   '--danger-emphasis': '#dc2626',
