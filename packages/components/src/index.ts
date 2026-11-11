@@ -10,6 +10,8 @@ export { Badge } from './Badge/Badge';
 export type { BadgeProps, BadgeTone } from './Badge/Badge';
 export { Alert } from './Alert';
 export type { AlertProps, AlertTone } from './Alert';
+export { Skeleton } from './Skeleton';
+export type { SkeletonProps, SkeletonVariant } from './Skeleton';
 export { Select } from './Select/Select';
 export type { SelectProps } from './Select/Select';
 export { Combobox } from './Combobox/Combobox';
