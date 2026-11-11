@@ -38,6 +38,17 @@ test('a non-finite value becomes zero and a non-positive max falls back to 100',
   expect(bar).toHaveAttribute('aria-valuenow', '50');
 });
 
+test.each([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN])(
+  'a non-finite max %s falls back to 100',
+  (max) => {
+    render(<Progress value={50} max={max} />);
+    const bar = screen.getByRole('progressbar');
+    expect(bar).toHaveAttribute('aria-valuemax', '100');
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+    expect(bar.querySelector('[class*="fill"]')).toHaveStyle({ width: '50%' });
+  },
+);
+
 test('max other than 100 keeps the raw value and the correct visual ratio', () => {
   render(<Progress value={50} max={200} label="Bước" showValue />);
   const bar = screen.getByRole('progressbar', { name: 'Bước' });
@@ -55,9 +66,9 @@ test('aria-label passes through when there is no label, and size lands on the ro
   expect(screen.getByRole('progressbar', { name: 'Đồng bộ' })).toHaveAttribute('data-size', 'md');
 });
 
-test('module CSS pins both track sizes and the brand fill', () => {
+test('module CSS pins both track sizes and the themeable fill', () => {
   expect(css).toContain("[data-size='sm']");
   expect(css).toContain("[data-size='md']");
-  expect(css).toContain('var(--color-blue-600)');
+  expect(css).toContain('var(--progress-fill)');
   expect(css).toContain('var(--radius)');
 });

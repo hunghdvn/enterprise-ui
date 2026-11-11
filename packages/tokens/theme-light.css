@@ -14,6 +14,8 @@
   --scrim: rgba(15, 23, 42, 0.45);
   /* Dark subtrees inherit the lightened danger cue; a light subtree needs the base red back. */
   --danger-emphasis: #dc2626;
+  /* A light subtree inside a dark page must restore the brand Progress fill. */
+  --progress-fill: var(--color-blue-600);
   /* Light subtrees nest inside a dark page, so both rings must be reset here. Blue-600 is
      ~7:1 on white and blue-700 ~8.7:1; each must stay ≥3:1 on `--surface`. */
   --focus-ring: #1e47c4;

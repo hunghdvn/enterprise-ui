@@ -210,9 +210,10 @@ DOM contract:
 `aria-valuenow` already carries the value. `aria-valuetext` remains available
 through `...rest` for formatted values ("Bước 2/5").
 
-Track heights: `sm` 4px, `md` 8px. Fill uses `var(--color-blue-600)` with
-`var(--radius)`; dark theme keeps the brand fill (the bar is large enough that
-the existing blue remains distinguishable).
+Track heights: `sm` 4px, `md` 8px. Fill uses `var(--progress-fill)` with
+`var(--radius)`: brand blue in light mode, blue-300 in dark mode because blue-600
+is only ~1.4:1 on the muted dark track. The light theme resets the token so a
+light subtree inside a dark page keeps the brand fill.
 
 ## 5. Docs
 
