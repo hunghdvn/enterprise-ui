@@ -84,9 +84,9 @@ test('the percentage stays trailing when there is no label', () => {
   expect(cssRule(css, '.value')).toMatch(/margin-left:\s*auto/);
 });
 
-test('module CSS pins both track sizes and the themeable fill', () => {
-  expect(css).toContain("[data-size='sm']");
-  expect(css).toContain("[data-size='md']");
-  expect(css).toContain('var(--progress-fill)');
-  expect(css).toContain('var(--radius)');
+test('module CSS pins both track heights and the themeable fill', () => {
+  expect(cssRule(css, ".root[data-size='sm'] .track")).toMatch(/height:\s*4px/);
+  expect(cssRule(css, ".root[data-size='md'] .track")).toMatch(/height:\s*8px/);
+  expect(cssRule(css, '.fill')).toMatch(/background:\s*var\(--progress-fill\)/);
+  expect(cssRule(css, '.fill')).toMatch(/border-radius:\s*var\(--radius\)/);
 });
