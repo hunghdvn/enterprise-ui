@@ -26,6 +26,12 @@ test('title and children compose, and the icon is decorative', () => {
   expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
 });
 
+test('empty array and boolean slots render no wrappers', () => {
+  const { container } = render(<Alert title={[]}>{[]}</Alert>);
+  expect(container.querySelector('[class*="title"]')).toBeNull();
+  expect(container.querySelector('[class*="message"]')).toBeNull();
+});
+
 test('the dismiss button is opt-in, labelled and calls back once', () => {
   const onDismiss = vi.fn();
   const { rerender } = render(<Alert>Nội dung</Alert>);

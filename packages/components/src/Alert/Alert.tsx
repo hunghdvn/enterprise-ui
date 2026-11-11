@@ -1,5 +1,6 @@
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
+import { isPresent } from '../internal/isPresent';
 import styles from './Alert.module.css';
 import type { AlertProps, AlertTone } from './types';
 
@@ -31,8 +32,8 @@ export function Alert({
         <Icon name={ICONS[tone]} size={16} />
       </span>
       <div className={styles.body}>
-        {title && <span className={styles.title}>{title}</span>}
-        {children && <div className={styles.message}>{children}</div>}
+        {isPresent(title) && <span className={styles.title}>{title}</span>}
+        {isPresent(children) && <div className={styles.message}>{children}</div>}
       </div>
       {onDismiss && (
         <button

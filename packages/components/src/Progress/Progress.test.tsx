@@ -58,6 +58,13 @@ test('max other than 100 keeps the raw value and the correct visual ratio', () =
   expect(bar.querySelector('[class*="fill"]')).toHaveStyle({ width: '25%' });
 });
 
+test('an empty label renders no header or aria-labelledby', () => {
+  const { container } = render(<Progress value={10} label={[]} />);
+  const bar = screen.getByRole('progressbar');
+  expect(bar).not.toHaveAttribute('aria-labelledby');
+  expect(container.querySelector('[class*="header"]')).toBeNull();
+});
+
 test('aria-label passes through when there is no label, and size lands on the root', () => {
   const { rerender } = render(<Progress value={10} aria-label="Đồng bộ" />);
   expect(screen.getByRole('progressbar', { name: 'Đồng bộ' })).toHaveAttribute('data-size', 'sm');

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { cx } from '../internal/cx';
+import { isPresent } from '../internal/isPresent';
 import styles from './Progress.module.css';
 import type { ProgressProps } from './types';
 
@@ -23,14 +24,14 @@ export function Progress({
       aria-valuemin={0}
       aria-valuemax={resolvedMax}
       aria-valuenow={resolvedValue}
-      aria-labelledby={label ? labelId : undefined}
+      aria-labelledby={isPresent(label) ? labelId : undefined}
       data-size={size}
       className={cx(styles.root, className)}
       {...rest}
     >
-      {(label || showValue) && (
+      {(isPresent(label) || showValue) && (
         <div className={styles.header}>
-          {label && <span id={labelId}>{label}</span>}
+          {isPresent(label) && <span id={labelId}>{label}</span>}
           {showValue && (
             <span aria-hidden="true" className={styles.value}>
               {Math.round(percent)}%
