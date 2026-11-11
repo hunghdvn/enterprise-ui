@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Checkbox } from '../Checkbox/Checkbox';
+import { Radio } from '../Radio/Radio';
+import { Switch } from '../Switch/Switch';
 import { Field } from './Field';
 import { Form } from './Form';
 
@@ -111,6 +113,34 @@ test('does not nest labels when the child renders its own', () => {
   expect(container.querySelectorAll('label')).toHaveLength(1);
   expect(screen.getByRole('checkbox', { name: 'Tôi đồng ý' })).toBeInTheDocument();
   expect(screen.getByText('Đồng ý điều khoản')).toBeInTheDocument();
+});
+
+test('does not nest a second label when the child is a self-labelled Radio', () => {
+  const { container } = render(
+    <Form>
+      <Field label="Kênh nhận">
+        <Radio value="email">Email</Radio>
+      </Field>
+    </Form>,
+  );
+  // One label only: the Radio's own. The heading stays a plain span.
+  expect(container.querySelectorAll('label')).toHaveLength(1);
+  expect(screen.getByRole('radio', { name: 'Email' })).toBeInTheDocument();
+  expect(screen.getByText('Kênh nhận')).toBeInTheDocument();
+});
+
+test('does not nest a second label when the child is a self-labelled Switch', () => {
+  const { container } = render(
+    <Form>
+      <Field label="Kênh thông báo">
+        <Switch>Email</Switch>
+      </Field>
+    </Form>,
+  );
+  // One label only: the Switch's own. The heading stays a plain span.
+  expect(container.querySelectorAll('label')).toHaveLength(1);
+  expect(screen.getByRole('switch', { name: 'Email' })).toBeInTheDocument();
+  expect(screen.getByText('Kênh thông báo')).toBeInTheDocument();
 });
 
 test('exposes the hint as the control description and keeps it out of the label', () => {

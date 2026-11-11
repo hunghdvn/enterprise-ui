@@ -1,0 +1,55 @@
+---
+title: Textarea
+description: Ô nhập nhiều dòng với nhãn, lỗi và hai kích thước, theo cùng ngữ cảnh với Input.
+---
+
+import { TextareaDemo } from '../../../components/demos/TextareaDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Textarea` là phiên bản nhiều dòng của `Input`: cùng cách nối `error`, `aria-invalid` và `aria-describedby`, cùng hai kích thước, và mặc định ba hàng. Không tự giãn chiều cao — đặt `rows` hoặc CSS theo layout của bạn.
+
+Dùng cho ghi chú, lý do, mô tả — nội dung cần nhiều hơn một dòng.
+
+<Demo title="Ghi chú đơn hàng và trạng thái lỗi">
+  <TextareaDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Textarea } from '@enterprise-ui/components';
+
+export function OrderNote() {
+  const [note, setNote] = useState('');
+  return (
+    <Textarea
+      aria-label="Ghi chú đơn hàng"
+      rows={4}
+      value={note}
+      onChange={(event) => setNote(event.currentTarget.value)}
+    />
+  );
+}
+```
+
+## Props
+
+| Prop           | Kiểu                                                | Mặc định | Mô tả                                                      |
+| -------------- | --------------------------------------------------- | -------- | ---------------------------------------------------------- |
+| `size`         | `'sm' \| 'md'`                                      | `'sm'`   | Kích thước chữ và padding.                                 |
+| `error`        | `string`                                            | —        | Lỗi hiển thị dưới ô; đặt `aria-invalid` và `role="alert"`. |
+| `rows`         | `number`                                            | `3`      | Số hàng ban đầu; CSS vẫn cho phép kéo giãn dọc.            |
+| `value`        | `string`                                            | —        | Giá trị controlled.                                        |
+| `defaultValue` | `string`                                            | —        | Giá trị khởi tạo uncontrolled.                             |
+| `onChange`     | `(event: ChangeEvent<HTMLTextAreaElement>) => void` | —        | Nhận thay đổi.                                             |
+| `disabled`     | `boolean`                                           | `false`  | Vô hiệu hoá.                                               |
+| `placeholder`  | `string`                                            | —        | Văn bản gợi ý.                                             |
+
+Các thuộc tính `<textarea>` native khác (`id`, `name`, `maxLength`, `data-*`…) được truyền thẳng xuống phần tử. Riêng `aria-invalid` và `aria-describedby` do component quản lý: khi có `error`, `aria-invalid` được đặt thành `"true"` và id lỗi được nối vào `aria-describedby` (id của bạn đứng trước); khi không có `error`, giá trị bạn truyền được giữ nguyên.
+
+## Accessibility
+
+- `error` được nối vào ô qua `aria-describedby` (id người gọi đứng trước), kèm `aria-invalid="true"` và `role="alert"` để được thông báo.
+- Nhãn nên đặt qua `aria-label`/`aria-labelledby` hoặc một `<label>` bên ngoài, giống `Input`.
+- Chiều cao mặc định ba hàng và cho phép kéo giãn dọc, không bật tự giãn chiều cao.

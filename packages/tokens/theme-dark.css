@@ -24,4 +24,6 @@
      blocked cell from outshining the live blue pick. */
   --blocked-selection-bg: var(--surface-muted);
   --blocked-selection-text: var(--text);
+  /* Blue-600 is only ~2.4:1 against the dark page; blue-500 is ~4.9:1. */
+  --switch-track-on: var(--color-blue-500);
 }

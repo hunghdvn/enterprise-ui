@@ -168,6 +168,14 @@ assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
   '--blocked-selection-text': 'var(--text)',
   '--danger-emphasis': '#f87171',
 });
+// Switch track: root keeps the brand blue; dark lightens it so the checked track
+// stays ≥3:1 against the dark page.
+assertThemeTokens('root', readTokenFile('tokens.css'), ':root', {
+  '--switch-track-on': 'var(--color-blue-600)',
+});
+assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
+  '--switch-track-on': 'var(--color-blue-500)',
+});
 // Like the rings, the danger cue must be reset inside a light subtree of a dark page.
 assertThemeTokens('light', lightCss, '[data-theme="light"]', {
   '--danger-emphasis': '#dc2626',

@@ -21,7 +21,7 @@
   margin: 0;
   flex-shrink: 0;
 }
-[data-size='md'] .box {
+.label[data-size='md'] .box {
   width: var(--control-size);
   height: var(--control-size);
 }

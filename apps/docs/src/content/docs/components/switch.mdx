@@ -1,0 +1,52 @@
+---
+title: Switch
+description: Công tắc bật/tắt một cài đặt, nền là checkbox native được công bố với vai trò switch.
+---
+
+import { SwitchDemo } from '../../../components/demos/SwitchDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Switch` là một `<input type="checkbox" role="switch">` được vẽ thành thanh trượt. Vì giữ input native nên việc submit form, bấm vào nhãn, phím Space và trạng thái `checked` đều đến từ trình duyệt.
+
+Dùng cho các cài đặt bật/tắt ngay lập tức (nhận email, bản tóm tắt). Không dùng khi thao tác cần bước xác nhận hay lưu.
+
+<Demo title="Công tắc có kiểm soát">
+  <SwitchDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { Switch } from '@enterprise-ui/components';
+
+export function NotificationToggles() {
+  const [email, setEmail] = useState(true);
+  return (
+    <Switch checked={email} onChange={(event) => setEmail(event.currentTarget.checked)}>
+      Thông báo qua email
+    </Switch>
+  );
+}
+```
+
+## Props
+
+| Prop             | Kiểu                                             | Mặc định | Mô tả                                                     |
+| ---------------- | ------------------------------------------------ | -------- | --------------------------------------------------------- |
+| `children`       | `ReactNode`                                      | —        | **Bắt buộc.** Nhãn hiển thị, đồng thời là tên của switch. |
+| `size`           | `'sm' \| 'md'`                                   | `'sm'`   | Kích thước thanh trượt (32×18 / 40×22).                   |
+| `checked`        | `boolean`                                        | —        | Trạng thái controlled.                                    |
+| `defaultChecked` | `boolean`                                        | —        | Trạng thái khởi tạo uncontrolled.                         |
+| `onChange`       | `(event: ChangeEvent<HTMLInputElement>) => void` | —        | Nhận thay đổi.                                            |
+| `disabled`       | `boolean`                                        | `false`  | Vô hiệu hoá.                                              |
+| `name`           | `string`                                         | —        | Tên khi submit form.                                      |
+
+Các thuộc tính input native khác (`id`, `form`, `aria-*`, `data-*`) được truyền thẳng xuống `<input>`.
+
+## Accessibility
+
+- Switch được công bố với `role="switch"` và trạng thái `checked` native, không cần `aria-checked` thủ công.
+- Nhãn nằm cạnh thanh trượt; bấm vào nhãn cũng bật/tắt.
+- Phím Space bật/tắt như một checkbox; vòng focus vẽ quanh thanh trượt.
+- Thanh trượt dùng `--switch-track-on`; theme dark thay sang blue-500 để ranh giới vẫn đạt 3:1 trên nền tối. Núm trượt trắng viền `--text-muted` nên đọc được cả khi tắt.
