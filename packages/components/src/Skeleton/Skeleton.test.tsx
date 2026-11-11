@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { render } from '@testing-library/react';
 import { cssBlock, cssRule } from '../internal/cssRule';
 import { Skeleton } from './Skeleton';
+import type { SkeletonProps } from './types';
 
 const css = readFileSync(join(import.meta.dirname, 'Skeleton.module.css'), 'utf8');
 
@@ -11,6 +12,13 @@ test('defaults to a decorative text shape', () => {
   const skeleton = container.firstElementChild!;
   expect(skeleton).toHaveAttribute('data-variant', 'text');
   expect(skeleton).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('a caller cannot opt a skeleton into the accessibility tree', () => {
+  // @ts-expect-error aria-hidden is omitted from SkeletonProps on purpose.
+  const injected: SkeletonProps = { 'aria-hidden': false };
+  const { container } = render(<Skeleton {...injected} />);
+  expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
 });
 
 test('circle and rect variants accept numeric and string dimensions', () => {
