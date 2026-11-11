@@ -66,6 +66,12 @@ test('aria-label passes through when there is no label, and size lands on the ro
   expect(screen.getByRole('progressbar', { name: 'Đồng bộ' })).toHaveAttribute('data-size', 'md');
 });
 
+test('module CSS scopes track sizes to the progress root', () => {
+  expect(css).toMatch(/\.root\[data-size='sm'\] \.track/);
+  expect(css).toMatch(/\.root\[data-size='md'\] \.track/);
+  expect(css).not.toMatch(/^\[data-size='(sm|md)'\] \.track \{/m);
+});
+
 test('module CSS pins both track sizes and the themeable fill', () => {
   expect(css).toContain("[data-size='sm']");
   expect(css).toContain("[data-size='md']");

@@ -25,11 +25,11 @@
   overflow: hidden;
 }
 
-[data-size='sm'] .track {
+.root[data-size='sm'] .track {
   height: 4px;
 }
 
-[data-size='md'] .track {
+.root[data-size='md'] .track {
   height: 8px;
 }
 
