@@ -72,6 +72,13 @@ test('size variants set data-size on the label', () => {
   expect(labels[1]).toHaveAttribute('data-size', 'md');
 });
 
+test('module CSS scopes the md control size to the label, not any ancestor', () => {
+  // RadioGroup sets data-size on the <fieldset>, so an unscoped
+  // `[data-size='md'] .box` would grow a Radio that overrides size="sm".
+  expect(css).toMatch(/\.label\[data-size='md'\] \.box/);
+  expect(css).not.toMatch(/^\[data-size='md'\] \.box \{/m);
+});
+
 test('inside a group it fires its own onChange before the group onChange', () => {
   const order: string[] = [];
   render(
@@ -115,6 +122,24 @@ test('a radio own checked beats the group defaultValue without a React warning',
   // The group default must not seed a second selection when a radio owns its
   // state, and React must not see both checked and defaultChecked on one input.
   expect(screen.getByRole('radio', { name: 'Email' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'SMS' })).not.toBeChecked();
+  expect(errorSpy).not.toHaveBeenCalled();
+  errorSpy.mockRestore();
+});
+
+test('a controlled checked={false} radio is not seeded by the group defaultValue', () => {
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <RadioGroup legend="Kênh" defaultValue="email">
+      <Radio value="email" checked={false}>
+        Email
+      </Radio>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+  // checked={false} still makes this input controlled, so React must not also
+  // receive a defaultChecked for it.
+  expect(screen.getByRole('radio', { name: 'Email' })).not.toBeChecked();
   expect(screen.getByRole('radio', { name: 'SMS' })).not.toBeChecked();
   expect(errorSpy).not.toHaveBeenCalled();
   errorSpy.mockRestore();

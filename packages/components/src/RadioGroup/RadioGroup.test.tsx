@@ -93,6 +93,40 @@ test('uncontrolled defaultValue checks the matching radio', () => {
   expect(screen.getByRole('radio', { name: 'SMS' })).toBeChecked();
 });
 
+test('a falsy defaultChecked does not suppress the group defaultValue', () => {
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <RadioGroup legend="Kênh" defaultValue="sms">
+      <Radio value="email" defaultChecked={false}>
+        Email
+      </Radio>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+  expect(screen.getByRole('radio', { name: 'Email' })).not.toBeChecked();
+  expect(screen.getByRole('radio', { name: 'SMS' })).toBeChecked();
+  expect(errorSpy).not.toHaveBeenCalled();
+  errorSpy.mockRestore();
+});
+
+test('a wrapped checked radio suppresses the group defaultValue', () => {
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(
+    <RadioGroup legend="Kênh" defaultValue="sms">
+      <div>
+        <Radio value="email" checked>
+          Email
+        </Radio>
+      </div>
+      <Radio value="sms">SMS</Radio>
+    </RadioGroup>,
+  );
+  expect(screen.getByRole('radio', { name: 'Email' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'SMS' })).not.toBeChecked();
+  expect(errorSpy).not.toHaveBeenCalled();
+  errorSpy.mockRestore();
+});
+
 test('hint and error land in aria-describedby; error sets aria-invalid', () => {
   render(
     <RadioGroup legend="Kênh" hint="Chọn một kênh" error="Bắt buộc">

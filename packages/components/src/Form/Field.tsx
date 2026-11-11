@@ -53,7 +53,7 @@ export function Field({ label, error, hint, required, name, children }: FieldPro
     </>
   );
 
-  // A child that renders its own <label> (Checkbox/Radio, later Switch) must not
+  // A child that renders its own <label> (Checkbox/Radio/Switch) must not
   // also be pointed at one: two labels for a single control concatenate the
   // accessible name, so Field stays plain text there and lets the child's label
   // own the input.

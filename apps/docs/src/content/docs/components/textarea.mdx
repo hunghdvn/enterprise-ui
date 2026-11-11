@@ -46,7 +46,7 @@ export function OrderNote() {
 | `disabled`     | `boolean`                                           | `false`  | Vô hiệu hoá.                                               |
 | `placeholder`  | `string`                                            | —        | Văn bản gợi ý.                                             |
 
-Các thuộc tính `<textarea>` native khác (`id`, `name`, `maxLength`, `aria-*`, `data-*`) được truyền thẳng xuống phần tử.
+Các thuộc tính `<textarea>` native khác (`id`, `name`, `maxLength`, `data-*`…) được truyền thẳng xuống phần tử. Riêng `aria-invalid` và `aria-describedby` do component quản lý: khi có `error`, `aria-invalid` được đặt thành `"true"` và id lỗi được nối vào `aria-describedby` (id của bạn đứng trước); khi không có `error`, giá trị bạn truyền được giữ nguyên.
 
 ## Accessibility
 

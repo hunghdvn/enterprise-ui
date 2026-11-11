@@ -96,14 +96,14 @@ export function AccountFields() {
 
 ### Field
 
-| Prop       | Kiểu           | Mặc định | Mô tả                                                                 |
-| ---------- | -------------- | -------- | --------------------------------------------------------------------- |
-| `label`    | `string`       | —        | Bắt buộc; render `<label htmlFor>` trỏ tới id của control.            |
-| `children` | `ReactElement` | —        | Một control duy nhất như `Input`, `Select`, `Checkbox`.               |
-| `name`     | `string`       | —        | Khoá tra trong `errors` của Form.                                     |
-| `error`    | `string`       | —        | Lỗi tường minh cho riêng field; ưu tiên hơn lỗi cùng tên từ context.  |
-| `hint`     | `string`       | —        | Chú thích dưới control, nối vào `aria-describedby` chứ không vào tên. |
-| `required` | `boolean`      | `false`  | Hiện dấu `*` và gắn `aria-required` nếu control chưa tự khai báo.     |
+| Prop       | Kiểu           | Mặc định | Mô tả                                                                                                                                                                                            |
+| ---------- | -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `label`    | `string`       | —        | Bắt buộc; render heading dưới dạng `<span>` khi control con tự render label (Checkbox/Radio/Switch), hoặc `<label htmlFor>` trỏ tới id của control khi control không tự mang label.              |
+| `children` | `ReactElement` | —        | Một control duy nhất như `Input`, `Select`, `Checkbox`, `Radio`, `Switch`. `RadioGroup` tự mang `<legend>`, `hint` và `error` theo `name`, nên đặt trực tiếp trong `Form` chứ không bọc `Field`. |
+| `name`     | `string`       | —        | Khoá tra trong `errors` của Form.                                                                                                                                                                |
+| `error`    | `string`       | —        | Lỗi tường minh cho riêng field; ưu tiên hơn lỗi cùng tên từ context.                                                                                                                             |
+| `hint`     | `string`       | —        | Chú thích dưới control, nối vào `aria-describedby` chứ không vào tên.                                                                                                                            |
+| `required` | `boolean`      | `false`  | Hiện dấu `*` và gắn `aria-required` nếu control chưa tự khai báo.                                                                                                                                |
 
 ## Ghi chú
 
@@ -115,7 +115,7 @@ export function AccountFields() {
 
 ## Accessibility
 
-- Nhãn hiển thị luôn gắn với control qua `htmlFor`/`id`; không dùng placeholder thay cho nhãn.
+- Nhãn hiển thị gắn với control qua `htmlFor`/`id`; với `Checkbox`, `Radio` và `Switch`, control tự bọc nhãn nên `Field` chỉ render heading bằng văn bản và tên truy cập đến từ nhãn của control.
 - Lỗi render trong `role="alert"` và tự đặt `aria-invalid` trên control, nên được đọc ngay khi xuất hiện.
 - Hint và error nằm trong `aria-describedby`; chúng không lẫn vào tên truy cập của control.
 - Dấu `*` của `required` được ẩn với trình đọc màn hình; thông tin bắt buộc truyền qua `aria-required`.

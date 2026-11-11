@@ -21,19 +21,17 @@ export function Radio({
   // the radio's own props only matter when the group is uncontrolled.
   const controlled = group?.value !== undefined;
   const resolvedChecked = controlled ? group.value === value : checked;
-  // A Radio that owns its checked state must not also receive a defaultChecked:
-  // passing both makes React warn and can leave two radios selected in one group.
-  // The group's defaultValue only seeds radios that set neither checked nor
-  // defaultChecked themselves.
-  const radioOwnsChecked = checked !== undefined || defaultChecked !== undefined;
+  // A controlled `checked` and a `defaultChecked` can never share one input:
+  // React warns and can leave two radios selected. The group default therefore
+  // only seeds radios that set neither prop. A falsy `checked={false}` still
+  // blocks the seed because that radio is controlled by its own prop.
+  const canSeedFromGroup = checked === undefined && defaultChecked === undefined;
   const resolvedDefaultChecked = controlled
     ? undefined
     : (defaultChecked ??
-      (radioOwnsChecked
-        ? undefined
-        : group?.defaultValue !== undefined
-          ? group.defaultValue === value
-          : undefined));
+      (canSeedFromGroup && group?.defaultValue !== undefined
+        ? group.defaultValue === value
+        : undefined));
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange?.(event);

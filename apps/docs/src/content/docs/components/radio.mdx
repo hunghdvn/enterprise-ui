@@ -32,7 +32,7 @@ export function NotificationChannel() {
 }
 ```
 
-Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm radio native; `defaultValue` chỉ gieo giá trị cho lần render đầu tiên. Mỗi `Radio` trong nhóm phải có `value` **duy nhất**: hai radio cùng `value` khiến không thể phân biệt lựa chọn. Nếu một `Radio` tự đặt `checked`/`defaultChecked`, `defaultValue` của nhóm không gieo cho radio đó.
+Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm radio native; `defaultValue` chỉ gieo giá trị cho lần render đầu tiên. Mỗi `Radio` trong nhóm phải có `value` **duy nhất**: hai radio cùng `value` khiến không thể phân biệt lựa chọn. `defaultValue` của nhóm bị bỏ qua hoàn toàn nếu bất kỳ `Radio` nào trong nhóm — kể cả khi được bọc trong phần tử khác — đặt `checked` hoặc `defaultChecked` thành `true`; giá trị `false` không tính. Một `Radio` đặt `checked={false}` vẫn do caller kiểm soát và không nhận giá trị mặc định của nhóm.
 
 ## Props
 
@@ -51,19 +51,19 @@ Không truyền `value`/`onChange` thì nhóm vẫn hoạt động nhờ nhóm r
 
 ### `RadioGroup`
 
-| Prop           | Kiểu                         | Mặc định     | Mô tả                                                             |
-| -------------- | ---------------------------- | ------------ | ----------------------------------------------------------------- |
-| `legend`       | `ReactNode`                  | —            | **Bắt buộc.** Nhãn nhóm, luôn render thành `<legend>`.            |
-| `children`     | `ReactNode`                  | —            | **Bắt buộc.** Các `Radio`.                                        |
-| `name`         | `string`                     | sinh tự động | Tên dùng chung; khuyến nghị đặt khi submit form.                  |
-| `value`        | `string`                     | —            | Giá trị đang chọn (controlled).                                   |
-| `defaultValue` | `string`                     | —            | Giá trị khởi tạo (uncontrolled), chỉ áp dụng lần render đầu.      |
-| `onChange`     | `(value: string) => void`    | —            | Nhận giá trị mới.                                                 |
-| `hint`         | `ReactNode`                  | —            | Dòng hướng dẫn dưới legend.                                       |
-| `error`        | `string`                     | —            | Lỗi; thay thế `errors[name]` từ `Form`.                           |
-| `required`     | `boolean`                    | `false`      | Thêm dấu `*` và `aria-required`.                                  |
-| `orientation`  | `'vertical' \| 'horizontal'` | `'vertical'` | `horizontal` xếp hàng và xuống dòng khi hết chỗ.                  |
-| `size`         | `'sm' \| 'md'`               | `'sm'`       | Kích thước mặc định cho các radio; radio tự đặt `size` sẽ ghi đè. |
+| Prop           | Kiểu                         | Mặc định     | Mô tả                                                                                                                       |
+| -------------- | ---------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `legend`       | `ReactNode`                  | —            | **Bắt buộc.** Nhãn nhóm, luôn render thành `<legend>`.                                                                      |
+| `children`     | `ReactNode`                  | —            | **Bắt buộc.** Các `Radio`.                                                                                                  |
+| `name`         | `string`                     | sinh tự động | Tên dùng chung; khuyến nghị đặt khi submit form.                                                                            |
+| `value`        | `string`                     | —            | Giá trị đang chọn (controlled).                                                                                             |
+| `defaultValue` | `string`                     | —            | Giá trị khởi tạo (uncontrolled), chỉ áp dụng lần render đầu; bỏ qua khi có `Radio` đặt `checked`/`defaultChecked` = `true`. |
+| `onChange`     | `(value: string) => void`    | —            | Nhận giá trị mới.                                                                                                           |
+| `hint`         | `ReactNode`                  | —            | Dòng hướng dẫn dưới legend.                                                                                                 |
+| `error`        | `string`                     | —            | Lỗi; thay thế `errors[name]` từ `Form`.                                                                                     |
+| `required`     | `boolean`                    | `false`      | Thêm dấu `*` và `aria-required`.                                                                                            |
+| `orientation`  | `'vertical' \| 'horizontal'` | `'vertical'` | `horizontal` xếp hàng và xuống dòng khi hết chỗ.                                                                            |
+| `size`         | `'sm' \| 'md'`               | `'sm'`       | Kích thước mặc định cho các radio; radio tự đặt `size` sẽ ghi đè.                                                           |
 
 ## Accessibility
 
