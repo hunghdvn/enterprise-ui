@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render } from '@testing-library/react';
+import { cssBlock, cssRule } from '../internal/cssRule';
 import { Skeleton } from './Skeleton';
 
 const css = readFileSync(join(import.meta.dirname, 'Skeleton.module.css'), 'utf8');
@@ -33,11 +34,15 @@ test('a caller style wins over the width and height props', () => {
   expect(skeleton.style.height).toBe('20px');
 });
 
-test('module CSS pins shimmer, both variants and reduced motion', () => {
+test('module CSS pins shimmer, variant geometry and reduced motion', () => {
+  const reduce = cssBlock(css, '@media (prefers-reduced-motion: reduce)');
+  const base = cssRule(css.replace(reduce, ''), '.skeleton');
   expect(css).toContain('@keyframes shimmer');
-  expect(css).toContain("data-variant='circle'");
-  expect(css).toContain("data-variant='rect'");
-  expect(css).toContain('prefers-reduced-motion: reduce');
-  expect(css).toContain('animation: none');
-  expect(css).toContain('var(--surface-muted)');
+  expect(base).toMatch(/var\(--skeleton-base\)/);
+  expect(base).toMatch(/var\(--skeleton-shine\)/);
+  expect(cssRule(css, ".skeleton[data-variant='text']")).toMatch(/height:\s*1em/);
+  expect(cssRule(css, ".skeleton[data-variant='circle']")).toMatch(/width:\s*32px/);
+  expect(cssRule(css, ".skeleton[data-variant='rect']")).toMatch(/height:\s*80px/);
+  expect(cssRule(reduce, '.skeleton')).toMatch(/animation:\s*none/);
+  expect(cssRule(reduce, '.skeleton')).toMatch(/background:\s*var\(--skeleton-base\)/);
 });

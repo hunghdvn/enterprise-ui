@@ -28,4 +28,7 @@
   --switch-track-on: var(--color-blue-500);
   /* Blue-600 is ~1.4:1 on --surface-muted; blue-300 keeps the Progress fill visible. */
   --progress-fill: var(--color-blue-300);
+  /* --surface-muted and --border are the same dark value, so Skeleton needs its own pair. */
+  --skeleton-base: #475569;
+  --skeleton-shine: #64748b;
 }

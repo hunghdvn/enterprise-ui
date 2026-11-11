@@ -44,5 +44,5 @@ Ngoài ra nhận thuộc tính của `<span>` trừ khi bị props trên ghi đ�
 
 - Mọi skeleton đều `aria-hidden="true"` — đây là placeholder thị giác, không phải nội dung.
 - Hãy thông báo trạng thái tải bằng `Spin`, `role="status"` hoặc live region; đừng dựa vào skeleton để truyền đạt "đang tải".
-- Shimmer tắt hoàn toàn khi `prefers-reduced-motion: reduce`; khối chuyển sang màu phẳng `--surface-muted`.
+- Shimmer tắt hoàn toàn khi `prefers-reduced-motion: reduce`; khối chuyển sang màu phẳng `--skeleton-base`. Hai token `--skeleton-base`/`--skeleton-shine` giữ shimmer nhìn thấy ở cả theme sáng và tối.
 - Khi dữ liệu về, thay skeleton bằng nội dung thật; không giữ cả hai để tránh layout nhấp nháy.

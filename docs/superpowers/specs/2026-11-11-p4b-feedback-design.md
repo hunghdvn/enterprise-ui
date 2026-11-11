@@ -149,9 +149,12 @@ Geometry:
 Defaults live in CSS so `width`/`height` props are optional. Inline `style`
 merges last, so a caller's `style` can override the props.
 
-Shimmer: a two-token gradient between `var(--surface-muted)` and
-`var(--border)`, `1.4s ease-in-out infinite`. `prefers-reduced-motion: reduce`
-turns the animation off and paints a flat `--surface-muted` block.
+Shimmer: a two-token gradient between `var(--skeleton-base)` and
+`var(--skeleton-shine)` (light `#e2e8f0`/`#f1f5f9`, dark `#475569`/`#64748b`),
+`1.4s ease-in-out infinite`. The dedicated pair keeps the shimmer visible in
+dark mode, where `--surface-muted` and `--border` are the same value.
+`prefers-reduced-motion: reduce` turns the animation off and paints a flat
+`--skeleton-base` block.
 
 ### 4.3 `Progress`
 

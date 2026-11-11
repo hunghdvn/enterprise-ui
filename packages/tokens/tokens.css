@@ -38,4 +38,7 @@
   --switch-track-on: var(--color-blue-600);
   /* Determinate Progress fill; the dark theme lightens it on the muted track. */
   --progress-fill: var(--color-blue-600);
+  /* Skeleton base/shine; themes keep a visible difference between the two. */
+  --skeleton-base: #e2e8f0;
+  --skeleton-shine: #f1f5f9;
 }
