@@ -8,6 +8,8 @@ export { Input } from './Input/Input';
 export type { InputProps } from './Input/Input';
 export { Badge } from './Badge/Badge';
 export type { BadgeProps, BadgeTone } from './Badge/Badge';
+export { Alert } from './Alert';
+export type { AlertProps, AlertTone } from './Alert';
 export { Select } from './Select/Select';
 export type { SelectProps } from './Select/Select';
 export { Combobox } from './Combobox/Combobox';
