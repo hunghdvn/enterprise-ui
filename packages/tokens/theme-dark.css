@@ -31,4 +31,7 @@
   /* --surface-muted and --border are the same dark value, so Skeleton needs its own pair. */
   --skeleton-base: #475569;
   --skeleton-shine: #64748b;
+  /* Dark initials Avatar: blue-800 surface with blue-100 text (~8:1). */
+  --avatar-bg: var(--color-blue-800);
+  --avatar-text: var(--color-blue-100);
 }
