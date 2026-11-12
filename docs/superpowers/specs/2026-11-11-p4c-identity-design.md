@@ -127,6 +127,14 @@ image only when `src` is set and `failedSrc !== src`. That makes a new `src`
 render immediately without an effect, and a later failure of the same URL
 stays on initials. `onError` is internal; no event is exposed.
 
+SSR reconciliation (review fix): under island hydration the `<img>` is in the
+server HTML, so the browser can fail it before React hydrates — and React does
+not replay load/error events on hydration. On mount and on every `src` change,
+an effect checks the live node (`image.complete && image.naturalWidth === 0`)
+and records the failed `src`, so a pre-failed URL still shows initials. The
+check reads the DOM, not synthetic events, so it works for cached failures and
+never fires a false positive for a still-loading image (`complete` is false).
+
 Sizes: `sm` 24×24, `md` 32×32, `lg` 48×48. Default `md`. Text scales with
 the diameter (10/12/16px). The mark is `border-radius: 50%`,
 `overflow: hidden`, and uses only tokens:
@@ -213,8 +221,12 @@ on each item and consumed by CSS (`grid-column: span var(--desc-span, 1)`);
 the mobile rule switches `grid-column` back to `auto`, which an inline
 `grid-column` could not override. `style` from `...rest` stays on the root.
 
-Semantics: `<dl>` + `<dt>`/`<dd>` with the HTML5 `div` wrapper per pair. No
-ARIA roles are added — native description-list semantics are the point.
+Semantics: `<dl>` + `<dt>`/`<dd>` with the HTML5 `div` wrapper per pair. The
+`<dl>` carries no ARIA role — native description-list semantics are the point.
+The root `<div>` gets `role="group"` **only** when the caller passes
+`aria-label` or `aria-labelledby` (review fix: a bare `div` exposes no name, so
+an `aria-label` there would be inert). `...rest` spreads last, so a caller's
+explicit `role` still wins.
 
 CSS:
 

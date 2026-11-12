@@ -5,6 +5,8 @@ const CUSTOMER = [
   { label: 'Mã khách hàng', value: 'KH-1042' },
   { label: 'Email', value: 'an.nguyen@example.com' },
   { label: 'Điện thoại', value: '090 123 4567' },
+  { label: 'Phòng ban', value: 'Kinh doanh' },
+  { label: 'Trạng thái', value: 'Đang hoạt động' },
   { label: 'Ngày tạo', value: '12/11/2026' },
 ];
 

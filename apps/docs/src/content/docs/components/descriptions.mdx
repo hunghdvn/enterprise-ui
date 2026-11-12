@@ -50,7 +50,8 @@ export function OrderDetail() {
 
 ## Accessibility
 
-- Cấu trúc là `<dl>` với `<dt>`/`<dd>`; không thêm `role` để giữ ngữ nghĩa description-list gốc.
+- Cấu trúc là `<dl>` với `<dt>`/`<dd>`; bản thân `<dl>` không thêm `role` để giữ ngữ nghĩa description-list gốc.
+- Khi truyền `aria-label` hoặc `aria-labelledby`, phần tử gốc nhận thêm `role="group"` để tên đó thực sự được đọc; không truyền thì gốc vẫn là `<div>` thường.
 - Nhãn dùng `--text-muted` và đạt tương phản ≥4.5:1 ở cả hai theme; giá trị dùng `--text`.
 - `span` bị kẹp theo số cột, và ở breakpoint một cột `grid-column` được đặt lại để không tạo cột ẩn.
 - `items` rỗng không render khung rỗng — phía gọi dùng `Empty` nếu cần trạng thái "chưa có dữ liệu".

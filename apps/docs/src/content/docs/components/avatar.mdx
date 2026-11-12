@@ -48,4 +48,5 @@ export function Assignee() {
 - Chữ cái thay thế là trang trí với `aria-hidden="true"`; tên vẫn nằm trên phần tử gốc.
 - Tên rỗng hoặc chỉ khoảng trắng vẫn có nhãn `?` thay vì một `role="img"` không tên.
 - Ảnh lỗi không làm mất nội dung: component chuyển sang chữ cái và giữ nguyên nhãn truy cập.
+- Ảnh đã lỗi trước khi hydrate (SSR) vẫn được đối chiếu lúc mount qua `img.complete` và `naturalWidth`, nên fallback hiển thị dù trình duyệt không phát lại sự kiện `error`.
 - Avatar không nhận focus và không có trạng thái hiện diện. Nếu cần bấm, bọc trong `button`/`a`; nếu cần chấm online, đặt cạnh avatar và kèm nhãn văn bản.
