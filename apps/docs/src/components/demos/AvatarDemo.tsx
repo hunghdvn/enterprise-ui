@@ -45,7 +45,7 @@ export function AvatarDemo() {
           <span>Nguyễn Văn An</span>
         </div>
         <p className={styles.helper}>
-          <code>alt=""</code> ẩn avatar khỏi cây truy cập khi tên đã hiển thị bên cạnh.
+          <code>{'alt=""'}</code> ẩn avatar khỏi cây truy cập khi tên đã hiển thị bên cạnh.
         </p>
       </section>
     </div>
