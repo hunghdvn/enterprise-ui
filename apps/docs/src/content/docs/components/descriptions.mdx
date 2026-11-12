@@ -32,7 +32,7 @@ export function OrderDetail() {
 }
 ```
 
-`items` là mảng cặp `label`/`value`; `span` cho phép một mục chiếm nhiều cột và được kẹp trong khoảng `1..columns`. Dưới 640px lưới tự thu về một cột và nhãn xếp trên giá trị, nên bảng vẫn đọc được trên điện thoại.
+`items` là mảng cặp `label`/`value`; `span` cho phép một mục chiếm nhiều cột và được kẹp trong khoảng `1..columns`. Khi pane hẹp dưới 640px (container query, không phải viewport), lưới tự thu về một cột và nhãn xếp trên giá trị, nên bảng vẫn đọc được trong Drawer/SplitView hẹp lẫn trên điện thoại.
 
 `items` rỗng thì component không render gì. Giá trị có thể là link, button hoặc bất kỳ `ReactNode` nào; component không tự thêm hành vi.
 
@@ -40,19 +40,19 @@ export function OrderDetail() {
 
 | Prop       | Kiểu                         | Mặc định       | Mô tả                                  |
 | ---------- | ---------------------------- | -------------- | -------------------------------------- |
-| `items`    | `DescriptionItem[]`          | —              | Danh sách cặp nhãn/giá trị.            |
+| `items`    | `readonly DescriptionItem[]` | —              | Danh sách cặp nhãn/giá trị.            |
 | `columns`  | `1 \| 2 \| 3`                | `2`            | Số cột của lưới.                       |
 | `layout`   | `'horizontal' \| 'vertical'` | `'horizontal'` | Nhãn bên trái hoặc bên trên giá trị.   |
 | `bordered` | `boolean`                    | `false`        | Thêm đường viền giữa các ô.            |
 | `size`     | `'sm' \| 'md'`               | `'md'`         | Cỡ chữ; `sm` nhỏ hơn cho pane dày đặc. |
 
-`DescriptionItem` gồm `label: ReactNode`, `value: ReactNode` và `span?: number`. `Descriptions` nhận các thuộc tính của `<div>` (`className`, `id`, `aria-*`…) và chuyển xuống phần tử gốc, **trừ `children`**.
+`DescriptionItem` gồm `label: ReactNode`, `value: ReactNode`, `span?: number` và `key?: React.Key` (tuỳ chọn, giữ danh tính hàng khi chèn/sắp xếp). `Descriptions` nhận các thuộc tính của `<div>` (`className`, `id`, `aria-*`…) và chuyển xuống phần tử gốc, **trừ `children`**.
 
 ## Accessibility
 
 - Cấu trúc là `<dl>` với `<dt>`/`<dd>`; bản thân `<dl>` không thêm `role` để giữ ngữ nghĩa description-list gốc.
 - Khi truyền `aria-label` hoặc `aria-labelledby`, phần tử gốc nhận thêm `role="group"` để tên đó thực sự được đọc; không truyền thì gốc vẫn là `<div>` thường.
 - Nhãn dùng `--text-muted` và đạt tương phản ≥4.5:1 ở cả hai theme; giá trị dùng `--text`.
-- `span` bị kẹp theo số cột, và ở breakpoint một cột `grid-column` được đặt lại để không tạo cột ẩn.
+- `span` bị kẹp theo số cột, và khi container hẹp dưới 640px `grid-column` được đặt lại để không tạo cột ẩn.
 - `items` rỗng không render khung rỗng — phía gọi dùng `Empty` nếu cần trạng thái "chưa có dữ liệu".
 - Giá trị có thể chứa link/button; đảm bảo mỗi phần tử tương tác có tên truy cập riêng.

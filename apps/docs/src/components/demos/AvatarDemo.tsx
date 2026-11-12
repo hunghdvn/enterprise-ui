@@ -2,7 +2,7 @@ import { Avatar } from '@enterprise-ui/components';
 import styles from './demos.module.css';
 
 const PHOTO =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231e47c4'/%3E%3Ccircle cx='32' cy='24' r='12' fill='%23dbeafe'/%3E%3Cpath d='M12 60c0-12 9-20 20-20s20 8 20 20' fill='%23dbeafe'/%3E%3C/svg%3E";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' width='64' height='64'%3E%3Crect width='64' height='64' fill='%231e47c4'/%3E%3Ccircle cx='32' cy='24' r='12' fill='%23dbeafe'/%3E%3Cpath d='M12 60c0-12 9-20 20-20s20 8 20 20' fill='%23dbeafe'/%3E%3C/svg%3E";
 const BROKEN = 'data:image/png;base64,AAAA';
 
 export function AvatarDemo() {

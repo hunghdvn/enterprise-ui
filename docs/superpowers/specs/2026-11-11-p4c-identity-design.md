@@ -114,18 +114,25 @@ collide and the fallback cannot be disabled by accident.
 
 Initials algorithm:
 
+- `normalize('NFC')` each token first, so an NFD Vietnamese name (macOS
+  input, imported data) keeps its diacritic instead of losing it;
 - split on whitespace; drop empty tokens;
 - one token → its first code point; two or more → first code point of the
   first and last token;
-- `Array.from` (code points, not UTF-16 units) then `toUpperCase()`;
+- `Array.from` (code points, not UTF-16 units), uppercase, then keep the first
+  capital code point, so `ß` yields `S` rather than `SS`;
 - empty/whitespace-only name → `'?'`, and the same `'?'` becomes the
   accessible name when `alt` is omitted (a `role="img"` must never end up
-  with an empty label).
+  with an empty label);
+- a whitespace-only `alt` is treated as absent and falls back to `name`,
+  never becoming an empty `aria-label`.
 
 Image failure: keep the failed `src` in state (`failedSrc`), and show the
 image only when `src` is set and `failedSrc !== src`. That makes a new `src`
 render immediately without an effect, and a later failure of the same URL
-stays on initials. `onError` is internal; no event is exposed.
+stays on initials. When `src` changes, the failure is reset during render
+(React's prop-change pattern), so switching `A → B → A` retries `A` instead of
+staying on initials forever. `onError` is internal; no event is exposed.
 
 SSR reconciliation (review fix): under island hydration the `<img>` is in the
 server HTML, so the browser can fail it before React hydrates — and React does
@@ -140,19 +147,26 @@ the diameter (10/12/16px). The mark is `border-radius: 50%`,
 `overflow: hidden`, and uses only tokens:
 
 - initials: `background: var(--avatar-bg)`, `color: var(--avatar-text)`;
-- a 1px inset `var(--border)` ring defines the edge on both themes;
+- a 1px `var(--border)` border defines the edge on both themes. It is a real
+  border (not an inset `box-shadow`) so it stays visible above the photo and
+  survives forced-colors; `box-sizing: border-box` keeps the diameter exact;
+- `vertical-align: middle` so swapping photo ↔ initials does not shift the
+  line box;
 - image: `object-fit: cover`, full size.
 
 New tokens (with `theme-light` resets so a light subtree inside a dark page
-keeps the light pair and `theme-dark` overrides):
+keeps the light pair and `theme-dark` overrides). The blue-100 / blue-800
+values are deliberately **not** reused: they are exactly
+`--row-selected-bg` / `--row-hover-bg` and `--nav-active-bg`, so an avatar in a
+selected row or active nav would vanish into the surrounding fill.
 
 | Token           | Root / light            | Dark                    |
 | --------------- | ----------------------- | ----------------------- |
-| `--avatar-bg`   | `var(--color-blue-100)` | `var(--color-blue-800)` |
+| `--avatar-bg`   | `var(--color-blue-200)` | `var(--color-blue-600)` |
 | `--avatar-text` | `var(--color-blue-800)` | `var(--color-blue-100)` |
 
-Both pairs are ≈8:1; the dark pair flips the same two blues, so no new colour
-values enter the system.
+Light is ≈7.3:1 and dark ≈6.3:1; both fills are distinct from the semantic
+row/nav surfaces above.
 
 ### 4.2 `Descriptions`
 
@@ -162,6 +176,8 @@ export type DescriptionsLayout = 'horizontal' | 'vertical';
 export type DescriptionsSize = 'sm' | 'md';
 
 export interface DescriptionItem {
+  /** Stable React key. Falls back to the item index when omitted. */
+  key?: Key;
   /** Term rendered in `<dt>`. */
   label: ReactNode;
   /** Value rendered in `<dd>`. */
@@ -171,7 +187,7 @@ export interface DescriptionItem {
 }
 
 export interface DescriptionsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
-  items: DescriptionItem[];
+  items: readonly DescriptionItem[];
   /** Grid columns. Default `2`. */
   columns?: DescriptionsColumns;
   /** Label beside (`horizontal`) or above (`vertical`) the value. Default `'horizontal'`. */
@@ -187,8 +203,10 @@ export function Descriptions(props: DescriptionsProps): JSX.Element;
 
 **Decision (mine): an `items` array, not compound children.** The pane is
 data, like `Table`/`Tabs`; an array keeps label/value pairing impossible to
-get wrong and lets `span` live beside its row. React keys come from the index
-(the list is presentational and order-stable).
+get wrong and lets `span` live beside its row. `items` is `readonly` so
+callers can pass `as const` config. Each item takes an optional `key`; the
+index is only the fallback, because a `value` may hold stateful React nodes
+(links/buttons) and an insertion must not reassign their state.
 
 **Decision (mine): no built-in `title`.** Detail panes are already under a
 `PageHeader`/section heading; baking another heading in would create heading
@@ -218,8 +236,9 @@ DOM contract:
 
 `data-bordered` is only present when `bordered` is true. `--desc-span` is set
 on each item and consumed by CSS (`grid-column: span var(--desc-span, 1)`);
-the mobile rule switches `grid-column` back to `auto`, which an inline
-`grid-column` could not override. `style` from `...rest` stays on the root.
+the narrow-container rule switches `grid-column` back to `auto`, which an
+inline `grid-column` could not override. `style` from `...rest` stays on the
+root.
 
 Semantics: `<dl>` + `<dt>`/`<dd>` with the HTML5 `div` wrapper per pair. The
 `<dl>` carries no ARIA role — native description-list semantics are the point.
@@ -232,16 +251,25 @@ CSS:
 
 - grid `gap: 12px 24px`; `data-columns='1' | '2' | '3'` set
   `minmax(0, 1fr)` / `repeat(2, …)` / `repeat(3, …)`;
+- `.root` is a `container-type: inline-size` container; the collapse uses
+  `@container (max-width: 640px)` so a pane inside a narrow Drawer/SplitView
+  collapses on a wide viewport too;
 - `horizontal`: each item is a two-column grid
   (`minmax(96px, 140px) minmax(0, 1fr)`), so labels align down the pane;
 - `vertical`: label above value;
 - `bordered`: `gap: 0`, outer top/left border plus right/bottom per cell;
-- `@media (max-width: 640px)`: the list collapses to one column and
-  horizontal items stack their label; selectors repeat the `[data-columns]` /
-  `[data-layout='horizontal'] .item` specificity so the later rule wins;
-- labels use `var(--text-muted)` (≥4.5:1 both themes), values `var(--text)`;
-- `size` selectors are scoped `.root[data-size='sm'|'md']`; `sm` is
-  11px label / 12px value, `md` is 12px label / `var(--font-size)` value.
+- the narrow-container rule collapses the list to one column and stacks
+  horizontal labels; selectors repeat the `[data-columns]` /
+  `[data-layout='horizontal'] > .item` specificity so the later rule wins;
+- layout and border selectors use the child combinator
+  (`.list[data-layout='horizontal'] > .item`), so a `Descriptions` nested in
+  another pane's `value` does not inherit the outer layout or borders;
+- `size` is applied through inherited custom properties on the root
+  (`--desc-label-size` / `--desc-value-size`), so a nested `Descriptions`
+  overrides them for its own subtree without a descendant selector crossing
+  the boundary; `sm` is 11px label / 12px value, `md` is 12px label /
+  `var(--font-size)` value;
+- labels use `var(--text-muted)` (≥4.5:1 both themes), values `var(--text)`.
 
 ## 5. Docs
 
@@ -271,18 +299,25 @@ one-column mobile collapse, empty `items`, and that values are caller-owned
 Tests pin behaviour, not implementation:
 
 - Avatar: image + accessible name; `img` is `alt=""`/`aria-hidden`;
-  multi-word and single-word initials (Vietnamese); whitespace name → `?`;
-  image error → initials; new `src` restores the image; `alt` override;
-  `alt=""` decorative mode (no role, `aria-hidden`); default and explicit
-  sizes; rest/className land on root; CSS pins sizes, cover, ring, scoped
-  selectors.
+  multi-word and single-word initials (Vietnamese); NFD normalization and a
+  `ß` single-letter initial; whitespace name → `?`; whitespace-only `alt`
+  falls back to `name`; image error → initials; new `src` restores the image;
+  switching `A → B → A` retries `A`; pre-hydration failure reconciles both in
+  a client render and through a real `hydrateRoot`; a loaded image with a
+  positive `naturalWidth` is kept; `alt` override; `alt=""` decorative mode
+  (no role, `aria-hidden`); default and explicit sizes; rest/className land on
+  root; CSS pins sizes, the real border, `box-sizing`, `vertical-align`,
+  token consumption and scoped selectors.
 - Descriptions: one `dt`/`dd` per item; default and explicit `columns`;
   default and explicit `layout`; `--desc-span` and clamping (5 → columns,
   0/NaN → 1); `data-bordered` only when true; default and explicit `size`;
-  empty `items` renders nothing; rest/className land on root; CSS pins the
-  three column templates, scoped size selectors, the mobile collapse and the
-  bordered rules.
-- Tokens: root/light/dark guards for `--avatar-bg` and `--avatar-text`.
+  optional `key` preserves row identity across inserts; a readonly `items`
+  array is accepted; empty `items` renders nothing; rest/className land on
+  root; CSS pins the three column templates, container collapse, custom
+  size properties, child-combinator scoping, the `--desc-span` consumption and
+  the bordered rules.
+- Tokens: root/light/dark guards for `--avatar-bg` and `--avatar-text`,
+  including the distinct blue-200/blue-600 fills.
 - `css-conventions.test.ts` must pass (no hex; every `data-size` component
   styles both `sm` and `md`).
 
