@@ -14,8 +14,18 @@ export function Descriptions({
 }: DescriptionsProps) {
   if (items.length === 0) return null;
 
+  // A bare <div> exposes no name, so an aria-label on the pane would be inert.
+  // Promote the root to a named group only when the caller labels it; spread
+  // order below keeps an explicit caller `role` winning.
+  const labelled = rest['aria-label'] !== undefined || rest['aria-labelledby'] !== undefined;
+
   return (
-    <div className={cx(styles.root, className)} data-size={size} {...rest}>
+    <div
+      className={cx(styles.root, className)}
+      data-size={size}
+      role={labelled ? 'group' : undefined}
+      {...rest}
+    >
       <dl
         className={styles.list}
         data-columns={columns}

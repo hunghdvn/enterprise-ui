@@ -42,6 +42,21 @@ test('falls back to initials when the image fails, and a new src retries', () =>
   expect(container.querySelector('img')).toHaveAttribute('src', '/an.jpg');
 });
 
+test('reconciles an image that failed before hydration', () => {
+  const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+  const naturalWidth = vi
+    .spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get')
+    .mockReturnValue(0);
+  try {
+    const { container } = render(<Avatar name="Nguyễn An" src="/broken.jpg" />);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByText('NA')).toBeInTheDocument();
+  } finally {
+    complete.mockRestore();
+    naturalWidth.mockRestore();
+  }
+});
+
 test('alt overrides the accessible label', () => {
   render(<Avatar name="Nguyễn An" src="/an.jpg" alt="Ảnh hồ sơ của An" />);
   expect(screen.getByRole('img', { name: 'Ảnh hồ sơ của An' })).toBeInTheDocument();

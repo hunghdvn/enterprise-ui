@@ -70,6 +70,28 @@ test('renders nothing when items is empty', () => {
   expect(container).toBeEmptyDOMElement();
 });
 
+test('exposes an aria name on role="group" only when labelled', () => {
+  const { container, unmount } = render(
+    <Descriptions items={[{ label: 'A', value: 'B' }]} aria-label="Thông tin khách hàng" />,
+  );
+  expect(screen.getByRole('group', { name: 'Thông tin khách hàng' })).toBeInTheDocument();
+  expect(container.querySelector('dl')).not.toHaveAttribute('role');
+  unmount();
+
+  const labelledBy = render(
+    <Descriptions items={[{ label: 'A', value: 'B' }]} aria-labelledby="customer-heading" />,
+  );
+  expect(labelledBy.container.firstElementChild).toHaveAttribute('role', 'group');
+  expect(labelledBy.container.firstElementChild).toHaveAttribute(
+    'aria-labelledby',
+    'customer-heading',
+  );
+  labelledBy.unmount();
+
+  const plain = render(<Descriptions items={[{ label: 'A', value: 'B' }]} />);
+  expect(plain.container.firstElementChild).not.toHaveAttribute('role');
+});
+
 test('className and rest land on the root', () => {
   const { container } = render(
     <Descriptions items={[{ label: 'A', value: 'B' }]} className="pane" id="detail" />,
@@ -80,11 +102,16 @@ test('className and rest land on the root', () => {
 });
 
 test('module CSS pins columns, scoped sizes, borders and the mobile collapse', () => {
+  const desktop = css.slice(0, css.indexOf('@media (max-width: 640px)'));
   expect(cssRule(css, ".list[data-columns='1']")).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   expect(cssRule(css, ".list[data-columns='2']")).toMatch(/repeat\(2, minmax\(0, 1fr\)\)/);
   expect(cssRule(css, ".list[data-columns='3']")).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
+  expect(cssRule(desktop, '.item')).toMatch(/grid-column:\s*span var\(--desc-span, 1\)/);
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] .item")).toMatch(
+    /grid-template-columns:\s*minmax\(96px, 140px\) minmax\(0, 1fr\)/,
+  );
   expect(cssRule(css, ".root[data-size='sm'] .value")).toMatch(/font-size:\s*12px/);
   expect(cssRule(css, ".root[data-size='md'] .value")).toMatch(/font-size:\s*var\(--font-size\)/);
   expect(cssRule(css, ".list[data-bordered='true'] .item")).toMatch(/border-right:/);
