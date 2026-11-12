@@ -38,7 +38,7 @@ export function Descriptions({
           const span = Math.min(Math.max(raw, 1), columns);
           return (
             <div
-              key={index}
+              key={item.key ?? index}
               className={styles.item}
               style={{ '--desc-span': span } as CSSProperties}
             >

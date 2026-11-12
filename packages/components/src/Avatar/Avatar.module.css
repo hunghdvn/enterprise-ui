@@ -4,14 +4,16 @@
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--avatar-bg);
   color: var(--avatar-text);
   font-family: var(--font);
   font-weight: 600;
   line-height: 1;
+  vertical-align: middle;
   user-select: none;
-  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .avatar[data-size='sm'] {

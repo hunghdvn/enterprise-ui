@@ -3,20 +3,35 @@ import { cx } from '../internal/cx';
 import styles from './Avatar.module.css';
 import type { AvatarProps } from './types';
 
+function initial(word: string): string {
+  const first = Array.from(word.normalize('NFC'))[0] ?? '';
+  return Array.from(first.toUpperCase())[0] ?? '';
+}
+
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '?';
-  const first = Array.from(words[0])[0] ?? '';
-  const last = words.length > 1 ? (Array.from(words[words.length - 1])[0] ?? '') : '';
-  return `${first}${last}`.toUpperCase();
+  const first = initial(words[0]);
+  const last = words.length > 1 ? initial(words[words.length - 1]) : '';
+  return `${first}${last}`;
 }
 
 export function Avatar({ name, src, alt, size = 'md', className = '', ...rest }: AvatarProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [prevSrc, setPrevSrc] = useState(src);
   const imageRef = useRef<HTMLImageElement>(null);
+  const trimmedAlt = alt?.trim() ?? '';
   const decorative = alt === '';
-  const label = alt ?? (name.trim() ? name : '?');
+  const label = trimmedAlt || (name.trim() ? name : '?');
   const showImage = Boolean(src) && failedSrc !== src;
+
+  // A URL that failed once must not stay failed after the caller switches away
+  // and back. Reset during render (React's prop-change pattern) so the retry
+  // renders the <img> immediately instead of waiting for an effect.
+  if (src !== prevSrc) {
+    setPrevSrc(src);
+    setFailedSrc(null);
+  }
 
   // SSR sends the <img> in the HTML; the browser can fail it before the island
   // hydrates, and React does not replay load/error events on hydration. Reconcile

@@ -41,7 +41,7 @@
   /* Skeleton base/shine; themes keep a visible difference between the two. */
   --skeleton-base: #e2e8f0;
   --skeleton-shine: #f1f5f9;
-  /* Initials Avatar: light blue-100 surface with blue-800 text; dark flips the pair. */
-  --avatar-bg: var(--color-blue-100);
+  /* Avatar initials: blue-200/blue-800 is distinct from the light selected-row (#dbeafe). */
+  --avatar-bg: var(--color-blue-200);
   --avatar-text: var(--color-blue-800);
 }

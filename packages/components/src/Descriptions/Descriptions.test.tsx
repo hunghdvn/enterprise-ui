@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { cssBlock, cssRule } from '../internal/cssRule';
 import { Descriptions } from './Descriptions';
 
@@ -92,6 +92,22 @@ test('exposes an aria name on role="group" only when labelled', () => {
   expect(plain.container.firstElementChild).not.toHaveAttribute('role');
 });
 
+test('keeps row identity when items are inserted using keys', () => {
+  const email = { key: 'email', label: 'Email', value: <input aria-label="email" /> };
+  const name = { key: 'name', label: 'Tên', value: 'An' };
+  const { rerender } = render(<Descriptions items={[email, name]} />);
+  fireEvent.change(screen.getByLabelText('email'), { target: { value: 'a@b.c' } });
+
+  rerender(<Descriptions items={[{ key: 'id', label: 'Mã', value: '1' }, email, name]} />);
+  expect(screen.getByLabelText('email')).toHaveValue('a@b.c');
+});
+
+test('accepts a readonly items array', () => {
+  const fields = [{ label: 'A', value: 'B' }] as const;
+  render(<Descriptions items={fields} />);
+  expect(screen.getByText('A')).toBeInTheDocument();
+});
+
 test('className and rest land on the root', () => {
   const { container } = render(
     <Descriptions items={[{ label: 'A', value: 'B' }]} className="pane" id="detail" />,
@@ -101,27 +117,36 @@ test('className and rest land on the root', () => {
   expect(root).toHaveAttribute('id', 'detail');
 });
 
-test('module CSS pins columns, scoped sizes, borders and the mobile collapse', () => {
-  const desktop = css.slice(0, css.indexOf('@media (max-width: 640px)'));
+test('module CSS pins columns, container collapse, scoped sizes and borders', () => {
+  const desktop = css.slice(0, css.indexOf('@container (max-width: 640px)'));
   expect(cssRule(css, ".list[data-columns='1']")).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   expect(cssRule(css, ".list[data-columns='2']")).toMatch(/repeat\(2, minmax\(0, 1fr\)\)/);
   expect(cssRule(css, ".list[data-columns='3']")).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
   expect(cssRule(desktop, '.item')).toMatch(/grid-column:\s*span var\(--desc-span, 1\)/);
-  expect(cssRule(desktop, ".list[data-layout='horizontal'] .item")).toMatch(
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item")).toMatch(
     /grid-template-columns:\s*minmax\(96px, 140px\) minmax\(0, 1fr\)/,
   );
-  expect(cssRule(css, ".root[data-size='sm'] .value")).toMatch(/font-size:\s*12px/);
-  expect(cssRule(css, ".root[data-size='md'] .value")).toMatch(/font-size:\s*var\(--font-size\)/);
-  expect(cssRule(css, ".list[data-bordered='true'] .item")).toMatch(/border-right:/);
-  const mobile = cssBlock(css, '@media (max-width: 640px)');
+  expect(cssRule(css, ".root[data-size='sm']")).toMatch(/--desc-label-size:\s*11px/);
+  expect(cssRule(css, ".root[data-size='sm']")).toMatch(/--desc-value-size:\s*12px/);
+  expect(cssRule(css, ".root[data-size='md']")).toMatch(/--desc-label-size:\s*12px/);
+  expect(cssRule(css, ".root[data-size='md']")).toMatch(/--desc-value-size:\s*var\(--font-size\)/);
+  expect(cssRule(css, '.label')).toMatch(/font-size:\s*var\(--desc-label-size\)/);
+  expect(cssRule(css, '.value')).toMatch(/font-size:\s*var\(--desc-value-size\)/);
+  expect(cssRule(css, ".list[data-bordered='true'] > .item")).toMatch(/border-right:/);
+  expect(cssRule(css, '.root')).toMatch(/container-type:\s*inline-size/);
+  const mobile = cssBlock(css, '@container (max-width: 640px)');
   expect(cssRule(mobile, '.list[data-columns]')).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
-  expect(cssRule(mobile, ".list[data-layout='horizontal'] .item")).toMatch(
+  expect(cssRule(mobile, ".list[data-layout='horizontal'] > .item")).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   expect(cssRule(mobile, '.item')).toMatch(/grid-column:\s*auto/);
+  expect(css).not.toMatch(/@media \(max-width: 640px\)/);
+  expect(css).not.toMatch(/\.list\[data-layout='horizontal'\]\s+\.item/);
+  expect(css).not.toMatch(/\.list\[data-bordered='true'\]\s+\.item/);
+  expect(css).not.toMatch(/\.root\[data-size='(sm|md)'\]\s+\.(label|value)/);
   expect(css).not.toMatch(/^\[data-size='(sm|md)'\]/m);
 });

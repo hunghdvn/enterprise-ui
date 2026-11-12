@@ -201,18 +201,18 @@ assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
   '--skeleton-base': '#475569',
   '--skeleton-shine': '#64748b',
 });
-// Initials Avatar: the dark theme flips the same two blues, and a light subtree
-// must restore the light pair instead of inheriting the dark one.
+// Initials Avatar: distinct from the light selected row (#dbeafe) and the dark
+// hover/nav surface (#1e3a8a); a light subtree must restore the light pair.
 assertThemeTokens('root', readTokenFile('tokens.css'), ':root', {
-  '--avatar-bg': 'var(--color-blue-100)',
+  '--avatar-bg': 'var(--color-blue-200)',
   '--avatar-text': 'var(--color-blue-800)',
 });
 assertThemeTokens('light', lightCss, '[data-theme="light"]', {
-  '--avatar-bg': 'var(--color-blue-100)',
+  '--avatar-bg': 'var(--color-blue-200)',
   '--avatar-text': 'var(--color-blue-800)',
 });
 assertThemeTokens('dark', darkCss, '[data-theme="dark"]', {
-  '--avatar-bg': 'var(--color-blue-800)',
+  '--avatar-bg': 'var(--color-blue-600)',
   '--avatar-text': 'var(--color-blue-100)',
 });
 // Like the rings, the danger cue must be reset inside a light subtree of a dark page.

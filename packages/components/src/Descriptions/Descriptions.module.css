@@ -1,4 +1,5 @@
 .root {
+  container-type: inline-size;
   font-family: var(--font);
   color: var(--text);
 }
@@ -28,7 +29,7 @@
   grid-column: span var(--desc-span, 1);
 }
 
-.list[data-layout='horizontal'] .item {
+.list[data-layout='horizontal'] > .item {
   grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
   gap: 8px;
   align-items: baseline;
@@ -37,30 +38,26 @@
 .label {
   margin: 0;
   color: var(--text-muted);
+  font-size: var(--desc-label-size);
   line-height: 1.4;
 }
 
 .value {
   margin: 0;
   color: var(--text);
+  font-size: var(--desc-value-size);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.root[data-size='sm'] .label {
-  font-size: 11px;
+.root[data-size='sm'] {
+  --desc-label-size: 11px;
+  --desc-value-size: 12px;
 }
 
-.root[data-size='sm'] .value {
-  font-size: 12px;
-}
-
-.root[data-size='md'] .label {
-  font-size: 12px;
-}
-
-.root[data-size='md'] .value {
-  font-size: var(--font-size);
+.root[data-size='md'] {
+  --desc-label-size: 12px;
+  --desc-value-size: var(--font-size);
 }
 
 .list[data-bordered='true'] {
@@ -69,18 +66,18 @@
   border-left: 1px solid var(--border);
 }
 
-.list[data-bordered='true'] .item {
+.list[data-bordered='true'] > .item {
   padding: 8px 12px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
-@media (max-width: 640px) {
+@container (max-width: 640px) {
   .list[data-columns] {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .list[data-layout='horizontal'] .item {
+  .list[data-layout='horizontal'] > .item {
     grid-template-columns: minmax(0, 1fr);
   }
 
