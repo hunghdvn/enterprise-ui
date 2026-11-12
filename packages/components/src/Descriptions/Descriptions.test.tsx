@@ -1,0 +1,100 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { render, screen } from '@testing-library/react';
+import { cssBlock, cssRule } from '../internal/cssRule';
+import { Descriptions } from './Descriptions';
+
+const css = readFileSync(join(import.meta.dirname, 'Descriptions.module.css'), 'utf8');
+
+test('renders one term/definition pair per item', () => {
+  render(
+    <Descriptions
+      items={[
+        { label: 'Email', value: 'an@example.com' },
+        { label: 'Vai trò', value: 'Quản trị' },
+      ]}
+    />,
+  );
+  const list = document.querySelector('dl')!;
+  expect(list.querySelectorAll('dt')).toHaveLength(2);
+  expect(list.querySelectorAll('dd')).toHaveLength(2);
+  expect(screen.getByText('Email').tagName).toBe('DT');
+  expect(screen.getByText('an@example.com').tagName).toBe('DD');
+});
+
+test('defaults to two columns, horizontal layout and md size', () => {
+  const { container } = render(<Descriptions items={[{ label: 'A', value: 'B' }]} />);
+  const root = container.firstElementChild!;
+  const list = container.querySelector('dl')!;
+  expect(root).toHaveAttribute('data-size', 'md');
+  expect(list).toHaveAttribute('data-columns', '2');
+  expect(list).toHaveAttribute('data-layout', 'horizontal');
+  expect(list).not.toHaveAttribute('data-bordered');
+});
+
+test('renders explicit columns, layout, borders and size', () => {
+  const { container } = render(
+    <Descriptions
+      items={[{ label: 'A', value: 'B' }]}
+      columns={3}
+      layout="vertical"
+      bordered
+      size="sm"
+    />,
+  );
+  expect(container.firstElementChild).toHaveAttribute('data-size', 'sm');
+  const list = container.querySelector('dl')!;
+  expect(list).toHaveAttribute('data-columns', '3');
+  expect(list).toHaveAttribute('data-layout', 'vertical');
+  expect(list).toHaveAttribute('data-bordered', 'true');
+});
+
+test('span sets a custom property and clamps to the column count', () => {
+  const { container } = render(
+    <Descriptions
+      columns={2}
+      items={[
+        { label: 'A', value: '1', span: 2 },
+        { label: 'B', value: '2', span: 9 },
+        { label: 'C', value: '3', span: 0 },
+        { label: 'D', value: '4', span: Number.NaN },
+      ]}
+    />,
+  );
+  const items = [...container.querySelectorAll('dl > div')] as HTMLElement[];
+  expect(items.map((el) => el.style.getPropertyValue('--desc-span'))).toEqual(['2', '2', '1', '1']);
+});
+
+test('renders nothing when items is empty', () => {
+  const { container } = render(<Descriptions items={[]} />);
+  expect(container).toBeEmptyDOMElement();
+});
+
+test('className and rest land on the root', () => {
+  const { container } = render(
+    <Descriptions items={[{ label: 'A', value: 'B' }]} className="pane" id="detail" />,
+  );
+  const root = container.firstElementChild!;
+  expect(root).toHaveClass('pane');
+  expect(root).toHaveAttribute('id', 'detail');
+});
+
+test('module CSS pins columns, scoped sizes, borders and the mobile collapse', () => {
+  expect(cssRule(css, ".list[data-columns='1']")).toMatch(
+    /grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  expect(cssRule(css, ".list[data-columns='2']")).toMatch(/repeat\(2, minmax\(0, 1fr\)\)/);
+  expect(cssRule(css, ".list[data-columns='3']")).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
+  expect(cssRule(css, ".root[data-size='sm'] .value")).toMatch(/font-size:\s*12px/);
+  expect(cssRule(css, ".root[data-size='md'] .value")).toMatch(/font-size:\s*var\(--font-size\)/);
+  expect(cssRule(css, ".list[data-bordered='true'] .item")).toMatch(/border-right:/);
+  const mobile = cssBlock(css, '@media (max-width: 640px)');
+  expect(cssRule(mobile, '.list[data-columns]')).toMatch(
+    /grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  expect(cssRule(mobile, ".list[data-layout='horizontal'] .item")).toMatch(
+    /grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  expect(cssRule(mobile, '.item')).toMatch(/grid-column:\s*auto/);
+  expect(css).not.toMatch(/^\[data-size='(sm|md)'\]/m);
+});
