@@ -1,0 +1,77 @@
+---
+title: SegmentedControl
+description: Chọn một trong vài chế độ ngay tại chỗ, có roving tabindex và điều hướng bàn phím.
+---
+
+import { SegmentedControlDemo } from '../../../components/demos/SegmentedControlDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`SegmentedControl` là công tắc một-trong-N gọn cho toolbar hoặc hàng cài đặt: đổi chế độ xem, khoảng thời gian, mật độ. Khác với `Tabs`, component không render panel và không dùng `tablist`; nó chỉ báo giá trị qua `onChange` với ngữ nghĩa `radiogroup`.
+
+<Demo title="Chuyển chế độ xem, hai kích thước và một mục bị vô hiệu hoá">
+  <SegmentedControlDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { useState } from 'react';
+import { SegmentedControl } from '@enterprise-ui/components';
+
+export function ViewSwitch() {
+  const [view, setView] = useState('list');
+
+  return (
+    <SegmentedControl
+      aria-label="Chế độ xem"
+      value={view}
+      onChange={setView}
+      items={[
+        { value: 'list', label: 'Danh sách', icon: 'layout-list' },
+        { value: 'grid', label: 'Lưới', icon: 'layout-grid' },
+        { value: 'table', label: 'Bảng', icon: 'table' },
+      ]}
+    />
+  );
+}
+```
+
+Không truyền `value` thì component tự giữ lựa chọn; `defaultValue` đặt giá trị ban đầu, mặc định là mục đầu tiên. Bấm lại mục đang chọn không phát sinh `onChange`. `items={[]}` render `null`.
+
+## Props
+
+### `SegmentedControl`
+
+| Prop           | Kiểu                              | Mặc định | Mô tả                                                                                   |
+| -------------- | --------------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `items`        | `readonly SegmentedControlItem[]` | —        | **Bắt buộc.** Danh sách lựa chọn; `value` phải duy nhất.                                |
+| `aria-label`   | `string`                          | —        | **Bắt buộc.** Tên nhóm cho screen reader. `aria-labelledby` vẫn có thể ghi đè qua rest. |
+| `value`        | `string`                          | —        | Giá trị đang chọn ở chế độ controlled.                                                  |
+| `defaultValue` | `string`                          | Mục đầu  | Giá trị khởi tạo ở chế độ uncontrolled.                                                 |
+| `onChange`     | `(value: string) => void`         | —        | Gọi khi lựa chọn đổi.                                                                   |
+| `size`         | `'sm' \| 'md'`                    | `'md'`   | Chiều cao, padding và cỡ chữ.                                                           |
+| `disabled`     | `boolean`                         | `false`  | Vô hiệu hoá toàn bộ lựa chọn.                                                           |
+| `className`    | `string`                          | —        | Class thêm cho phần tử gốc.                                                             |
+
+### `SegmentedControlItem`
+
+| Prop         | Kiểu        | Mặc định | Mô tả                                                             |
+| ------------ | ----------- | -------- | ----------------------------------------------------------------- |
+| `value`      | `string`    | —        | **Bắt buộc.** Giá trị trả về qua `onChange`; duy nhất trong nhóm. |
+| `label`      | `ReactNode` | —        | **Bắt buộc.** Nhãn hiển thị.                                      |
+| `icon`       | `IconName`  | —        | Icon đứng trước nhãn; icon được ẩn khỏi screen reader.            |
+| `disabled`   | `boolean`   | `false`  | Mục bị vô hiệu hoá; bị bỏ qua khi điều hướng bằng phím.           |
+| `aria-label` | `string`    | —        | Tên thay thế khi nhãn không phải chữ (ví dụ chỉ có icon).         |
+
+## Khi nào dùng gì
+
+- **SegmentedControl** — chọn một giá trị ngay tại chỗ, không có nội dung panel đi kèm.
+- **Tabs** — mỗi lựa chọn mở một panel nội dung; dùng `tablist`/`tabpanel`.
+- **RadioGroup** — nhóm lựa chọn trong form, có legend, hint và lỗi.
+
+## Accessibility
+
+- Gốc là `role="radiogroup"` với tên bắt buộc; mỗi mục là `role="radio"` + `aria-checked`.
+- Chỉ mục đang chọn có `tabindex="0"`; khi chưa chọn mục nào, mục đầu tiên đang bật nhận tab.
+- `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown` di chuyển và chọn, có vòng lại hai đầu; `Home`/`End` nhảy tới đầu/cuối. Mục `disabled` bị bỏ qua.
+- Component không gửi giá trị khi submit form; nếu cần hành vi form, dùng `RadioGroup` với radio native.

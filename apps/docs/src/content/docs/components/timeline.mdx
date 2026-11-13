@@ -1,0 +1,84 @@
+---
+title: Timeline
+description: Dòng thời gian sự kiện có mốc thời gian, tông trạng thái và connector dọc.
+---
+
+import { TimelineDemo } from '../../../components/demos/TimelineDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Timeline` hiển thị lịch sử theo thứ tự thời gian: audit log, trạng thái đơn hàng, lịch sử phê duyệt. Component render `<ol>`/`<li>` với marker trang trí, connector dọc bằng CSS và không tự fetch hay định dạng thời gian.
+
+<Demo title="Lịch sử đơn hàng và nhật ký hệ thống">
+  <TimelineDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Timeline } from '@enterprise-ui/components';
+
+export function OrderHistory() {
+  return (
+    <Timeline
+      aria-label="Lịch sử đơn hàng"
+      items={[
+        {
+          id: 'created',
+          title: 'Tạo đơn hàng',
+          description: 'Nguyễn An tạo đơn #SO-1042.',
+          time: '12/11/2026 · 09:15',
+          dateTime: '2026-11-12T09:15:00+07:00',
+          tone: 'blue',
+          icon: 'file-plus',
+        },
+        {
+          id: 'delivered',
+          title: 'Giao thành công',
+          time: '13/11/2026 · 14:30',
+          dateTime: '2026-11-13T14:30:00+07:00',
+          tone: 'green',
+          icon: 'check-circle',
+        },
+      ]}
+    />
+  );
+}
+```
+
+`time` là chuỗi hiển thị do phía gọi định dạng; `dateTime` là giá trị máy đọc được gắn vào `<time datetime>`. Nếu chỉ có `dateTime` mà không có `time`, component không render mốc thời gian và không in chuỗi ISO ra màn hình. `items={[]}` render `null`.
+
+## Props
+
+### `Timeline`
+
+| Prop         | Kiểu                      | Mặc định           | Mô tả                                           |
+| ------------ | ------------------------- | ------------------ | ----------------------------------------------- |
+| `items`      | `readonly TimelineItem[]` | —                  | **Bắt buộc.** Các sự kiện theo thứ tự hiển thị. |
+| `size`       | `'sm' \| 'md'`            | `'md'`             | Kích thước marker, khoảng cách và cỡ chữ.       |
+| `aria-label` | `string`                  | `'Dòng thời gian'` | Tên danh sách cho screen reader.                |
+| `className`  | `string`                  | —                  | Class thêm cho `<ol>`.                          |
+
+### `TimelineItem`
+
+| Prop          | Kiểu                                                  | Mặc định    | Mô tả                                                      |
+| ------------- | ----------------------------------------------------- | ----------- | ---------------------------------------------------------- |
+| `id`          | `string`                                              | —           | **Bắt buộc.** Định danh ổn định cho `key`.                 |
+| `title`       | `ReactNode`                                           | —           | **Bắt buộc.** Tiêu đề sự kiện.                             |
+| `description` | `ReactNode`                                           | —           | Mô tả thêm dưới tiêu đề.                                   |
+| `time`        | `ReactNode`                                           | —           | Chuỗi thời gian đã định dạng để hiển thị.                  |
+| `dateTime`    | `string`                                              | —           | Giá trị ISO cho `<time datetime>`; chỉ dùng khi có `time`. |
+| `tone`        | `'neutral' \| 'blue' \| 'green' \| 'orange' \| 'red'` | `'neutral'` | Màu marker. Không phải tín hiệu duy nhất của trạng thái.   |
+| `icon`        | `IconName`                                            | —           | Thay chấm tròn bằng icon.                                  |
+
+## Bố cục và giới hạn
+
+- Timeline chỉ có một hướng dọc. Nhóm theo ngày, sticky header, tải thêm và timeline ngang không nằm trong phạm vi component.
+- Marker và connector là trang trí; trạng thái phải xuất hiện trong `title`/`description`, không chỉ ở `tone`.
+- Tiêu đề và thời gian nằm cùng hàng khi đủ chỗ; thời gian tự xuống dưới tiêu đề ở pane hẹp. Chuỗi dài được phép xuống dòng trong cột nội dung.
+
+## Accessibility
+
+- Cấu trúc là `<ol>` với một `<li>` cho mỗi sự kiện, nên screen reader đọc được vị trí và tổng số mục.
+- Tên mặc định là “Dòng thời gian”; truyền `aria-label` khi ngữ cảnh chưa rõ (ví dụ “Lịch sử đơn hàng”).
+- Marker có `aria-hidden="true"`; icon cũng bị ẩn. Thông tin trạng thái phải nằm trong chữ.
+- Mốc thời gian dùng `<time datetime>` khi có `dateTime`, giúp máy đọc và trích xuất dữ liệu chính xác.

@@ -1,0 +1,129 @@
+.root {
+  --tl-marker: 24px;
+  --tl-gap: 18px;
+  --tl-title: var(--font-size-md);
+  --tl-body: var(--font-size);
+  --tl-time: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.root[data-size='sm'] {
+  --tl-marker: 20px;
+  --tl-gap: 14px;
+  --tl-title: var(--font-size);
+  --tl-body: 12px;
+  --tl-time: 11px;
+}
+
+.root[data-size='md'] {
+  --tl-marker: 24px;
+  --tl-gap: 18px;
+  --tl-title: var(--font-size-md);
+  --tl-body: var(--font-size);
+  --tl-time: 12px;
+}
+
+.item {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--tl-marker) minmax(0, 1fr);
+  column-gap: 12px;
+  padding-bottom: var(--tl-gap);
+}
+
+.item:last-child {
+  padding-bottom: 0;
+}
+
+.item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: var(--tl-marker);
+  bottom: 0;
+  left: calc(var(--tl-marker) / 2 - 1px);
+  width: 2px;
+  background: var(--border);
+}
+
+.marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tl-marker);
+  height: var(--tl-marker);
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.root[data-size='sm'] .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.item[data-tone='blue'] .marker {
+  color: var(--action-text);
+}
+
+.item[data-tone='green'] .marker {
+  color: var(--success);
+}
+
+.item[data-tone='orange'] .marker {
+  color: var(--color-orange-600);
+}
+
+.item[data-tone='red'] .marker {
+  color: var(--danger-emphasis);
+}
+
+.content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.title {
+  min-width: 0;
+  font-size: var(--tl-title);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.time {
+  font-size: var(--tl-time);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin: 0;
+  font-size: var(--tl-body);
+  color: var(--text-muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
