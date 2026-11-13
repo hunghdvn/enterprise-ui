@@ -147,9 +147,10 @@ the diameter (10/12/16px). The mark is `border-radius: 50%`,
 `overflow: hidden`, and uses only tokens:
 
 - initials: `background: var(--avatar-bg)`, `color: var(--avatar-text)`;
-- a 1px `var(--border)` border defines the edge on both themes. It is a real
-  border (not an inset `box-shadow`) so it stays visible above the photo and
-  survives forced-colors; `box-sizing: border-box` keeps the diameter exact;
+- a 1px `var(--avatar-ring)` border defines the edge on both themes. It is a
+  real border (not an inset `box-shadow`) so it stays visible above the photo
+  and survives forced-colors; `box-sizing: border-box` keeps the diameter
+  exact;
 - `vertical-align: middle` so swapping photo ↔ initials does not shift the
   line box;
 - image: `object-fit: cover`, full size.
@@ -164,9 +165,17 @@ selected row or active nav would vanish into the surrounding fill.
 | --------------- | ----------------------- | ----------------------- |
 | `--avatar-bg`   | `var(--color-blue-200)` | `var(--color-blue-600)` |
 | `--avatar-text` | `var(--color-blue-800)` | `var(--color-blue-100)` |
+| `--avatar-ring` | `var(--text-muted)`     | `#cbd5e1`               |
 
-Light is ≈7.3:1 and dark ≈6.3:1; both fills are distinct from the semantic
-row/nav surfaces above.
+Text contrast is ≈7.3:1 (light) and ≈6.3:1 (dark). The tinted fill alone still
+stays close to the semantic surfaces — light `#bfdbfe` is 1.16:1 on the
+selected row and 1.31:1 on hover; dark `#1e47c4` is 1.14:1 on the selected row
+and 1.36:1 on hover/nav. The decision is to keep the soft fill and let the 1px
+ring carry the circle edge: light `--text-muted` is 3.35:1 on the fill,
+3.90:1 on the selected row and 4.37:1 on hover; dark `#cbd5e1` is 5.14:1 /
+5.87:1 / 6.98:1. Dark `--text-muted` (`#94a3b8`) would be 2.97:1 on the
+blue-600 fill — just under 3:1 — hence the lighter slate-300 ring. The ring is
+a boundary cue, not an extra state: it never changes on hover/selection.
 
 ### 4.2 `Descriptions`
 
@@ -251,13 +260,26 @@ CSS:
 
 - grid `gap: 12px 24px`; `data-columns='1' | '2' | '3'` set
   `minmax(0, 1fr)` / `repeat(2, …)` / `repeat(3, …)`;
-- `.root` is a `container-type: inline-size` container; the collapse uses
-  `@container (max-width: 640px)` so a pane inside a narrow Drawer/SplitView
-  collapses on a wide viewport too;
+- `.root` is a `container-type: inline-size` container with `width: 100%`; the
+  collapse uses `@container (max-width: 480px)` so a pane inside a narrow
+  Drawer/SplitView collapses on a wide viewport too. `480` matches the
+  AuthLayout/ErrorPage collapse and still keeps two horizontal columns usable
+  around 560px (two `96 + 8 + ~100` tracks plus the 24px gap ≈ 432px), while a
+  320px pane drops to one column. Inline-size containment
+  removes content-based sizing, so without the explicit width the root is 0px
+  as a flex item (verified in Chromium: 0px vs 935px in a 1000px row). `100%`
+  restores the flex-row width and still lets flex shrink it; an `auto` grid
+  column or `fit-content` parent provides no definite width, so callers must
+  set one (documented on the page). Normal block flow is unaffected;
 - `horizontal`: each item is a two-column grid
   (`minmax(96px, 140px) minmax(0, 1fr)`), so labels align down the pane;
 - `vertical`: label above value;
-- `bordered`: `gap: 0`, outer top/left border plus right/bottom per cell;
+- `bordered`: `gap: 0`, outer top/left border plus right/bottom per cell.
+  Because each filled cell draws its own right/bottom edge, an incomplete row
+  (the last row, or a hole before an item whose `span` does not fit) leaves the
+  empty cell without edges. With `span`, packing is row-dependent, so the
+  component does not synthesize filler cells; `bordered` is intended for a
+  complete grid (documented on the page). Known limitation from review #10;
 - the narrow-container rule collapses the list to one column and stacks
   horizontal labels; selectors repeat the `[data-columns]` /
   `[data-layout='horizontal'] > .item` specificity so the later rule wins;
@@ -306,18 +328,20 @@ Tests pin behaviour, not implementation:
   a client render and through a real `hydrateRoot`; a loaded image with a
   positive `naturalWidth` is kept; `alt` override; `alt=""` decorative mode
   (no role, `aria-hidden`); default and explicit sizes; rest/className land on
-  root; CSS pins sizes, the real border, `box-sizing`, `vertical-align`,
-  token consumption and scoped selectors.
+  root; CSS pins sizes, the `--avatar-ring` border, `box-sizing`,
+  `vertical-align`, token consumption and scoped selectors.
 - Descriptions: one `dt`/`dd` per item; default and explicit `columns`;
   default and explicit `layout`; `--desc-span` and clamping (5 → columns,
   0/NaN → 1); `data-bordered` only when true; default and explicit `size`;
   optional `key` preserves row identity across inserts; a readonly `items`
   array is accepted; empty `items` renders nothing; rest/className land on
-  root; CSS pins the three column templates, container collapse, custom
-  size properties, child-combinator scoping, the `--desc-span` consumption and
-  the bordered rules.
-- Tokens: root/light/dark guards for `--avatar-bg` and `--avatar-text`,
-  including the distinct blue-200/blue-600 fills.
+  root; CSS pins the three column templates, `container-type` plus
+  `width: 100%`, container collapse, custom size properties,
+  child-combinator scoping, the `--desc-span` consumption and the bordered
+  rules.
+- Tokens: root/light/dark guards for `--avatar-bg`, `--avatar-text` and
+  `--avatar-ring`, including the distinct blue-200/blue-600 fills and the
+  dark slate-300 ring.
 - `css-conventions.test.ts` must pass (no hex; every `data-size` component
   styles both `sm` and `md`).
 

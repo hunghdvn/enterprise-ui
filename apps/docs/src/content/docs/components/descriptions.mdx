@@ -32,7 +32,7 @@ export function OrderDetail() {
 }
 ```
 
-`items` là mảng cặp `label`/`value`; `span` cho phép một mục chiếm nhiều cột và được kẹp trong khoảng `1..columns`. Khi pane hẹp dưới 640px (container query, không phải viewport), lưới tự thu về một cột và nhãn xếp trên giá trị, nên bảng vẫn đọc được trong Drawer/SplitView hẹp lẫn trên điện thoại.
+`items` là mảng cặp `label`/`value`; `span` cho phép một mục chiếm nhiều cột và được kẹp trong khoảng `1..columns`. Khi pane hẹp dưới 480px (container query, không phải viewport), lưới tự thu về một cột và nhãn xếp trên giá trị, nên bảng vẫn đọc được trong Drawer/SplitView hẹp lẫn trên điện thoại.
 
 `items` rỗng thì component không render gì. Giá trị có thể là link, button hoặc bất kỳ `ReactNode` nào; component không tự thêm hành vi.
 
@@ -48,11 +48,16 @@ export function OrderDetail() {
 
 `DescriptionItem` gồm `label: ReactNode`, `value: ReactNode`, `span?: number` và `key?: React.Key` (tuỳ chọn, giữ danh tính hàng khi chèn/sắp xếp). `Descriptions` nhận các thuộc tính của `<div>` (`className`, `id`, `aria-*`…) và chuyển xuống phần tử gốc, **trừ `children`**.
 
+## Bố cục và giới hạn
+
+- Phần tử gốc đặt `width: 100%` và dùng container query, nên trong một hàng `display: flex` nó nhận phần rộng còn lại và vẫn thu về một cột khi hẹp. Trong cột grid `auto` hoặc cha `fit-content`, containment không cho nội dung quyết định độ rộng: hãy đặt `width`/`minWidth` cho gốc hoặc cho ô cha (ví dụ `grid-template-columns: 320px 1fr`).
+- `bordered` vẽ viền phải/dưới trên từng ô, nên lưới cần đủ ô. Hàng cuối thiếu ô, hoặc một `span` không vừa phần còn lại của hàng, sẽ để lại ô trống không có viền. Với `bordered`, nên dùng số mục chia hết cho `columns` và hạn chế `span`; nếu cần `span`, dùng lưới không viền.
+
 ## Accessibility
 
 - Cấu trúc là `<dl>` với `<dt>`/`<dd>`; bản thân `<dl>` không thêm `role` để giữ ngữ nghĩa description-list gốc.
 - Khi truyền `aria-label` hoặc `aria-labelledby`, phần tử gốc nhận thêm `role="group"` để tên đó thực sự được đọc; không truyền thì gốc vẫn là `<div>` thường.
 - Nhãn dùng `--text-muted` và đạt tương phản ≥4.5:1 ở cả hai theme; giá trị dùng `--text`.
-- `span` bị kẹp theo số cột, và khi container hẹp dưới 640px `grid-column` được đặt lại để không tạo cột ẩn.
+- `span` bị kẹp theo số cột, và khi container hẹp dưới 480px `grid-column` được đặt lại để không tạo cột ẩn.
 - `items` rỗng không render khung rỗng — phía gọi dùng `Empty` nếu cần trạng thái "chưa có dữ liệu".
 - Giá trị có thể chứa link/button; đảm bảo mỗi phần tử tương tác có tên truy cập riêng.
