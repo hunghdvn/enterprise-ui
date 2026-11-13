@@ -281,8 +281,10 @@ CSS:
   the value wraps onto the next line at full cell width instead of being
   squeezed. In Chromium
   at three columns, the value width goes from 0/23/49/76px (old fixed grid at
-  481/560/640/720px) to 144/171/197/224px, and the 1000px case keeps the
-  side-by-side 140px + 169px layout. Two columns stay side-by-side from 560px;
+  481/560/640/720px) to 144/171/197/224px. The 268px basis sum plus the 24px
+  column gap puts label and value side by side from 852px with three columns
+  and 560px with two (bordered: 879px / 586px); at 1000px the three-column
+  value keeps the 140px + 169px layout;
 - `vertical`: label above value;
 - `bordered`: `gap: 0`, outer top/left border plus right/bottom per cell.
   Because each filled cell draws its own right/bottom edge, an incomplete row
