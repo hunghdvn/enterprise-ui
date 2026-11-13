@@ -44,4 +44,7 @@
   /* Avatar initials: blue-200/blue-800 is distinct from the light selected-row (#dbeafe). */
   --avatar-bg: var(--color-blue-200);
   --avatar-text: var(--color-blue-800);
+  /* The tinted fill stays close to selected/hover rows, so the ring carries the
+     circle edge (>=3:1 against both the fill and those surfaces). */
+  --avatar-ring: var(--text-muted);
 }

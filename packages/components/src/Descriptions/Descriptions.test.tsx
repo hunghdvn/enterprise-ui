@@ -118,7 +118,7 @@ test('className and rest land on the root', () => {
 });
 
 test('module CSS pins columns, container collapse, scoped sizes and borders', () => {
-  const desktop = css.slice(0, css.indexOf('@container (max-width: 640px)'));
+  const desktop = css.slice(0, css.indexOf('@container (max-width: 480px)'));
   expect(cssRule(css, ".list[data-columns='1']")).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
@@ -136,7 +136,8 @@ test('module CSS pins columns, container collapse, scoped sizes and borders', ()
   expect(cssRule(css, '.value')).toMatch(/font-size:\s*var\(--desc-value-size\)/);
   expect(cssRule(css, ".list[data-bordered='true'] > .item")).toMatch(/border-right:/);
   expect(cssRule(css, '.root')).toMatch(/container-type:\s*inline-size/);
-  const mobile = cssBlock(css, '@container (max-width: 640px)');
+  expect(cssRule(css, '.root')).toMatch(/width:\s*100%/);
+  const mobile = cssBlock(css, '@container (max-width: 480px)');
   expect(cssRule(mobile, '.list[data-columns]')).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
@@ -144,7 +145,7 @@ test('module CSS pins columns, container collapse, scoped sizes and borders', ()
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   expect(cssRule(mobile, '.item')).toMatch(/grid-column:\s*auto/);
-  expect(css).not.toMatch(/@media \(max-width: 640px\)/);
+  expect(css).not.toMatch(/@media \(max-width: 480px\)/);
   expect(css).not.toMatch(/\.list\[data-layout='horizontal'\]\s+\.item/);
   expect(css).not.toMatch(/\.list\[data-bordered='true'\]\s+\.item/);
   expect(css).not.toMatch(/\.root\[data-size='(sm|md)'\]\s+\.(label|value)/);

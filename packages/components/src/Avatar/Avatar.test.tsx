@@ -158,7 +158,7 @@ test('module CSS pins sizes, the border ring, tokens and alignment', () => {
   expect(cssRule(css, ".avatar[data-size='md']")).toMatch(/width:\s*32px/);
   expect(cssRule(css, ".avatar[data-size='lg']")).toMatch(/width:\s*48px/);
   expect(cssRule(css, '.avatar')).toMatch(/border-radius:\s*50%/);
-  expect(cssRule(css, '.avatar')).toMatch(/border:\s*1px solid var\(--border\)/);
+  expect(cssRule(css, '.avatar')).toMatch(/border:\s*1px solid var\(--avatar-ring\)/);
   expect(cssRule(css, '.avatar')).toMatch(/box-sizing:\s*border-box/);
   expect(cssRule(css, '.avatar')).toMatch(/vertical-align:\s*middle/);
   expect(cssRule(css, '.avatar')).toMatch(/background:\s*var\(--avatar-bg\)/);

@@ -1,5 +1,10 @@
 .root {
+  /* Inline-size containment removes the content-based width, so without an
+     explicit width the root collapses to 0px as a flex item. 100% restores the
+     flex-row behaviour; an `auto` grid column still needs a width from the
+     caller (see docs). */
   container-type: inline-size;
+  width: 100%;
   font-family: var(--font);
   color: var(--text);
 }
@@ -60,6 +65,10 @@
   --desc-value-size: var(--font-size);
 }
 
+/* Each filled cell paints its own right/bottom edge, so an incomplete row
+   (last row, or a hole before a span that does not fit) stays open. Filler
+   cells are not synthesized because packing depends on each row's spans;
+   documented limitation: bordered is intended for a complete grid. */
 .list[data-bordered='true'] {
   gap: 0;
   border-top: 1px solid var(--border);
@@ -72,7 +81,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-@container (max-width: 640px) {
+@container (max-width: 480px) {
   .list[data-columns] {
     grid-template-columns: minmax(0, 1fr);
   }

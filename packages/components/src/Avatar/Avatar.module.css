@@ -5,7 +5,7 @@
   flex-shrink: 0;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px solid var(--border);
+  border: 1px solid var(--avatar-ring);
   border-radius: 50%;
   background: var(--avatar-bg);
   color: var(--avatar-text);
