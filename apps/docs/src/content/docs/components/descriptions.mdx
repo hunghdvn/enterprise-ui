@@ -50,6 +50,7 @@ export function OrderDetail() {
 
 ## Bố cục và giới hạn
 
+- Trong layout ngang, mỗi ô là flex row có wrap: nếu không đủ chỗ cho nhãn và giá trị (ví dụ 3 cột trong container 481–860px), giá trị xuống dưới nhãn và chiếm hết chiều rộng ô thay vì bị ép còn vài px. Từ khoảng 1000px với 3 cột, hai phần mới nằm cạnh nhau.
 - Phần tử gốc đặt `width: 100%` và dùng container query, nên trong một hàng `display: flex` nó nhận phần rộng còn lại và vẫn thu về một cột khi hẹp. Trong cột grid `auto` hoặc cha `fit-content`, containment không cho nội dung quyết định độ rộng: hãy đặt `width`/`minWidth` cho gốc hoặc cho ô cha (ví dụ `grid-template-columns: 320px 1fr`).
 - `bordered` vẽ viền phải/dưới trên từng ô, nên lưới cần đủ ô. Hàng cuối thiếu ô, hoặc một `span` không vừa phần còn lại của hàng, sẽ để lại ô trống không có viền. Với `bordered`, nên dùng số mục chia hết cho `columns` và hạn chế `span`; nếu cần `span`, dùng lưới không viền.
 

@@ -260,19 +260,29 @@ CSS:
 
 - grid `gap: 12px 24px`; `data-columns='1' | '2' | '3'` set
   `minmax(0, 1fr)` / `repeat(2, …)` / `repeat(3, …)`;
-- `.root` is a `container-type: inline-size` container with `width: 100%`; the
-  collapse uses `@container (max-width: 480px)` so a pane inside a narrow
-  Drawer/SplitView collapses on a wide viewport too. `480` matches the
-  AuthLayout/ErrorPage collapse and still keeps two horizontal columns usable
-  around 560px (two `96 + 8 + ~100` tracks plus the 24px gap ≈ 432px), while a
-  320px pane drops to one column. Inline-size containment
-  removes content-based sizing, so without the explicit width the root is 0px
-  as a flex item (verified in Chromium: 0px vs 935px in a 1000px row). `100%`
-  restores the flex-row width and still lets flex shrink it; an `auto` grid
-  column or `fit-content` parent provides no definite width, so callers must
-  set one (documented on the page). Normal block flow is unaffected;
-- `horizontal`: each item is a two-column grid
-  (`minmax(96px, 140px) minmax(0, 1fr)`), so labels align down the pane;
+- `.root` is a `container-type: inline-size` container with `width: 100%` and
+  `box-sizing: border-box` (a consumer `className` may add padding/border, and
+  the latter must stay inside the width). The collapse uses
+  `@container (max-width: 480px)` so a pane inside a narrow Drawer/SplitView
+  collapses on a wide viewport too. `480` matches the AuthLayout/ErrorPage
+  collapse and still keeps two horizontal columns usable around 560px (two
+  `96 + 8 + ~100` tracks plus the 24px gap ≈ 432px), while a 320px pane drops
+  to one column. Inline-size containment removes content-based sizing, so
+  without the explicit width the root is 0px as a flex item (verified in
+  Chromium: 0px vs 935px in a 1000px row). `100%` restores the flex-row width
+  and still lets flex shrink it; an `auto` grid column or `fit-content` parent
+  provides no definite width, so callers must set one (documented on the page).
+  Normal block flow is unaffected;
+- `horizontal`: each item is a wrapping flex row (`display: flex`,
+  `flex-wrap: wrap`, `column-gap: 8px`, `row-gap: 2px`, baseline alignment).
+  The label has `flex: 0 1 140px` / `min-width: 96px`; the value has
+  `flex: 1 1 120px` / `min-width: 0`. The basis values set the wrap threshold
+  (`140 + 8 + 120 = 268px`), not a fixed track: when label + value do not fit,
+  the value wraps onto the next line at full cell width instead of being
+  squeezed. In Chromium
+  at three columns, the value width goes from 0/23/49/76px (old fixed grid at
+  481/560/640/720px) to 144/171/197/224px, and the 1000px case keeps the
+  side-by-side 140px + 169px layout. Two columns stay side-by-side from 560px;
 - `vertical`: label above value;
 - `bordered`: `gap: 0`, outer top/left border plus right/bottom per cell.
   Because each filled cell draws its own right/bottom edge, an incomplete row
@@ -280,9 +290,11 @@ CSS:
   empty cell without edges. With `span`, packing is row-dependent, so the
   component does not synthesize filler cells; `bordered` is intended for a
   complete grid (documented on the page). Known limitation from review #10;
-- the narrow-container rule collapses the list to one column and stacks
-  horizontal labels; selectors repeat the `[data-columns]` /
-  `[data-layout='horizontal'] > .item` specificity so the later rule wins;
+- the narrow-container rule collapses the list to one column and switches
+  horizontal items back to `display: grid` with one track, so labels stack
+  (a leftover `display: flex` would ignore `grid-template-columns`); selectors
+  repeat the `[data-columns]` / `[data-layout='horizontal'] > .item`
+  specificity so the later rule wins;
 - layout and border selectors use the child combinator
   (`.list[data-layout='horizontal'] > .item`), so a `Descriptions` nested in
   another pane's `value` does not inherit the outer layout or borders;
@@ -335,10 +347,11 @@ Tests pin behaviour, not implementation:
   0/NaN → 1); `data-bordered` only when true; default and explicit `size`;
   optional `key` preserves row identity across inserts; a readonly `items`
   array is accepted; empty `items` renders nothing; rest/className land on
-  root; CSS pins the three column templates, `container-type` plus
-  `width: 100%`, container collapse, custom size properties,
-  child-combinator scoping, the `--desc-span` consumption and the bordered
-  rules.
+  root; CSS pins the three column templates, `box-sizing: border-box`,
+  `container-type` plus `width: 100%`, the flex-wrap horizontal layout and its
+  label/value bases, the narrow grid reset, the absence of any `@media`
+  fallback, custom size properties, child-combinator scoping, the
+  `--desc-span` consumption and the bordered rules.
 - Tokens: root/light/dark guards for `--avatar-bg`, `--avatar-text` and
   `--avatar-ring`, including the distinct blue-200/blue-600 fills and the
   dark slate-300 ring.
