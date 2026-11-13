@@ -72,6 +72,7 @@ export default defineConfig({
                 { label: 'Tooltip', slug: 'components/tooltip' },
                 { label: 'Form', slug: 'components/form' },
                 { label: 'Empty & Spin', slug: 'components/empty-spin' },
+                { label: 'Avatar', slug: 'components/avatar' },
               ],
             },
             {
@@ -97,6 +98,7 @@ export default defineConfig({
                 { label: 'Tree', slug: 'components/tree' },
                 { label: 'SavedViews', slug: 'components/saved-views' },
                 { label: 'FileUpload', slug: 'components/file-upload' },
+                { label: 'Descriptions', slug: 'components/descriptions' },
               ],
             },
             {

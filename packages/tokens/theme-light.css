@@ -19,6 +19,11 @@
   /* A light subtree inside a dark page must restore the light Skeleton pair. */
   --skeleton-base: #e2e8f0;
   --skeleton-shine: #f1f5f9;
+  /* A light subtree inside a dark page must restore the light Avatar pair and
+     ring, otherwise it inherits the dark ring value. */
+  --avatar-bg: var(--color-blue-200);
+  --avatar-text: var(--color-blue-800);
+  --avatar-ring: var(--text-muted);
   /* Light subtrees nest inside a dark page, so both rings must be reset here. Blue-600 is
      ~7:1 on white and blue-700 ~8.7:1; each must stay ≥3:1 on `--surface`. */
   --focus-ring: #1e47c4;

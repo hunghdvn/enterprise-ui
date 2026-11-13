@@ -1,0 +1,64 @@
+---
+title: Descriptions
+description: Khối key/value chỉ đọc cho trang chi tiết, 1–3 cột với nhãn bên trái hoặc bên trên.
+---
+
+import { DescriptionsDemo } from '../../../components/demos/DescriptionsDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Descriptions` trình bày dữ liệu chỉ đọc thành từng cặp nhãn/giá trị — chi tiết đơn hàng, hồ sơ khách hàng, thông tin giao vận. Component dùng `<dl>` gốc nên trình đọc màn hình hiểu quan hệ giữa nhãn và giá trị mà không cần ARIA bổ sung.
+
+<Demo title="Hai cột, ba cột có viền và một mục chiếm hai cột">
+  <DescriptionsDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Descriptions } from '@enterprise-ui/components';
+
+export function OrderDetail() {
+  return (
+    <Descriptions
+      columns={2}
+      items={[
+        { label: 'Mã đơn', value: 'DH-2048' },
+        { label: 'Ngày tạo', value: '12/11/2026' },
+        { label: 'Người phụ trách', value: 'Nguyễn Văn An' },
+        { label: 'Địa chỉ giao', value: '18 Nguyễn Huệ, Quận 1, TP. HCM', span: 2 },
+      ]}
+    />
+  );
+}
+```
+
+`items` là mảng cặp `label`/`value`; `span` cho phép một mục chiếm nhiều cột và được kẹp trong khoảng `1..columns`. Khi pane hẹp dưới 480px (container query, không phải viewport), lưới tự thu về một cột và nhãn xếp trên giá trị, nên bảng vẫn đọc được trong Drawer/SplitView hẹp lẫn trên điện thoại.
+
+`items` rỗng thì component không render gì. Giá trị có thể là link, button hoặc bất kỳ `ReactNode` nào; component không tự thêm hành vi.
+
+## Props
+
+| Prop       | Kiểu                         | Mặc định       | Mô tả                                  |
+| ---------- | ---------------------------- | -------------- | -------------------------------------- |
+| `items`    | `readonly DescriptionItem[]` | —              | Danh sách cặp nhãn/giá trị.            |
+| `columns`  | `1 \| 2 \| 3`                | `2`            | Số cột của lưới.                       |
+| `layout`   | `'horizontal' \| 'vertical'` | `'horizontal'` | Nhãn bên trái hoặc bên trên giá trị.   |
+| `bordered` | `boolean`                    | `false`        | Thêm đường viền giữa các ô.            |
+| `size`     | `'sm' \| 'md'`               | `'md'`         | Cỡ chữ; `sm` nhỏ hơn cho pane dày đặc. |
+
+`DescriptionItem` gồm `label: ReactNode`, `value: ReactNode`, `span?: number` và `key?: React.Key` (tuỳ chọn, giữ danh tính hàng khi chèn/sắp xếp). `Descriptions` nhận các thuộc tính của `<div>` (`className`, `id`, `aria-*`…) và chuyển xuống phần tử gốc, **trừ `children`**.
+
+## Bố cục và giới hạn
+
+- Trong layout ngang, mỗi ô là flex row có wrap: nếu không đủ chỗ cho nhãn và giá trị, giá trị xuống dưới nhãn và chiếm hết chiều rộng ô thay vì bị ép còn vài px. Ngưỡng để hai phần nằm cạnh nhau là khoảng 852px với 3 cột và 560px với 2 cột (khi có viền: khoảng 879px và 586px).
+- Phần tử gốc đặt `width: 100%` và dùng container query, nên trong một hàng `display: flex` nó nhận phần rộng còn lại và vẫn thu về một cột khi hẹp. Trong cột grid `auto` hoặc cha `fit-content`, containment không cho nội dung quyết định độ rộng: hãy đặt `width`/`minWidth` cho gốc hoặc cho ô cha (ví dụ `grid-template-columns: 320px 1fr`).
+- `bordered` vẽ viền phải/dưới trên từng ô, nên lưới cần đủ ô. Hàng cuối thiếu ô, hoặc một `span` không vừa phần còn lại của hàng, sẽ để lại ô trống không có viền. Với `bordered`, nên dùng số mục chia hết cho `columns` và hạn chế `span`; nếu cần `span`, dùng lưới không viền.
+
+## Accessibility
+
+- Cấu trúc là `<dl>` với `<dt>`/`<dd>`; bản thân `<dl>` không thêm `role` để giữ ngữ nghĩa description-list gốc.
+- Khi truyền `aria-label` hoặc `aria-labelledby`, phần tử gốc nhận thêm `role="group"` để tên đó thực sự được đọc; không truyền thì gốc vẫn là `<div>` thường.
+- Nhãn dùng `--text-muted` và đạt tương phản ≥4.5:1 ở cả hai theme; giá trị dùng `--text`.
+- `span` bị kẹp theo số cột, và khi container hẹp dưới 480px `grid-column` được đặt lại để không tạo cột ẩn.
+- `items` rỗng không render khung rỗng — phía gọi dùng `Empty` nếu cần trạng thái "chưa có dữ liệu".
+- Giá trị có thể chứa link/button; đảm bảo mỗi phần tử tương tác có tên truy cập riêng.

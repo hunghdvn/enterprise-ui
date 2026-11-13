@@ -1,0 +1,54 @@
+---
+title: Avatar
+description: Ảnh đại diện tròn với chữ cái thay thế, ba kích thước và chế độ trang trí.
+---
+
+import { AvatarDemo } from '../../../components/demos/AvatarDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Avatar` đại diện cho một người hoặc nhóm bằng ảnh, và tự chuyển sang chữ cái khi thiếu ảnh hoặc ảnh tải lỗi. Component chỉ hiển thị: nếu avatar cần bấm được, phía gọi bọc nó trong `button` hoặc `a`.
+
+<Demo title="Kích thước, chữ cái thay thế, ảnh lỗi và chế độ trang trí">
+  <AvatarDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Avatar } from '@enterprise-ui/components';
+
+export function Assignee() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Avatar name="Nguyễn Văn An" src="/avatars/an.jpg" alt="" />
+      <span>Nguyễn Văn An</span>
+    </div>
+  );
+}
+```
+
+`name` là bắt buộc: nó tạo chữ cái thay thế và nhãn truy cập. Tên nhiều từ lấy chữ cái đầu của từ đầu và từ cuối (`Nguyễn Văn An` → `NA`); tên một từ lấy một chữ cái (`An` → `A`). Khi `src` thiếu hoặc ảnh lỗi, component hiển thị chữ cái; đổi sang `src` mới sẽ thử tải ảnh lại.
+
+`alt` mặc định bằng `name`. Truyền `alt=""` khi tên đã hiển thị ngay cạnh avatar — cả mark trở thành trang trí (`aria-hidden`, không còn `role="img"`), tránh đọc tên hai lần.
+
+Phần tròn dùng nền `--avatar-bg`, màu chữ `--avatar-text` và viền 1px `--avatar-ring`. Viền giữ tương phản ≥3:1 trên hàng đang chọn và nav, nên avatar không lẫn vào nền dù màu nền chỉ là tint nhẹ.
+
+## Props
+
+| Prop   | Kiểu                   | Mặc định | Mô tả                                                         |
+| ------ | ---------------------- | -------- | ------------------------------------------------------------- |
+| `name` | `string`               | —        | Bắt buộc. Tên hiển thị; dùng cho chữ cái và nhãn truy cập.    |
+| `src`  | `string`               | —        | URL ảnh; thiếu hoặc tải lỗi thì dùng chữ cái.                 |
+| `alt`  | `string`               | `name`   | Nhãn truy cập; `""` biến avatar thành trang trí.              |
+| `size` | `'sm' \| 'md' \| 'lg'` | `'md'`   | Đường kính 24, 32 hoặc 48px; chữ cái co giãn theo kích thước. |
+
+`Avatar` nhận các thuộc tính của `<span>` (`className`, `id`, `data-*`…) và chuyển xuống phần tử gốc, **trừ `children`** vì nội dung do component quyết định. `role`/`aria-label` do phía gọi truyền vào sẽ thắng giá trị mặc định.
+
+## Accessibility
+
+- Phần tử gốc là `role="img"` với `aria-label` lấy từ `alt`, mặc định là `name`; ảnh bên trong có `alt=""` và `aria-hidden` để tên không bị đọc hai lần.
+- Chữ cái thay thế là trang trí với `aria-hidden="true"`; tên vẫn nằm trên phần tử gốc.
+- Tên rỗng hoặc chỉ khoảng trắng vẫn có nhãn `?` thay vì một `role="img"` không tên.
+- Ảnh lỗi không làm mất nội dung: component chuyển sang chữ cái và giữ nguyên nhãn truy cập.
+- Ảnh đã lỗi trước khi hydrate (SSR) vẫn được đối chiếu lúc mount qua `img.complete` và `naturalWidth`, nên fallback hiển thị dù trình duyệt không phát lại sự kiện `error`.
+- Avatar không nhận focus và không có trạng thái hiện diện. Nếu cần bấm, bọc trong `button`/`a`; nếu cần chấm online, đặt cạnh avatar và kèm nhãn văn bản.

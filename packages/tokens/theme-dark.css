@@ -31,4 +31,10 @@
   /* --surface-muted and --border are the same dark value, so Skeleton needs its own pair. */
   --skeleton-base: #475569;
   --skeleton-shine: #64748b;
+  /* Dark initials Avatar: blue-600/blue-100 is distinct from hover/nav (#1e3a8a).
+     --text-muted (#94a3b8) is only ~2.97:1 on the blue-600 fill; slate-300
+     keeps the ring edge >=5:1 on the fill and selected/hover rows. */
+  --avatar-bg: var(--color-blue-600);
+  --avatar-text: var(--color-blue-100);
+  --avatar-ring: #cbd5e1;
 }

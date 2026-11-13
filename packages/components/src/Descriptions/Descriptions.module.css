@@ -1,0 +1,113 @@
+.root {
+  /* Inline-size containment removes the content-based width, so without an
+     explicit width the root collapses to 0px as a flex item. 100% restores the
+     flex-row behaviour; an `auto` grid column still needs a width from the
+     caller (see docs). */
+  box-sizing: border-box;
+  container-type: inline-size;
+  width: 100%;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.list {
+  display: grid;
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.list[data-columns='1'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.list[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.list[data-columns='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  grid-column: span var(--desc-span, 1);
+}
+
+/* A wrapping flex row, not a fixed two-track grid: when a column is too narrow
+   for label + value, the value drops below the label instead of shrinking to a
+   few pixels (three columns at 481-860px). */
+.list[data-layout='horizontal'] > .item {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: baseline;
+}
+
+.list[data-layout='horizontal'] > .item > .label {
+  flex: 0 1 140px;
+  min-width: 96px;
+}
+
+.list[data-layout='horizontal'] > .item > .value {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--desc-label-size);
+  line-height: 1.4;
+}
+
+.value {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--desc-value-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.root[data-size='sm'] {
+  --desc-label-size: 11px;
+  --desc-value-size: 12px;
+}
+
+.root[data-size='md'] {
+  --desc-label-size: 12px;
+  --desc-value-size: var(--font-size);
+}
+
+/* Each filled cell paints its own right/bottom edge, so an incomplete row
+   (last row, or a hole before a span that does not fit) stays open. Filler
+   cells are not synthesized because packing depends on each row's spans;
+   documented limitation: bordered is intended for a complete grid. */
+.list[data-bordered='true'] {
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.list[data-bordered='true'] > .item {
+  padding: 8px 12px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+@container (max-width: 480px) {
+  .list[data-columns] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .list[data-layout='horizontal'] > .item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .item {
+    grid-column: auto;
+  }
+}

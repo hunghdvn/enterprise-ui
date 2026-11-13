@@ -8,6 +8,16 @@ export { Input } from './Input/Input';
 export type { InputProps } from './Input/Input';
 export { Badge } from './Badge/Badge';
 export type { BadgeProps, BadgeTone } from './Badge/Badge';
+export { Avatar } from './Avatar';
+export type { AvatarProps, AvatarSize } from './Avatar';
+export { Descriptions } from './Descriptions';
+export type {
+  DescriptionItem,
+  DescriptionsColumns,
+  DescriptionsLayout,
+  DescriptionsProps,
+  DescriptionsSize,
+} from './Descriptions';
 export { Alert } from './Alert';
 export type { AlertProps, AlertTone } from './Alert';
 export { Skeleton } from './Skeleton';
