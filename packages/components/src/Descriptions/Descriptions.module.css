@@ -3,6 +3,7 @@
      explicit width the root collapses to 0px as a flex item. 100% restores the
      flex-row behaviour; an `auto` grid column still needs a width from the
      caller (see docs). */
+  box-sizing: border-box;
   container-type: inline-size;
   width: 100%;
   font-family: var(--font);
@@ -34,10 +35,25 @@
   grid-column: span var(--desc-span, 1);
 }
 
+/* A wrapping flex row, not a fixed two-track grid: when a column is too narrow
+   for label + value, the value drops below the label instead of shrinking to a
+   few pixels (three columns at 481-860px). */
 .list[data-layout='horizontal'] > .item {
-  grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
   align-items: baseline;
+}
+
+.list[data-layout='horizontal'] > .item > .label {
+  flex: 0 1 140px;
+  min-width: 96px;
+}
+
+.list[data-layout='horizontal'] > .item > .value {
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .label {
@@ -87,6 +103,7 @@
   }
 
   .list[data-layout='horizontal'] > .item {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
 

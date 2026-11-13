@@ -125,8 +125,23 @@ test('module CSS pins columns, container collapse, scoped sizes and borders', ()
   expect(cssRule(css, ".list[data-columns='2']")).toMatch(/repeat\(2, minmax\(0, 1fr\)\)/);
   expect(cssRule(css, ".list[data-columns='3']")).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
   expect(cssRule(desktop, '.item')).toMatch(/grid-column:\s*span var\(--desc-span, 1\)/);
-  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item")).toMatch(
-    /grid-template-columns:\s*minmax\(96px, 140px\) minmax\(0, 1fr\)/,
+  const horizontal = cssRule(desktop, ".list[data-layout='horizontal'] > .item");
+  expect(horizontal).toMatch(/display:\s*flex/);
+  expect(horizontal).toMatch(/flex-wrap:\s*wrap/);
+  expect(horizontal).toMatch(/column-gap:\s*8px/);
+  expect(horizontal).toMatch(/row-gap:\s*2px/);
+  expect(horizontal).toMatch(/align-items:\s*baseline/);
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item > .label")).toMatch(
+    /flex:\s*0 1 140px/,
+  );
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item > .label")).toMatch(
+    /min-width:\s*96px/,
+  );
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item > .value")).toMatch(
+    /flex:\s*1 1 120px/,
+  );
+  expect(cssRule(desktop, ".list[data-layout='horizontal'] > .item > .value")).toMatch(
+    /min-width:\s*0/,
   );
   expect(cssRule(css, ".root[data-size='sm']")).toMatch(/--desc-label-size:\s*11px/);
   expect(cssRule(css, ".root[data-size='sm']")).toMatch(/--desc-value-size:\s*12px/);
@@ -135,17 +150,19 @@ test('module CSS pins columns, container collapse, scoped sizes and borders', ()
   expect(cssRule(css, '.label')).toMatch(/font-size:\s*var\(--desc-label-size\)/);
   expect(cssRule(css, '.value')).toMatch(/font-size:\s*var\(--desc-value-size\)/);
   expect(cssRule(css, ".list[data-bordered='true'] > .item")).toMatch(/border-right:/);
+  expect(cssRule(css, '.root')).toMatch(/box-sizing:\s*border-box/);
   expect(cssRule(css, '.root')).toMatch(/container-type:\s*inline-size/);
   expect(cssRule(css, '.root')).toMatch(/width:\s*100%/);
   const mobile = cssBlock(css, '@container (max-width: 480px)');
   expect(cssRule(mobile, '.list[data-columns]')).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
+  expect(cssRule(mobile, ".list[data-layout='horizontal'] > .item")).toMatch(/display:\s*grid/);
   expect(cssRule(mobile, ".list[data-layout='horizontal'] > .item")).toMatch(
     /grid-template-columns:\s*minmax\(0, 1fr\)/,
   );
   expect(cssRule(mobile, '.item')).toMatch(/grid-column:\s*auto/);
-  expect(css).not.toMatch(/@media \(max-width: 480px\)/);
+  expect(css).not.toMatch(/@media/);
   expect(css).not.toMatch(/\.list\[data-layout='horizontal'\]\s+\.item/);
   expect(css).not.toMatch(/\.list\[data-bordered='true'\]\s+\.item/);
   expect(css).not.toMatch(/\.root\[data-size='(sm|md)'\]\s+\.(label|value)/);
