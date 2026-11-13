@@ -124,6 +124,7 @@ test('module CSS pins columns, container collapse, scoped sizes and borders', ()
   );
   expect(cssRule(css, ".list[data-columns='2']")).toMatch(/repeat\(2, minmax\(0, 1fr\)\)/);
   expect(cssRule(css, ".list[data-columns='3']")).toMatch(/repeat\(3, minmax\(0, 1fr\)\)/);
+  expect(cssRule(css, '.list')).toMatch(/gap:\s*12px 24px/);
   expect(cssRule(desktop, '.item')).toMatch(/grid-column:\s*span var\(--desc-span, 1\)/);
   const horizontal = cssRule(desktop, ".list[data-layout='horizontal'] > .item");
   expect(horizontal).toMatch(/display:\s*flex/);
