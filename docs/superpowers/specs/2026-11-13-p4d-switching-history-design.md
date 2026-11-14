@@ -87,12 +87,12 @@ export interface SegmentedControlItem {
 
 export interface SegmentedControlProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
-  'onChange' | 'aria-label'
+  'onChange' | 'aria-label' | 'children'
 > {
   items: readonly SegmentedControlItem[];
   /** Controlled selected value. */
   value?: string;
-  /** Initial value when uncontrolled; defaults to the first option. */
+  /** Initial value when uncontrolled; defaults to the first enabled option. */
   defaultValue?: string;
   onChange?: (value: string) => void;
   /** Default `'md'`. */
@@ -129,10 +129,19 @@ Decisions:
   tabindex, `aria-checked` and arrow handling one implementation, matching
   `Tabs`. Native radios would add `name`/form behaviour the component does not
   promise.
-- **Uncontrolled selection defaults to the first option (mine).** A mode switch
-  needs a current mode; `Tabs` uses the same first-item default. An explicit
-  `defaultValue` wins. A controlled `value` that matches no option leaves
-  every option unchecked, and the first enabled option becomes the tab stop.
+- **Uncontrolled selection defaults to the first _enabled_ option (mine).** A
+  mode switch needs a usable current mode; a `disabled` first item (or a
+  persisted `defaultValue` whose permission was revoked) must not render as
+  checked while its tab stop lives elsewhere, so the default skips disabled
+  items. An explicit `defaultValue` wins unless it points at a disabled option,
+  in which case it falls back to the first enabled option. A `defaultValue`
+  that matches no option at all — like a controlled `value` that matches no
+  option — leaves every option unchecked, and the first enabled option becomes
+  the tab stop.
+- **A controlled `value` on a disabled option stays checked (mine).** The
+  caller owns the value; the component does not silently rewrite it. The tab
+  stop, however, moves to the first enabled option so the group never traps
+  focus.
 - **Clicking the checked option does not fire `onChange` (mine).** This matches
   a radio group: a selection event only happens when the value changes.
 - **`items.length === 0` renders `null`.** An empty radiogroup is not a useful
@@ -207,9 +216,14 @@ Decisions:
 
 - **`time` is the display node, `dateTime` is the machine value (mine).**
   Parent-formatted text keeps the component free of locale/format decisions.
-  A `<time>` renders only when `time` is present; `dateTime` is then attached
-  when supplied. `dateTime` alone is ignored rather than dumped as visible
-  text.
+  A `<time datetime>` renders only when both `time` and `dateTime` are supplied;
+  `time` alone renders in a plain `<span>` because a `<time>` without
+  `datetime` must itself contain a valid date string, which a formatted label
+  like `12/11/2026 · 09:15` is not. `dateTime` alone is ignored rather than
+  dumped as visible text.
+- **Slots use `isPresent`.** `time`/`description` are gated like every other
+  slot in the library, so `''`, `0`, `false` and `[]` render nothing instead of
+  a stray empty `<p>`/`<time>` plus its grid gap.
 - **Markers are decorative (`aria-hidden`).** Tone and icon must not be the
   only carrier of status; the title/description carry the meaning. This is
   documented on the page.
@@ -225,11 +239,15 @@ Decisions:
 
 `SegmentedControl`:
 
-- root: `inline-flex`, 3px padding, 1px `--border`, pill radius,
-  `--surface-muted` track, `box-sizing: border-box`;
-- option: transparent, muted label, pill radius; selected option gets
-  `--surface` + `--shadow-sm` + `--text` + weight 600; hover raises a muted
-  label to `--text`; `:focus-visible` uses a 2px `--focus-ring` outline;
+- root: `inline-flex`, `width: fit-content` (a grid parent must not stretch
+  the track), 3px padding, 1px `--border`, pill radius, `--surface-muted`
+  track, `box-sizing: border-box`; no `max-width` cap, so the track always
+  stays behind its nowrap options (same as `Tabs`' segmented track);
+- option: transparent, pill radius; labels rest at `--text` because
+  `--text-muted` on `--surface-muted` is 4.34:1 (light) / 4.04:1 (dark), below
+  WCAG AA — hover keeps feedback via `--action-text`, mirroring `Tabs`;
+  selected option gets `--surface` + `--shadow-sm` + `--text` + weight 600;
+  `:focus-visible` uses a 2px `--focus-ring` outline;
 - heights derive from `--input-h` / `--input-h-lg` minus the 4px track inset,
   so a segmented control lines up with inputs at both densities;
 - `sm`/`md` set height, horizontal padding and font size through custom
@@ -267,12 +285,14 @@ areas, so dark-mode brand blue does not become an unreadable fill.
 ## 6. Accessibility
 
 - `SegmentedControl` root is `role="radiogroup"` with a required name; options
-  are `role="radio"` with `aria-checked`. Only the checked option (or the
-  first enabled option when none is checked) has `tabindex="0"`.
+  are `role="radio"` with `aria-checked`. Only the checked option has
+  `tabindex="0"`; when nothing is checked, or the checked option is `disabled`,
+  the first enabled option takes the tab stop.
 - Arrow keys move focus **and** selection; Home/End jump to the ends; disabled
   options are skipped; the group wraps in both directions.
-- `Timeline` is an `<ol>`/`<li>` list; every event is a list item, so screen
-  readers announce position and count. The default name is `'Dòng thời gian'`.
+- `Timeline` is an `<ol>`/`<li>` list with an explicit `role="list"`: WebKit
+  drops list semantics for `list-style: none` lists, and the page promises
+  position and count announcements. The default name is `'Dòng thời gian'`.
 - Timeline markers are `aria-hidden`; tones never carry information alone.
 - Both components respect `prefers-reduced-motion` by having no non-essential
   animation (only a short colour/background transition on the segmented
@@ -289,35 +309,51 @@ areas, so dark-mode brand blue does not become an unreadable fill.
 - clicking a new option selects it and fires `onChange` once; clicking the
   checked option does not fire again;
 - a controlled value that matches nothing leaves all options unchecked and
-  gives the first enabled option `tabindex="0"`;
+  gives the first enabled option `tabindex="0"`; an unknown `defaultValue`
+  behaves the same;
+- a disabled first option is not auto-selected; a `defaultValue` pointing at a
+  disabled option falls back to the first enabled option; a controlled value on
+  a disabled option stays checked but hands the tab stop over; all options
+  disabled leaves no tab stop and does not crash;
 - roving tabindex follows the checked option;
 - ArrowRight/ArrowLeft/ArrowDown/ArrowUp wrap, skip disabled options, move
-  focus and select; Home/End jump to first/last enabled;
+  focus and select; Home/End jump to first/last enabled and fire `onChange`;
+- an IME keystroke (`keyCode === 229`) does not move the selection;
 - per-option and whole-control `disabled` block activation;
-- icon options render an Icon; item `aria-label` names an icon-only option;
+- icon options render an Icon; item `aria-label` names an icon-only option; an
+  icon-only option renders no empty label span;
+- `children` are rejected at the type level (`@ts-expect-error`);
 - `className`, `id` and other rest props land on the root;
 - empty `items` renders nothing;
-- module CSS pins: root track/radius, selected background/shadow, focus ring,
-  and both size blocks.
+- module CSS pins: root track/radius and no `max-width` cap, `--text` labels
+  with `--action-text` hover, selected background/shadow, focus ring, and both
+  size blocks.
 
 `Timeline.test.tsx`:
 
-- renders a named `<ol>` with one `<li>` per event, titles and descriptions;
-- `time` renders a `<time datetime>` only when supplied; `dateTime` alone is
-  not dumped as text;
+- renders a named `<ol>` with one `<li>` per event, titles and descriptions,
+  and an explicit `role="list"`;
+- `time` with `dateTime` renders a `<time datetime>`; `time` alone renders a
+  plain `<span>`; `dateTime` alone is not dumped as text;
+- falsy `time`/`description` slots render nothing;
 - default tone is `neutral`, `tone` lands on the `<li>`, icons replace the
   dot, and markers are `aria-hidden`;
 - `size`, `className`, `id` and rest props land on the root;
 - empty `items` renders nothing;
 - ReactNode titles/descriptions render;
 - module CSS pins: list reset, marker/content grid, connector pseudo-element
-  hidden on the last item, hollow marker, tone rules, and both size blocks.
+  hidden on the last item, `box-sizing: border-box` marker, `.dot`, tone rules,
+  and both size blocks.
 
 Mutation pass: remove `role="radio"`, break `aria-checked`, force every
-`tabindex="0"`, stop skipping disabled options, drop the selected-option CSS,
-change the `<ol>` to a `<div>`, drop `dateTime`, remove the connector rule,
-remove the tone rule, and remove the empty-list return. Each mutant must fail
-its named test; backups use `cp`, never `git checkout`.
+`tabindex="0"`, stop skipping disabled options, select a disabled first option
+by default, drop the IME keyCode guard, render the icon-only label span, drop
+the selected-option CSS, add back the `max-width` cap, drop the `--text`
+label colour, change the `<ol>` to a `<div>`, remove the explicit
+`role="list"`, drop `dateTime`, always render `<time>`, gate slots on
+`!= null`, remove the marker `box-sizing`, remove the connector rule, remove
+the tone rule, and remove the empty-list return. Each mutant must fail its
+named test; backups use `cp`, never `git checkout`.
 
 ## 8. Docs & exports
 
@@ -353,13 +389,13 @@ sidebar entries and root exports. Full gate before push; CI must be green.
    item-level `aria-label`.
 2. It uses buttons with `role="radio"`, not native inputs, and does not submit
    with forms.
-3. Uncontrolled selection defaults to the first option; clicking the checked
-   option does not re-fire `onChange`.
+3. Uncontrolled selection defaults to the first _enabled_ option; clicking the
+   checked option does not re-fire `onChange`.
 4. No new tokens: both components reuse surface/border/text/action/status
    tokens, with `--danger-emphasis` and `--color-orange-600` chosen for
    cross-theme contrast.
 5. Timeline `time` is display text, `dateTime` is machine metadata; `dateTime`
-   alone is ignored.
+   alone is ignored and `time` alone renders as a `<span>`, not a `<time>`.
 6. Timeline markers are hollow and decorative; status must be in the text.
 7. Empty `items` renders `null` for both components.
 8. Timeline is vertical only; horizontal/grouped/history-loading variants are

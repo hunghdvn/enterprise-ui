@@ -45,7 +45,7 @@ export function OrderHistory() {
 }
 ```
 
-`time` là chuỗi hiển thị do phía gọi định dạng; `dateTime` là giá trị máy đọc được gắn vào `<time datetime>`. Nếu chỉ có `dateTime` mà không có `time`, component không render mốc thời gian và không in chuỗi ISO ra màn hình. `items={[]}` render `null`.
+`time` là chuỗi hiển thị do phía gọi định dạng; `dateTime` là giá trị máy đọc được gắn vào `<time datetime>`. Chỉ khi có `dateTime`, mốc thời gian mới là `<time>`; nếu chỉ có `time`, component render `<span>` thường (vì `<time>` không có `datetime` phải chứa chuỗi ngày hợp lệ). Nếu chỉ có `dateTime` mà không có `time`, component không render mốc thời gian và không in chuỗi ISO ra màn hình. `items={[]}` render `null`.
 
 ## Props
 
@@ -60,15 +60,15 @@ export function OrderHistory() {
 
 ### `TimelineItem`
 
-| Prop          | Kiểu                                                  | Mặc định    | Mô tả                                                      |
-| ------------- | ----------------------------------------------------- | ----------- | ---------------------------------------------------------- |
-| `id`          | `string`                                              | —           | **Bắt buộc.** Định danh ổn định cho `key`.                 |
-| `title`       | `ReactNode`                                           | —           | **Bắt buộc.** Tiêu đề sự kiện.                             |
-| `description` | `ReactNode`                                           | —           | Mô tả thêm dưới tiêu đề.                                   |
-| `time`        | `ReactNode`                                           | —           | Chuỗi thời gian đã định dạng để hiển thị.                  |
-| `dateTime`    | `string`                                              | —           | Giá trị ISO cho `<time datetime>`; chỉ dùng khi có `time`. |
-| `tone`        | `'neutral' \| 'blue' \| 'green' \| 'orange' \| 'red'` | `'neutral'` | Màu marker. Không phải tín hiệu duy nhất của trạng thái.   |
-| `icon`        | `IconName`                                            | —           | Thay chấm tròn bằng icon.                                  |
+| Prop          | Kiểu                                                  | Mặc định    | Mô tả                                                                     |
+| ------------- | ----------------------------------------------------- | ----------- | ------------------------------------------------------------------------- |
+| `id`          | `string`                                              | —           | **Bắt buộc.** Định danh ổn định cho `key`.                                |
+| `title`       | `ReactNode`                                           | —           | **Bắt buộc.** Tiêu đề sự kiện.                                            |
+| `description` | `ReactNode`                                           | —           | Mô tả thêm dưới tiêu đề.                                                  |
+| `time`        | `ReactNode`                                           | —           | Chuỗi thời gian đã định dạng để hiển thị.                                 |
+| `dateTime`    | `string`                                              | —           | Giá trị ISO cho `<time datetime>`; thiếu nó, `time` render bằng `<span>`. |
+| `tone`        | `'neutral' \| 'blue' \| 'green' \| 'orange' \| 'red'` | `'neutral'` | Màu marker. Không phải tín hiệu duy nhất của trạng thái.                  |
+| `icon`        | `IconName`                                            | —           | Thay chấm tròn bằng icon.                                                 |
 
 ## Bố cục và giới hạn
 
@@ -78,7 +78,7 @@ export function OrderHistory() {
 
 ## Accessibility
 
-- Cấu trúc là `<ol>` với một `<li>` cho mỗi sự kiện, nên screen reader đọc được vị trí và tổng số mục.
+- Cấu trúc là `<ol role="list">` với một `<li>` cho mỗi sự kiện, nên screen reader đọc được vị trí và tổng số mục. `role="list"` được đặt tường minh vì WebKit bỏ ngữ nghĩa list khi `list-style: none`.
 - Tên mặc định là “Dòng thời gian”; truyền `aria-label` khi ngữ cảnh chưa rõ (ví dụ “Lịch sử đơn hàng”).
 - Marker có `aria-hidden="true"`; icon cũng bị ẩn. Thông tin trạng thái phải nằm trong chữ.
 - Mốc thời gian dùng `<time datetime>` khi có `dateTime`, giúp máy đọc và trích xuất dữ liệu chính xác.

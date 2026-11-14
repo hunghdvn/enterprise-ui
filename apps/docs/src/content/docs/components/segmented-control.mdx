@@ -36,22 +36,22 @@ export function ViewSwitch() {
 }
 ```
 
-Không truyền `value` thì component tự giữ lựa chọn; `defaultValue` đặt giá trị ban đầu, mặc định là mục đầu tiên. Bấm lại mục đang chọn không phát sinh `onChange`. `items={[]}` render `null`.
+Không truyền `value` thì component tự giữ lựa chọn; `defaultValue` đặt giá trị ban đầu, mặc định là mục **đang bật** đầu tiên — mục `disabled` không bao giờ được chọn mặc định, kể cả khi `defaultValue` trỏ vào nó. Bấm lại mục đang chọn không phát sinh `onChange`. Thanh trượt rộng theo nội dung và nhãn không xuống dòng, nên đặt trong vùng đủ chỗ. `items={[]}` render `null`.
 
 ## Props
 
 ### `SegmentedControl`
 
-| Prop           | Kiểu                              | Mặc định | Mô tả                                                                                   |
-| -------------- | --------------------------------- | -------- | --------------------------------------------------------------------------------------- |
-| `items`        | `readonly SegmentedControlItem[]` | —        | **Bắt buộc.** Danh sách lựa chọn; `value` phải duy nhất.                                |
-| `aria-label`   | `string`                          | —        | **Bắt buộc.** Tên nhóm cho screen reader. `aria-labelledby` vẫn có thể ghi đè qua rest. |
-| `value`        | `string`                          | —        | Giá trị đang chọn ở chế độ controlled.                                                  |
-| `defaultValue` | `string`                          | Mục đầu  | Giá trị khởi tạo ở chế độ uncontrolled.                                                 |
-| `onChange`     | `(value: string) => void`         | —        | Gọi khi lựa chọn đổi.                                                                   |
-| `size`         | `'sm' \| 'md'`                    | `'md'`   | Chiều cao, padding và cỡ chữ.                                                           |
-| `disabled`     | `boolean`                         | `false`  | Vô hiệu hoá toàn bộ lựa chọn.                                                           |
-| `className`    | `string`                          | —        | Class thêm cho phần tử gốc.                                                             |
+| Prop           | Kiểu                              | Mặc định    | Mô tả                                                                                   |
+| -------------- | --------------------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `items`        | `readonly SegmentedControlItem[]` | —           | **Bắt buộc.** Danh sách lựa chọn; `value` phải duy nhất.                                |
+| `aria-label`   | `string`                          | —           | **Bắt buộc.** Tên nhóm cho screen reader. `aria-labelledby` vẫn có thể ghi đè qua rest. |
+| `value`        | `string`                          | —           | Giá trị đang chọn ở chế độ controlled.                                                  |
+| `defaultValue` | `string`                          | Mục bật đầu | Giá trị khởi tạo; trỏ vào mục `disabled` sẽ rơi về mục đang bật đầu tiên.               |
+| `onChange`     | `(value: string) => void`         | —           | Gọi khi lựa chọn đổi.                                                                   |
+| `size`         | `'sm' \| 'md'`                    | `'md'`      | Chiều cao, padding và cỡ chữ.                                                           |
+| `disabled`     | `boolean`                         | `false`     | Vô hiệu hoá toàn bộ lựa chọn.                                                           |
+| `className`    | `string`                          | —           | Class thêm cho phần tử gốc.                                                             |
 
 ### `SegmentedControlItem`
 
@@ -72,6 +72,6 @@ Không truyền `value` thì component tự giữ lựa chọn; `defaultValue` �
 ## Accessibility
 
 - Gốc là `role="radiogroup"` với tên bắt buộc; mỗi mục là `role="radio"` + `aria-checked`.
-- Chỉ mục đang chọn có `tabindex="0"`; khi chưa chọn mục nào, mục đầu tiên đang bật nhận tab.
+- Chỉ mục đang chọn có `tabindex="0"`; khi chưa chọn mục nào — hoặc mục đang chọn bị `disabled` — mục **đang bật** đầu tiên nhận tab.
 - `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown` di chuyển và chọn, có vòng lại hai đầu; `Home`/`End` nhảy tới đầu/cuối. Mục `disabled` bị bỏ qua.
 - Component không gửi giá trị khi submit form; nếu cần hành vi form, dùng `RadioGroup` với radio native.
