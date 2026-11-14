@@ -4,7 +4,6 @@
   align-items: center;
   gap: 2px;
   width: fit-content;
-  max-width: 100%;
   padding: 3px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -36,7 +35,8 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--text-muted);
+  /* AA on the muted track: --text-muted is 4.34:1 (light) / 4.04:1 (dark). */
+  color: var(--text);
   font: inherit;
   font-size: var(--sc-font);
   line-height: 1;
@@ -49,7 +49,7 @@
 }
 
 .option:hover:not(:disabled):not([aria-checked='true']) {
-  color: var(--text);
+  color: var(--action-text);
 }
 
 .option[aria-checked='true'] {

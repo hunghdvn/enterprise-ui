@@ -26,6 +26,8 @@ const items = [
 
 test('renders a named ordered list with one item per event', () => {
   render(<Timeline items={items} />);
+  // Native <ol> keeps the markup valid for <li> children; role="list" is only a WebKit aid.
+  expect(screen.getByRole('list', { name: 'Dòng thời gian' }).tagName).toBe('OL');
   expect(screen.getByRole('list', { name: 'Dòng thời gian' })).toBeInTheDocument();
   expect(screen.getAllByRole('listitem')).toHaveLength(2);
   expect(screen.getByText('Tạo đơn')).toBeInTheDocument();
@@ -95,12 +97,38 @@ test('ReactNode title and description render; empty items renders nothing', () =
   expect(container).toBeEmptyDOMElement();
 });
 
+test('re-asserts list semantics for VoiceOver', () => {
+  render(<Timeline items={items} />);
+  expect(screen.getByRole('list', { name: 'Dòng thời gian' })).toHaveAttribute('role', 'list');
+});
+
+test('time without dateTime renders a plain span, not a <time>', () => {
+  const { container } = render(
+    <Timeline items={[{ id: 'no-iso', title: 'Không ISO', time: '12/11/2026 · 09:15' }]} />,
+  );
+  const stamp = screen.getByText('12/11/2026 · 09:15');
+  expect(stamp.tagName).toBe('SPAN');
+  expect(container.querySelector('time')).toBeNull();
+});
+
+test('falsy time and description slots render nothing', () => {
+  const { container } = render(
+    <Timeline items={[{ id: 'empty', title: 'Chỉ tiêu đề', time: '', description: false }]} />,
+  );
+  expect(container.querySelector('time')).toBeNull();
+  expect(container.querySelector('li p')).toBeNull();
+  expect(container.textContent).toBe('Chỉ tiêu đề');
+});
+
 test('module CSS pins the list, connector, marker, wrapping and tone/size rules', () => {
   expect(cssRule(css, '.root')).toMatch(/list-style:\s*none/);
   expect(cssRule(css, '.item')).toMatch(/grid-template-columns/);
   expect(cssRule(css, '.item:not(:last-child)::before')).toMatch(/background:\s*var\(--border\)/);
+  // The border must not inflate the marker past the column/connector math.
+  expect(cssRule(css, '.marker')).toMatch(/box-sizing:\s*border-box/);
   expect(cssRule(css, '.marker')).toMatch(/border-radius:\s*9999px/);
   expect(cssRule(css, '.marker')).toMatch(/border:\s*1px solid currentColor/);
+  expect(cssRule(css, '.dot')).toMatch(/background:\s*currentColor/);
   expect(cssRule(css, '.heading')).toMatch(/flex-wrap:\s*wrap/);
   expect(cssRule(css, '.title')).toMatch(/overflow-wrap:\s*anywhere/);
   for (const tone of ['blue', 'green', 'orange', 'red']) {

@@ -52,6 +52,7 @@
 .marker {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;

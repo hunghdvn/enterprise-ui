@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
+import { isPresent } from '../internal/isPresent';
 import styles from './SegmentedControl.module.css';
 import type { SegmentedControlProps } from './types';
 
@@ -15,7 +16,16 @@ export function SegmentedControl({
   ...rest
 }: SegmentedControlProps) {
   const isControlled = value !== undefined;
-  const [internalValue, setInternalValue] = useState(defaultValue ?? items[0]?.value);
+  // Default to the first *enabled* option: a disabled first item (or a persisted
+  // defaultValue whose permission was revoked) must not render as checked while its
+  // tab stop lives on another option. An unknown defaultValue still selects nothing.
+  const firstEnabledValue = items.find((item) => !item.disabled)?.value;
+  const initialCandidate = defaultValue ?? firstEnabledValue;
+  const [internalValue, setInternalValue] = useState(
+    items.find((item) => item.value === initialCandidate)?.disabled
+      ? firstEnabledValue
+      : initialCandidate,
+  );
   const currentValue = isControlled ? value : internalValue;
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -45,7 +55,7 @@ export function SegmentedControl({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    if (event.nativeEvent.isComposing) return;
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
 
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
@@ -99,7 +109,7 @@ export function SegmentedControl({
             onKeyDown={(event) => handleKeyDown(event, index)}
           >
             {item.icon && <Icon name={item.icon} size={size === 'sm' ? 14 : 16} />}
-            <span className={styles.label}>{item.label}</span>
+            {isPresent(item.label) && <span className={styles.label}>{item.label}</span>}
           </button>
         );
       })}

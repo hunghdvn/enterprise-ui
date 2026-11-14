@@ -144,11 +144,132 @@ test('size sets data-size on the root', () => {
   expect(groups[1]).toHaveAttribute('data-size', 'md');
 });
 
+test('a disabled first option is not auto-selected', () => {
+  const gated = [
+    { value: 'table', label: 'Bảng', disabled: true },
+    { value: 'list', label: 'Danh sách' },
+  ];
+  render(<SegmentedControl aria-label="Chế độ" items={gated} />);
+  expect(screen.getByRole('radio', { name: 'Bảng' })).toHaveAttribute('aria-checked', 'false');
+  expect(screen.getByRole('radio', { name: 'Danh sách' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('defaultValue pointing at a disabled option falls back to the first enabled one', () => {
+  const gated = [
+    { value: 'a', label: 'A' },
+    { value: 'b', label: 'B', disabled: true },
+  ];
+  render(<SegmentedControl aria-label="Chế độ" items={gated} defaultValue="b" />);
+  expect(screen.getByRole('radio', { name: 'B' })).toHaveAttribute('aria-checked', 'false');
+  expect(screen.getByRole('radio', { name: 'A' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('defaultValue matching nothing renders no selection but keeps a tab stop', () => {
+  render(<SegmentedControl aria-label="Chế độ" items={items} defaultValue="ghost" />);
+  for (const radio of screen.getAllByRole('radio')) {
+    expect(radio).toHaveAttribute('aria-checked', 'false');
+  }
+  expect(screen.getByRole('radio', { name: 'Danh sách' })).toHaveAttribute('tabindex', '0');
+});
+
+test('a controlled value on a disabled option stays checked but hands over the tab stop', () => {
+  const gated = [
+    { value: 'a', label: 'A' },
+    { value: 'b', label: 'B', disabled: true },
+    { value: 'c', label: 'C' },
+  ];
+  render(<SegmentedControl aria-label="Chế độ" items={gated} value="b" />);
+  const b = screen.getByRole('radio', { name: 'B' });
+  expect(b).toHaveAttribute('aria-checked', 'true');
+  expect(b).toHaveAttribute('tabindex', '-1');
+  expect(screen.getByRole('radio', { name: 'A' })).toHaveAttribute('tabindex', '0');
+});
+
+test('all options disabled leaves no tab stop and does not crash', () => {
+  const gated = [
+    { value: 'a', label: 'A', disabled: true },
+    { value: 'b', label: 'B', disabled: true },
+  ];
+  render(<SegmentedControl aria-label="Chế độ" items={gated} />);
+  for (const radio of screen.getAllByRole('radio')) {
+    expect(radio).toHaveAttribute('aria-checked', 'false');
+    expect(radio).toHaveAttribute('tabindex', '-1');
+  }
+});
+
+test('ArrowUp and ArrowDown mirror ArrowLeft and ArrowRight', () => {
+  render(<SegmentedControl aria-label="Chế độ" items={items} />);
+  const first = screen.getByRole('radio', { name: 'Danh sách' });
+  first.focus();
+  fireEvent.keyDown(first, { key: 'ArrowDown' });
+  const second = screen.getByRole('radio', { name: 'Lưới' });
+  expect(document.activeElement).toBe(second);
+  fireEvent.keyDown(second, { key: 'ArrowUp' });
+  expect(document.activeElement).toBe(first);
+});
+
+test('Home and End move focus and selection and fire onChange', () => {
+  const onChange = vi.fn();
+  render(<SegmentedControl aria-label="Chế độ" items={items} onChange={onChange} />);
+  const first = screen.getByRole('radio', { name: 'Danh sách' });
+  first.focus();
+  fireEvent.keyDown(first, { key: 'End' });
+  const last = screen.getByRole('radio', { name: 'Bảng' });
+  expect(document.activeElement).toBe(last);
+  expect(last).toHaveAttribute('aria-checked', 'true');
+  expect(onChange).toHaveBeenCalledTimes(1);
+  fireEvent.keyDown(last, { key: 'Home' });
+  expect(document.activeElement).toBe(first);
+  expect(first).toHaveAttribute('aria-checked', 'true');
+  expect(onChange).toHaveBeenLastCalledWith('list');
+});
+
+test('an IME composition keystroke does not move the selection', () => {
+  render(<SegmentedControl aria-label="Chế độ" items={items} />);
+  const first = screen.getByRole('radio', { name: 'Danh sách' });
+  first.focus();
+  fireEvent.keyDown(first, { key: 'ArrowRight', keyCode: 229 });
+  expect(document.activeElement).toBe(first);
+  expect(first).toHaveAttribute('aria-checked', 'true');
+});
+
+test('an icon-only option renders no label span', () => {
+  render(
+    <SegmentedControl
+      aria-label="Chế độ"
+      items={[{ value: 'list', label: '', icon: 'layout-list', 'aria-label': 'Danh sách' }]}
+    />,
+  );
+  const radio = screen.getByRole('radio', { name: 'Danh sách' });
+  expect(radio.querySelector('span')).toBeNull();
+  expect(radio.querySelector('svg')).not.toBeNull();
+});
+
+test('children are rejected at the type level and never rendered', () => {
+  render(
+    // @ts-expect-error children are deliberately omitted from SegmentedControlProps.
+    <SegmentedControl aria-label="Chế độ" items={items}>
+      Thừa
+    </SegmentedControl>,
+  );
+  expect(screen.queryByText('Thừa')).toBeNull();
+});
+
 test('module CSS pins the track, selected state, focus ring and sizes', () => {
   expect(cssRule(css, '.root')).toMatch(/display:\s*inline-flex/);
   // A grid parent would otherwise stretch the inline-flex track to the column width.
   expect(cssRule(css, '.root')).toMatch(/width:\s*fit-content/);
+  // fit-content keeps the track behind its options; a max-width cap would let a nowrap row
+  // spill past the rounded background (Tabs' segmented track has no cap either).
+  expect(cssRule(css, '.root')).not.toMatch(/max-width/);
+  expect(cssRule(css, '.root')).toMatch(/border-radius:\s*999px/);
   expect(cssRule(css, '.root')).toMatch(/background:\s*var\(--surface-muted\)/);
+  // Unchecked labels rest at --text: --text-muted on --surface-muted is 4.34:1 (light) /
+  // 4.04:1 (dark), below AA; hover keeps feedback via --action-text like Tabs.
+  expect(cssRule(css, '.option')).toMatch(/color:\s*var\(--text\)/);
+  expect(cssRule(css, ".option:hover:not(:disabled):not([aria-checked='true'])")).toMatch(
+    /color:\s*var\(--action-text\)/,
+  );
   expect(cssRule(css, ".option[aria-checked='true']")).toMatch(/background:\s*var\(--surface\)/);
   expect(cssRule(css, ".option[aria-checked='true']")).toMatch(/box-shadow:\s*var\(--shadow-sm\)/);
   expect(cssRule(css, '.option:focus-visible')).toMatch(/outline:\s*2px solid var\(--focus-ring\)/);

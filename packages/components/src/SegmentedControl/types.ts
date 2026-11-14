@@ -15,12 +15,12 @@ export interface SegmentedControlItem {
 
 export interface SegmentedControlProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
-  'onChange' | 'aria-label'
+  'onChange' | 'aria-label' | 'children'
 > {
   items: readonly SegmentedControlItem[];
   /** Controlled selected value. */
   value?: string;
-  /** Initial value when uncontrolled; defaults to the first option. */
+  /** Initial value when uncontrolled; defaults to the first enabled option. */
   defaultValue?: string;
   onChange?: (value: string) => void;
   /** Default `'md'`. */
