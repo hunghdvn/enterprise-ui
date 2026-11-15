@@ -233,6 +233,20 @@ test('an IME composition keystroke does not move the selection', () => {
   expect(first).toHaveAttribute('aria-checked', 'true');
 });
 
+test('a numeric zero label renders and names the option', () => {
+  render(
+    <SegmentedControl
+      aria-label="Mức độ"
+      items={[
+        { value: '0', label: 0 },
+        { value: '1', label: 1 },
+      ]}
+    />,
+  );
+  expect(screen.getByRole('radio', { name: '0' })).toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: '1' })).toBeInTheDocument();
+});
+
 test('an icon-only option renders no label span', () => {
   render(
     <SegmentedControl

@@ -109,7 +109,11 @@ export function SegmentedControl({
             onKeyDown={(event) => handleKeyDown(event, index)}
           >
             {item.icon && <Icon name={item.icon} size={size === 'sm' ? 14 : 16} />}
-            {isPresent(item.label) && <span className={styles.label}>{item.label}</span>}
+            {/* `0` is present content for a required label (isPresent treats it as
+                absent, right for optional slots) and an empty label means icon-only. */}
+            {(isPresent(item.label) || item.label === 0) && (
+              <span className={styles.label}>{item.label}</span>
+            )}
           </button>
         );
       })}

@@ -144,6 +144,10 @@ Decisions:
   focus.
 - **Clicking the checked option does not fire `onChange` (mine).** This matches
   a radio group: a selection event only happens when the value changes.
+- **`label` is required content; an empty string means icon-only.** A numeric
+  `0` renders and names the option — `isPresent` must not swallow it, unlike
+  optional slots — while `label=""` skips the label span so the icon stays
+  centred and the item-level `aria-label` provides the name.
 - **`items.length === 0` renders `null`.** An empty radiogroup is not a useful
   control; `Descriptions` uses the same empty contract.
 - **`...rest` stays on the root; `role`, `data-size` and `className` are set by
@@ -321,7 +325,8 @@ areas, so dark-mode brand blue does not become an unreadable fill.
 - an IME keystroke (`keyCode === 229`) does not move the selection;
 - per-option and whole-control `disabled` block activation;
 - icon options render an Icon; item `aria-label` names an icon-only option; an
-  icon-only option renders no empty label span;
+  icon-only option renders no empty label span; a numeric `0` label renders and
+  names the option;
 - `children` are rejected at the type level (`@ts-expect-error`);
 - `className`, `id` and other rest props land on the root;
 - empty `items` renders nothing;
