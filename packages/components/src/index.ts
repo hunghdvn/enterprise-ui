@@ -79,6 +79,12 @@ export { SplitView } from './SplitView/SplitView';
 export type { SplitViewProps, SplitViewOrientation } from './SplitView/types';
 export { Tabs } from './Tabs/Tabs';
 export type { TabsProps, TabItem, TabsVariant } from './Tabs/types';
+export { SegmentedControl } from './SegmentedControl';
+export type {
+  SegmentedControlItem,
+  SegmentedControlProps,
+  SegmentedControlSize,
+} from './SegmentedControl';
 export { KpiCard } from './KpiCard/KpiCard';
 export type { KpiCardProps, KpiDeltaTone } from './KpiCard/types';
 export { KpiGrid } from './KpiGrid/KpiGrid';
@@ -115,6 +121,8 @@ export { Spin } from './Spin/Spin';
 export type { SpinProps } from './Spin/types';
 export { Steps } from './Steps/Steps';
 export type { StepsProps, Step } from './Steps/types';
+export { Timeline } from './Timeline';
+export type { TimelineItem, TimelineProps, TimelineSize, TimelineTone } from './Timeline';
 export { SavedViews } from './SavedViews/SavedViews';
 export type { SavedView, SavedViewsProps } from './SavedViews/types';
 export { NotificationCenter } from './NotificationCenter/NotificationCenter';
