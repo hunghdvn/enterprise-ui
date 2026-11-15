@@ -9,7 +9,6 @@
   background: var(--surface);
   color: var(--text);
   font-family: var(--font);
-  overflow: hidden;
 }
 
 .root[data-size='sm'] {
@@ -28,6 +27,23 @@
 
 .item + .item {
   border-top: 1px solid var(--border);
+}
+
+/* The root must not clip (popovers in panels are absolutely positioned), so
+   the card corners live on the first/last header and the last panel instead. */
+.item:first-child .trigger {
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.item:last-child .trigger[aria-expanded='false'] {
+  border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+  border-bottom-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.item:last-child .panel {
+  border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+  border-bottom-right-radius: calc(var(--radius-lg) - 1px);
 }
 
 .heading {

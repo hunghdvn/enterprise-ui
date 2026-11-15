@@ -97,6 +97,33 @@ test('controlled single and multiple values win over clicks', () => {
   );
 });
 
+test('uncontrolled seeds skip disabled and unknown items', () => {
+  const single = render(<Accordion items={items} defaultValue="locked" />);
+  for (const trigger of screen.getAllByRole('button')) {
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  }
+  single.unmount();
+
+  render(<Accordion multiple items={items} defaultValues={['locked', 'billing', 'ghost']} />);
+  expect(screen.getByRole('button', { name: 'Bảo mật' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByRole('button', { name: 'Thanh toán' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});
+
+test('duplicate item ids warn in development only', () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    render(
+      <Accordion items={[...items, { id: 'general', title: 'Trùng', content: <p>Trùng</p> }]} />,
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate item id "general"'));
+  } finally {
+    warn.mockRestore();
+  }
+});
+
 test('unknown seeded ids open nothing; a controlled disabled item opens but cannot toggle', () => {
   const { rerender } = render(<Accordion items={items} defaultValue="ghost" />);
   for (const trigger of screen.getAllByRole('button')) {
@@ -170,7 +197,16 @@ test('children are rejected at the type level and never rendered', () => {
 test('module CSS pins the frame, trigger states, chevron, panel and sizes', () => {
   expect(cssRule(css, '.root')).toMatch(/border:\s*1px solid var\(--border\)/);
   expect(cssRule(css, '.root')).toMatch(/border-radius:\s*var\(--radius-lg\)/);
+  // Popovers inside panels are absolutely positioned, so the root must not clip.
+  expect(cssRule(css, '.root')).not.toMatch(/overflow/);
   expect(cssRule(css, '.item + .item')).toMatch(/border-top:\s*1px solid var\(--border\)/);
+  expect(cssRule(css, '.item:first-child .trigger')).toMatch(
+    /border-top-left-radius:\s*calc\(var\(--radius-lg\) - 1px\)/,
+  );
+  expect(cssRule(css, ".item:last-child .trigger[aria-expanded='false']")).toMatch(
+    /border-bottom-left-radius/,
+  );
+  expect(cssRule(css, '.item:last-child .panel')).toMatch(/border-bottom-left-radius/);
   expect(cssRule(css, '.trigger:hover:not(:disabled)')).toMatch(
     /background:\s*var\(--surface-muted\)/,
   );

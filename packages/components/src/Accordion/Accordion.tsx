@@ -1,4 +1,4 @@
-import { createElement, useId, useRef, useState } from 'react';
+import { createElement, useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Icon } from '../Icon';
 import { cx } from '../internal/cx';
@@ -28,12 +28,30 @@ export function Accordion(props: AccordionProps) {
 
   const baseId = useId();
   const triggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [internalSingle, setInternalSingle] = useState<string | null>(
-    props.multiple ? null : (props.defaultValue ?? null),
-  );
-  const [internalMultiple, setInternalMultiple] = useState<string[]>(
-    props.multiple ? [...new Set(props.defaultValues ?? [])] : [],
-  );
+  // Uncontrolled seeds skip disabled and unknown items: a disabled panel has no
+  // click/keyboard path back to closed, so seeding one would trap it open.
+  const [internalSingle, setInternalSingle] = useState<string | null>(() => {
+    if (props.multiple) return null;
+    const candidate = props.defaultValue ?? null;
+    if (candidate === null) return null;
+    const item = items.find((entry) => entry.id === candidate);
+    return item !== undefined && !item.disabled ? candidate : null;
+  });
+  const [internalMultiple, setInternalMultiple] = useState<string[]>(() => {
+    if (!props.multiple) return [];
+    const seeds = new Set(props.defaultValues ?? []);
+    return items.filter((item) => !item.disabled && seeds.has(item.id)).map((item) => item.id);
+  });
+
+  // Duplicate ids break the value/key identity (Combobox/SavedViews precedent).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (seen.has(item.id)) console.warn(`[Accordion] duplicate item id "${item.id}".`);
+      seen.add(item.id);
+    }
+  }, [items]);
 
   if (items.length === 0) return null;
 
