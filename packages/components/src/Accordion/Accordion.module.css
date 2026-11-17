@@ -1,9 +1,9 @@
 .root {
   --ac-pad-y: 12px;
   --ac-pad-x: 16px;
-  /* Header text tracks the density font ramp (13px compact / 14px comfortable),
-     the same way row-like controls follow `--input-h`. */
-  --ac-title: calc(var(--font-size) + 2px);
+  /* Title stays `--font-size-md` like Tabs/SegmentedControl; only the height
+     follows density. */
+  --ac-title: var(--font-size-md);
   --ac-body: var(--font-size);
   box-sizing: border-box;
   border: 1px solid var(--border);
@@ -23,7 +23,7 @@
 .root[data-size='md'] {
   --ac-pad-y: 12px;
   --ac-pad-x: 16px;
-  --ac-title: calc(var(--font-size) + 2px);
+  --ac-title: var(--font-size-md);
   --ac-body: var(--font-size);
 }
 

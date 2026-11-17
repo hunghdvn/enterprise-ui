@@ -16,7 +16,9 @@ export function Divider({
   const { children: _children, ...rootProps } = rest as typeof rest & { children?: ReactNode };
   // A whitespace-only label has no accessible name after trimming, so it takes the
   // same path as `label=""` (plain `<hr>`) instead of rendering a nameless separator.
-  const labelled = orientation === 'horizontal' && label !== undefined && label.trim() !== '';
+  // The `typeof` guard keeps a JS caller that bypasses the type (null, number) from
+  // crashing on `.trim()`.
+  const labelled = orientation === 'horizontal' && typeof label === 'string' && label.trim() !== '';
   const shared = {
     ...rootProps,
     'data-orientation': orientation,

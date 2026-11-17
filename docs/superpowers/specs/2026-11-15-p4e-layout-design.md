@@ -67,7 +67,7 @@ export type DividerAlign = 'start' | 'center' | 'end';
 export interface DividerProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   /** Default `'horizontal'`. */
   orientation?: DividerOrientation;
-  /** Optional centred label; horizontal only. An empty string means no label. */
+  /** Optional centred label; horizontal only. An empty or whitespace-only string means no label. */
   label?: string;
   /** Spacing along the cross axis; default `'md'`. */
   spacing?: DividerSpacing;
@@ -179,11 +179,12 @@ Decisions:
   while its trigger stays disabled; the caller owns the value. A value with no
   matching item opens nothing. `null`/`[]` are valid controlled “all closed”
   values.
-- **Dropping a controlled prop falls back to the mount-time seed (mine).** While
-  controlled, internal state is deliberately not written, so removing
-  `value`/`values` returns to the seed captured at mount, not to the last
-  controlled value. This follows `Tabs`/`SegmentedControl` (not `Calendar`,
-  which mirrors); the docs and the `types.ts` doc-comments state it.
+- **Dropping a controlled prop falls back to the last internal state (mine).**
+  While controlled, internal state is deliberately not written, so removing
+  `value`/`values` returns to the last internal state — equal to the mount seed
+  when the component was controlled from mount, but the last uncontrolled state
+  if it was uncontrolled first. This follows `Tabs`/`SegmentedControl` (not
+  `Calendar`, which mirrors); the docs and the `types.ts` doc-comments state it.
 - **Uncontrolled seeds skip disabled and unknown items (mine).** A
   `defaultValue`/`defaultValues` pointing at a disabled item is dropped at
   initialization; otherwise a disabled panel would be open with no click or
@@ -243,7 +244,9 @@ Decisions:
 - labelled horizontal: flex row, 12px gap, two 1px `--border` pseudo-element
   lines; `align="start"`/`"end"` shortens the line on that side to 24px;
 - label: `--text`, 12px, `flex: 0 1 auto; min-width: 0` so a long label shrinks
-  and wraps inside `container − 24px` (the two gaps) instead of overflowing;
+  and wraps inside `container − 24px` (the two gaps; `− 48px` for
+  `align="start"`/`"end"`, which also spend a fixed 24px stub) instead of
+  overflowing;
 - spacing: `none` 0, `sm` 8px, `md` 16px (`margin-block` horizontal /
   `margin-inline` vertical). `.root` carries `margin: 0`, so `none` really is
   zero.
@@ -256,12 +259,11 @@ hidden`, so a `Tooltip` inside a panel is not clipped — the first trigger gets
   and the last panel gets the bottom radii while open;
 - items separated by a 1px `--border` top border;
 - trigger: full-width flex, `--text` title, 600 weight, transparent background,
-  inline padding only; height is `--input-h-lg` (`md`) or `--input-h` (`sm`),
-  and the title is `calc(var(--font-size) + 2px)` (`md`) or `--font-size`
-  (`sm`), so compact/comfortable density shifts the header like other row-like
-  controls; hover uses `--surface-muted`; `:focus-visible` uses an inset 2px
-  `--focus-ring` outline (`outline-offset: -2px`) that stays on the rounded
-  trigger surface;
+  inline padding only; height is `--input-h-lg` (`md`) or `--input-h` (`sm`), and
+  the title is `--font-size-md` (`md`) or `--font-size` (`sm`) — the same fixed
+  title ramp as `Tabs`/`SegmentedControl`, so only the height follows density;
+  hover uses `--surface-muted`; `:focus-visible` uses an inset 2px `--focus-ring`
+  outline (`outline-offset: -2px`) that stays on the rounded trigger surface;
 - disabled trigger: `--text-muted`, `not-allowed` cursor, no hover fill
   (disabled controls are exempt from contrast minimums);
 - chevron: `--text-muted`, rotates 180° when `aria-expanded="true"`, 150ms
@@ -271,9 +273,10 @@ hidden`, so a `Tooltip` inside a panel is not clipped — the first trigger gets
 
 No component CSS contains a hex colour; the repo's `css-conventions.test.ts`
 enforces it. Contrast targets: divider lines are decorative (`--border`, not a
-meaningful UI boundary); the label is `--text` (4.76:1 light / 5.71:1 dark on
-`--surface`, and still AA on `--surface-muted`, unlike `--text-muted` at
-4.34:1 / 4.04:1); accordion titles are `--text`; disabled titles are exempt.
+meaningful UI boundary); the label is `--text` (17.85:1 light / 13.98:1 dark on
+`--surface`, and 16.30:1 / 9.90:1 on `--surface-muted`, both AA; `--text-muted`
+would be only 4.34:1 / 4.04:1 there); accordion titles are `--text`; disabled
+titles are exempt.
 
 ## 6. Accessibility
 
@@ -324,11 +327,13 @@ meaningful UI boundary); the label is `--text` (4.76:1 light / 5.71:1 dark on
   `aria-orientation` override;
 - vertical renders a `<div role="separator" aria-orientation="vertical">`;
 - `label` renders visible text, gives the separator that accessible name and
-  hides the visible copy from AT; `label=""` and a whitespace-only label render
-  a plain `<hr>`;
+  hides the visible copy from AT; `label=""`, a whitespace-only label, and a
+  non-string label from a JS caller all render a plain `<hr>` instead of
+  throwing;
 - a label on a vertical divider is ignored;
 - `align` only lands on a labelled horizontal divider (including `end`);
-  `spacing` lands on `data-spacing`, and `spacing="none"` renders no margin;
+  `spacing` lands on `data-spacing`, and no rule attaches a margin to
+  `spacing="none"`;
 - `className`, `id` and rest props land on the root;
 - children are rejected at the type level (`@ts-expect-error`);
 - module CSS pins: horizontal border, vertical width/background/stretch,
@@ -346,10 +351,11 @@ meaningful UI boundary); the label is `--text` (4.76:1 light / 5.71:1 dark on
 - controlled single/multiple values open exactly those panels and clicks only
   fire `onChange`; controlled multiple clicks still report the next values;
   `defaultValue`/`defaultValues` seed uncontrolled state, and dropping a
-  controlled prop returns to that seed (Tabs convention);
+  controlled prop returns to the last internal state — the mount seed when
+  controlled from mount (Tabs convention);
 - unknown seeded ids open nothing; disabled seeded ids are skipped; a
   controlled value pointing at a disabled item opens it while its trigger stays
-  disabled;
+  disabled; an item that becomes disabled after mount keeps its open state;
 - an uncontrolled id that leaves `items` (including via `items=[]`) is pruned,
   so a re-added item does not spring open;
 - a disabled trigger cannot toggle;
@@ -365,23 +371,25 @@ meaningful UI boundary); the label is `--text` (4.76:1 light / 5.71:1 dark on
 - children are rejected at the type level (`@ts-expect-error`);
 - module CSS pins: border/radius/background (and no `overflow` clipping), item
   separators, first/last corner radii, trigger hover, focus ring, chevron
-  rotation, reduced motion, panel padding, density-driven header height and
-  title ramp, and both size blocks.
+  rotation, reduced motion, panel padding, density-driven header height, both
+  title sizes (`md` `--font-size-md`, `sm` `--font-size`), and both size blocks.
 
 Mutation pass (backups via `cp`, never `git checkout`): drop the vertical
 `aria-orientation`, use `<hr>` for vertical, drop the labelled divider's
 `aria-label`, stop hiding the visible label, treat a whitespace-only label as
-present, drop each spacing rule, remove the root `margin: 0`, make the label
-unable to shrink, revert the label to `--text-muted`, drop the `end` align
-rule, make the accordion emit raw click order instead of item order, never
-close a multiple panel, skip `onChange` for controlled multiple, share one panel
-id across items, drop `aria-expanded`, drop `aria-controls`, unmount panels
-instead of hiding, stop skipping disabled headers, make ArrowUp move down, drop
-the IME guard, keep disabled seeded ids, skip the uncontrolled prune, re-warn
-on every render, drop the `DEV` guard, drop the density header height, add
-`overflow: hidden` back to the root, remove the `aria-expanded` chevron rule,
-remove the focus ring, remove the reduced-motion block, and remove the
-empty-list return. Each mutant must fail its named test.
+present, crash on a non-string label, attach a margin to `spacing="none"`, drop
+each spacing rule, remove the root `margin: 0`, make the label unable to shrink,
+revert the label to `--text-muted`, drop the `end` align rule, make the accordion
+emit raw click order instead of item order, never close a multiple panel, skip
+`onChange` for controlled multiple, write internal state while controlled
+multiple, share one panel id across items, drop `aria-expanded`, drop
+`aria-controls`, unmount panels instead of hiding, stop skipping disabled
+headers, make ArrowUp move down, drop the IME guard, keep disabled seeded ids,
+skip the uncontrolled prune, prune items that become disabled, re-warn on every
+render, drop the `DEV` guard, drop the density header height, drop the `sm` or
+`md` title ramp, add `overflow: hidden` back to the root, remove the
+`aria-expanded` chevron rule, remove the focus ring, remove the reduced-motion
+block, and remove the empty-list return. Each mutant must fail its named test.
 
 ## 9. Backlog after this slice (not in this PR)
 

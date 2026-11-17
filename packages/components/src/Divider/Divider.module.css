@@ -43,8 +43,9 @@
 }
 
 .label {
-  /* Shrinks so a long label wraps inside `container - 24px` (the two gaps) instead
-     of pushing the lines past the root; `min-width: 0` is what lets it below max-content. */
+  /* Shrinks so a long label wraps inside `container - 24px` (the two gaps; 48px for
+     align start/end, which also spends the fixed 24px stub) instead of pushing the
+     lines past the root; `min-width: 0` is what lets it below max-content. */
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;

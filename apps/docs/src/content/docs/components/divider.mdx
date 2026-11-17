@@ -44,20 +44,20 @@ export function OrDivider() {
 
 ### `Divider`
 
-| Prop          | Kiểu                           | Mặc định       | Mô tả                                                                                                |
-| ------------- | ------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------- |
-| `orientation` | `'horizontal' \| 'vertical'`   | `'horizontal'` | Hướng đường kẻ.                                                                                      |
-| `label`       | `string`                       | —              | Nhãn giữa đường kẻ; chỉ dùng cho hướng ngang. Chuỗi rỗng coi như không có nhãn.                      |
-| `spacing`     | `'none' \| 'sm' \| 'md'`       | `'md'`         | Khoảng cách trục vuông góc: `margin-block` khi ngang, `margin-inline` khi dọc (`sm` 8px, `md` 16px). |
-| `align`       | `'start' \| 'center' \| 'end'` | `'center'`     | Căn nhãn của đường kẻ ngang có nhãn; bỏ qua khi không có nhãn.                                       |
-| `className`   | `string`                       | —              | Class thêm cho phần tử gốc.                                                                          |
+| Prop          | Kiểu                           | Mặc định       | Mô tả                                                                                                 |
+| ------------- | ------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------- |
+| `orientation` | `'horizontal' \| 'vertical'`   | `'horizontal'` | Hướng đường kẻ.                                                                                       |
+| `label`       | `string`                       | —              | Nhãn giữa đường kẻ; chỉ dùng cho hướng ngang. Chuỗi rỗng hoặc chỉ khoảng trắng coi như không có nhãn. |
+| `spacing`     | `'none' \| 'sm' \| 'md'`       | `'md'`         | Khoảng cách trục vuông góc: `margin-block` khi ngang, `margin-inline` khi dọc (`sm` 8px, `md` 16px).  |
+| `align`       | `'start' \| 'center' \| 'end'` | `'center'`     | Căn nhãn của đường kẻ ngang có nhãn; bỏ qua khi không có nhãn.                                        |
+| `className`   | `string`                       | —              | Class thêm cho phần tử gốc.                                                                           |
 
 ## Bố cục và giới hạn
 
 - Đường kẻ ngang không có nhãn render `<hr>`; đường kẻ dọc và đường kẻ ngang có nhãn render `<div role="separator">`. Props giống nhau ở cả hai trường hợp.
 - `label` là chuỗi vì nó trở thành tên accessible của separator. Nhãn trên đường kẻ dọc bị bỏ qua — không có đủ chỗ trong một đường rộng 1px.
 - Đường kẻ dọc cần cha flex/grid kéo giãn: component đặt `align-self: stretch` và `min-height: 1em`. Ngoài flex/grid, nó chỉ cao 1em; đặt trong một hàng có chiều cao xác định nếu cần dài hơn.
-- Đường kẻ ngang chiếm 100% chiều rộng khả dụng và không có `max-width`; cha quyết định bề rộng. Nhãn dài tự co và xuống dòng trong `chiều rộng − 24px` (hai khoảng gap), không đẩy đường kẻ tràn khỏi card.
+- Đường kẻ ngang chiếm 100% chiều rộng khả dụng và không có `max-width`; cha quyết định bề rộng. Nhãn dài tự co và xuống dòng trong `chiều rộng − 24px` (hai khoảng gap; `− 48px` khi `align="start"`/`"end"` vì thêm stub 24px), không đẩy đường kẻ tràn khỏi card.
 - Component không có trạng thái, không focus được và không phát sự kiện.
 
 ## Accessibility

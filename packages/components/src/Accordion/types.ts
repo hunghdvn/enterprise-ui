@@ -28,7 +28,8 @@ export interface AccordionSingleProps extends AccordionBaseProps {
   multiple?: false;
   /**
    * Controlled open item; `null` closes everything. Dropping the prop mid-life
-   * falls back to the mount-time seed (the Tabs/SegmentedControl convention),
+   * falls back to the last internal state — equal to the mount seed when the
+   * component was controlled from mount (the Tabs/SegmentedControl convention),
    * not to the last controlled value.
    */
   value?: string | null;
@@ -39,7 +40,7 @@ export interface AccordionSingleProps extends AccordionBaseProps {
 
 export interface AccordionMultipleProps extends AccordionBaseProps {
   multiple: true;
-  /** Controlled open items; dropping the prop falls back to the mount-time seed. */
+  /** Controlled open items; dropping the prop falls back to the last internal state. */
   values?: readonly string[];
   /** Initial open items; default `[]`. */
   defaultValues?: readonly string[];

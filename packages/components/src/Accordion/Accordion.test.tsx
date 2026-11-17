@@ -108,7 +108,7 @@ test('controlled single and multiple values win over clicks', () => {
   );
 });
 
-test('dropping the controlled prop falls back to the mount-time state (Tabs convention)', () => {
+test('dropping the controlled prop falls back to the mount seed when controlled from mount', () => {
   const onChange = vi.fn();
   const { rerender } = render(<Accordion items={items} value="billing" onChange={onChange} />);
   fireEvent.click(screen.getByRole('button', { name: 'Thông tin chung' }));
@@ -124,6 +124,28 @@ test('dropping the controlled prop falls back to the mount-time state (Tabs conv
   for (const trigger of screen.getAllByRole('button')) {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   }
+});
+
+test('multiple mode falls back to the last internal state when values is dropped', () => {
+  const { rerender } = render(<Accordion multiple items={items} defaultValues={['billing']} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thông tin chung' }));
+  // Internal state is now ['general', 'billing'] — not the mount seed ['billing'].
+
+  rerender(<Accordion multiple items={items} values={['locked']} onChange={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thông tin chung' }));
+  // Controlled click: the panels do not change and internal state must not be written.
+
+  rerender(<Accordion multiple items={items} />);
+  // The last internal state returns, not the controlled ['locked', 'general'].
+  expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'Thanh toán' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'Bảo mật' })).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('controlled multiple clicks report the next values but leave the panels alone', () => {
@@ -147,6 +169,34 @@ test('uncontrolled seeds skip disabled and unknown items', () => {
   render(<Accordion multiple items={items} defaultValues={['locked', 'billing', 'ghost']} />);
   expect(screen.getByRole('button', { name: 'Bảo mật' })).toHaveAttribute('aria-expanded', 'false');
   expect(screen.getByRole('button', { name: 'Thanh toán' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+});
+
+test('an item that becomes disabled after mount keeps its open state', () => {
+  const disabledGeneral = items.map((item) =>
+    item.id === 'general' ? { ...item, disabled: true } : item,
+  );
+
+  const single = render(<Accordion items={items} defaultValue="general" />);
+  expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  single.rerender(<Accordion items={disabledGeneral} />);
+  const singleTrigger = screen.getByRole('button', { name: 'Thông tin chung' });
+  expect(singleTrigger).toBeDisabled();
+  expect(singleTrigger).toHaveAttribute('aria-expanded', 'true');
+  single.unmount();
+
+  const multi = render(<Accordion multiple items={items} defaultValues={['general']} />);
+  expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  multi.rerender(<Accordion multiple items={disabledGeneral} />);
+  expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
@@ -338,9 +388,8 @@ test('module CSS pins the frame, trigger states, chevron, panel, density and siz
   // Header height tracks the density ramp instead of a fixed pixel box.
   expect(cssRule(css, '.trigger')).toMatch(/min-height:\s*var\(--input-h-lg\)/);
   expect(cssRule(css, ".root[data-size='sm'] .trigger")).toMatch(/min-height:\s*var\(--input-h\)/);
-  expect(cssRule(css, ".root[data-size='md']")).toMatch(
-    /--ac-title:\s*calc\(var\(--font-size\) \+ 2px\)/,
-  );
+  expect(cssRule(css, ".root[data-size='md']")).toMatch(/--ac-title:\s*var\(--font-size-md\)/);
+  expect(cssRule(css, ".root[data-size='sm']")).toMatch(/--ac-title:\s*var\(--font-size\)/);
   expect(cssRule(css, '.panel')).toMatch(/padding:\s*0 var\(--ac-pad-x\) var\(--ac-pad-y\)/);
   expect(cssBlock(css, '@media (prefers-reduced-motion: reduce)')).toMatch(/transition:\s*none/);
   expect(cssRule(css, ".root[data-size='sm']")).toContain('--ac-pad-x');

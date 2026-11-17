@@ -63,6 +63,17 @@ test('spacing="none" renders without a cross-axis margin', () => {
   expect(screen.getByTestId('rule')).toHaveAttribute('data-spacing', 'none');
 });
 
+test('non-string labels fall back to a plain hr instead of throwing', () => {
+  // `label` is typed `string`; JS callers can still pass null/number via spread.
+  const { container } = render(<Divider label={null as unknown as string} />);
+  const hr = container.querySelector('hr');
+  expect(hr).not.toBeNull();
+  expect(hr).not.toHaveAttribute('aria-label');
+
+  const { container: numeric } = render(<Divider label={42 as unknown as string} />);
+  expect(numeric.querySelector('hr')).not.toBeNull();
+});
+
 test('className, id and rest props land on the root', () => {
   render(<Divider id="rule" className="extra" data-testid="rule" />);
   const separator = screen.getByTestId('rule');
@@ -109,4 +120,6 @@ test('module CSS pins separator, label, alignment and spacing rules', () => {
   expect(cssRule(css, ".root[data-orientation='vertical'][data-spacing='md']")).toMatch(
     /margin-inline:\s*16px/,
   );
+  // `none` must stay a real zero: no rule may attach a margin to it.
+  expect(css).not.toMatch(/\[data-spacing='none'\][^{]*\{[^}]*margin/);
 });
