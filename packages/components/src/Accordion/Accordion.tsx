@@ -28,6 +28,7 @@ export function Accordion(props: AccordionProps) {
 
   const baseId = useId();
   const triggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const lastWarnSig = useRef<string | null>(null);
   // Uncontrolled seeds skip disabled and unknown items: a disabled panel has no
   // click/keyboard path back to closed, so seeding one would trap it open.
   const [internalSingle, setInternalSingle] = useState<string | null>(() => {
@@ -44,14 +45,39 @@ export function Accordion(props: AccordionProps) {
   });
 
   // Duplicate ids break the value/key identity (Combobox/SavedViews precedent).
+  // The signature keeps the warning to once per change, even when a caller inlines
+  // `items` and re-renders on every keystroke (FileUpload precedent).
   useEffect(() => {
     if (!import.meta.env.DEV) return;
+    const signature = items.map((item) => item.id).join('\u0001');
+    if (signature === lastWarnSig.current) return;
+    lastWarnSig.current = signature;
     const seen = new Set<string>();
     for (const item of items) {
       if (seen.has(item.id)) console.warn(`[Accordion] duplicate item id "${item.id}".`);
       seen.add(item.id);
     }
   }, [items]);
+
+  // Uncontrolled open state is reconciled against `items` on every render
+  // (SettingsProfile precedent), before the empty-list return so `items=[]` also
+  // prunes. A returning item must not spring back open. Initialization-only
+  // filtering still applies: an item that merely changes `disabled` keeps its
+  // state, and controlled values are never touched.
+  if (props.multiple) {
+    if (
+      props.values === undefined &&
+      internalMultiple.some((id) => !items.some((item) => item.id === id))
+    ) {
+      setInternalMultiple(internalMultiple.filter((id) => items.some((item) => item.id === id)));
+    }
+  } else if (
+    props.value === undefined &&
+    internalSingle !== null &&
+    !items.some((item) => item.id === internalSingle)
+  ) {
+    setInternalSingle(null);
+  }
 
   if (items.length === 0) return null;
 

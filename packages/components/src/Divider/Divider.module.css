@@ -43,9 +43,13 @@
 }
 
 .label {
-  flex: 0 0 auto;
+  /* Shrinks so a long label wraps inside `container - 24px` (the two gaps) instead
+     of pushing the lines past the root; `min-width: 0` is what lets it below max-content. */
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 100%;
-  color: var(--text-muted);
+  /* AA on `--surface-muted` too: `--text-muted` is only 4.34:1 / 4.04:1 there. */
+  color: var(--text);
   font-size: 12px;
   line-height: 1.4;
   overflow-wrap: anywhere;

@@ -57,11 +57,11 @@ export function OrDivider() {
 - Đường kẻ ngang không có nhãn render `<hr>`; đường kẻ dọc và đường kẻ ngang có nhãn render `<div role="separator">`. Props giống nhau ở cả hai trường hợp.
 - `label` là chuỗi vì nó trở thành tên accessible của separator. Nhãn trên đường kẻ dọc bị bỏ qua — không có đủ chỗ trong một đường rộng 1px.
 - Đường kẻ dọc cần cha flex/grid kéo giãn: component đặt `align-self: stretch` và `min-height: 1em`. Ngoài flex/grid, nó chỉ cao 1em; đặt trong một hàng có chiều cao xác định nếu cần dài hơn.
-- Đường kẻ ngang chiếm 100% chiều rộng khả dụng và không có `max-width`; cha quyết định bề rộng.
+- Đường kẻ ngang chiếm 100% chiều rộng khả dụng và không có `max-width`; cha quyết định bề rộng. Nhãn dài tự co và xuống dòng trong `chiều rộng − 24px` (hai khoảng gap), không đẩy đường kẻ tràn khỏi card.
 - Component không có trạng thái, không focus được và không phát sự kiện.
 
 ## Accessibility
 
 - `<hr>` ngang mang sẵn role `separator`; đường kẻ dọc đặt tường minh `role="separator"` và `aria-orientation="vertical"`.
-- Đường kẻ ngang có nhãn dùng chính nhãn làm `aria-label`; bản chữ hiển thị được đánh dấu `aria-hidden="true"` để screen reader không đọc hai lần.
-- Đường kẻ là thành phần trang trí: màu `--border` không phải tín hiệu trạng thái. Nhãn dùng `--text-muted`, đạt AA trên `--surface` ở cả hai theme.
+- Đường kẻ ngang có nhãn dùng chính nhãn làm `aria-label`; bản chữ hiển thị được đánh dấu `aria-hidden="true"` để screen reader không đọc hai lần. Nhãn rỗng hoặc chỉ có khoảng trắng coi như không có nhãn.
+- Đường kẻ là thành phần trang trí: màu `--border` không phải tín hiệu trạng thái. Nhãn dùng `--text` để đạt AA cả trên `--surface` lẫn `--surface-muted` ở cả hai theme.

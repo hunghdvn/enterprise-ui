@@ -34,10 +34,15 @@ test('a label names the separator and the visible copy is hidden from AT', () =>
   expect(label).toHaveAttribute('aria-hidden', 'true');
 });
 
-test('an empty label renders a plain hr and a vertical label is ignored', () => {
+test('an empty or whitespace-only label renders a plain hr and a vertical label is ignored', () => {
   const { container, rerender } = render(<Divider label="" />);
   expect(container.querySelector('hr')).not.toBeNull();
   expect(screen.getByRole('separator')).not.toHaveAttribute('aria-label');
+
+  rerender(<Divider label="   " />);
+  const plain = screen.getByRole('separator');
+  expect(plain.tagName).toBe('HR');
+  expect(plain).not.toHaveAttribute('aria-label');
 
   rerender(<Divider orientation="vertical" label="Hoặc" />);
   expect(container.querySelector('hr')).toBeNull();
@@ -46,8 +51,16 @@ test('an empty label renders a plain hr and a vertical label is ignored', () => 
 });
 
 test('align only lands on a labelled horizontal divider', () => {
-  const { container } = render(<Divider align="end" />);
+  const { container, rerender } = render(<Divider align="end" />);
   expect(container.querySelector('hr')).not.toHaveAttribute('data-align');
+
+  rerender(<Divider label="Kết thúc" align="end" />);
+  expect(screen.getByRole('separator', { name: 'Kết thúc' })).toHaveAttribute('data-align', 'end');
+});
+
+test('spacing="none" renders without a cross-axis margin', () => {
+  render(<Divider spacing="none" data-testid="rule" />);
+  expect(screen.getByTestId('rule')).toHaveAttribute('data-spacing', 'none');
 });
 
 test('className, id and rest props land on the root', () => {
@@ -76,10 +89,14 @@ test('module CSS pins separator, label, alignment and spacing rules', () => {
   );
   expect(cssRule(css, '.root[data-labelled]')).toMatch(/display:\s*flex/);
   expect(cssRule(css, '.root[data-labelled]::before')).toContain('background');
+  expect(cssRule(css, '.root')).toMatch(/margin:\s*0/);
   expect(cssRule(css, ".root[data-labelled][data-align='start']::before")).toMatch(
     /flex:\s*0 0 24px/,
   );
-  expect(cssRule(css, '.label')).toMatch(/color:\s*var\(--text-muted\)/);
+  expect(cssRule(css, ".root[data-labelled][data-align='end']::after")).toMatch(/flex:\s*0 0 24px/);
+  expect(cssRule(css, '.label')).toMatch(/flex:\s*0 1 auto/);
+  expect(cssRule(css, '.label')).toMatch(/min-width:\s*0/);
+  expect(cssRule(css, '.label')).toMatch(/color:\s*var\(--text\)/);
   expect(cssRule(css, ".root[data-orientation='horizontal'][data-spacing='sm']")).toMatch(
     /margin-block:\s*8px/,
   );

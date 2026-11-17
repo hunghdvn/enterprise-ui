@@ -105,11 +105,12 @@ export function FilterAccordion() {
 
 - Single là mặc định và mọi panel bắt đầu đóng. Mở một mục sẽ đóng mục đang mở; bấm lại mục đang mở sẽ đóng nó và `onChange` nhận `null`.
 - Multiple giữ nhiều panel cùng mở; `onChange` trả mảng id theo thứ tự `items`, kể cả khi người dùng bấm theo thứ tự khác.
-- `value`/`values` là nguồn sự thật khi được truyền: click chỉ phát `onChange`, component không tự đổi trạng thái. Giá trị controlled trỏ vào mục `disabled` vẫn mở panel nhưng header không bấm được; id không tồn tại thì không mở gì.
-- `defaultValue`/`defaultValues` bỏ qua mục `disabled` và id không tồn tại — panel `disabled` mở sẵn sẽ không có đường đóng. Đây là lọc lúc khởi tạo; giá trị controlled vẫn thắng như mô tả trên.
-- Panel luôn được mount và chỉ ẩn bằng `[hidden]`, nên input, scroll và state bên trong không mất khi thu gọn. Id DOM sinh theo từng instance nên nhiều accordion trên cùng trang không đụng nhau. Root không đặt `overflow: hidden`, nên `Tooltip`/`Combobox` absolute bên trong panel không bị cắt.
-- `item.id` phải duy nhất; id trùng in cảnh báo chỉ trong môi trường phát triển.
+- `value`/`values` là nguồn sự thật khi được truyền: click chỉ phát `onChange`, component không tự đổi trạng thái. Giá trị controlled trỏ vào mục `disabled` vẫn mở panel nhưng header không bấm được; id không tồn tại thì không mở gì. Bỏ `value`/`values` giữa vòng đời quay về trạng thái seed lúc mount (cùng quy ước `Tabs`/`SegmentedControl`), không giữ mục mà cha vừa điều khiển.
+- `defaultValue`/`defaultValues` bỏ qua mục `disabled` và id không tồn tại — panel `disabled` mở sẵn sẽ không có đường đóng. Đây là lọc lúc khởi tạo; id bị xoá khỏi `items` được dọn ngay trong render, nên khi item quay lại panel không tự mở. Đổi `disabled` sau mount giữ nguyên trạng thái.
+- Panel luôn được mount và chỉ ẩn bằng `[hidden]`, nên input, scroll và state bên trong không mất khi thu gọn. Id DOM sinh theo từng instance nên nhiều accordion trên cùng trang không đụng nhau. Root không đặt `overflow: hidden`, nên `Tooltip` (popover absolute duy nhất trong thư viện) bên trong panel không bị cắt.
+- `item.id` phải duy nhất; id trùng in cảnh báo một lần mỗi chữ ký danh sách, chỉ trong môi trường phát triển.
 - `items={[]}` render `null`. Không có animation chiều cao; chỉ icon chevron xoay và tôn trọng `prefers-reduced-motion`.
+- Header cao theo `--input-h-lg` (`md`) hoặc `--input-h` (`sm`) như các control dạng hàng khác, nên `compact`/`comfortable` làm cả card giãn/co lại.
 
 ## Accessibility
 

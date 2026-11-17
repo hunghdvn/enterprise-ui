@@ -14,7 +14,9 @@ export function Divider({
   // Drop children if a JS caller bypasses the type: <hr> is a void element and
   // would otherwise throw when the extra key reaches it.
   const { children: _children, ...rootProps } = rest as typeof rest & { children?: ReactNode };
-  const labelled = orientation === 'horizontal' && label !== undefined && label !== '';
+  // A whitespace-only label has no accessible name after trimming, so it takes the
+  // same path as `label=""` (plain `<hr>`) instead of rendering a nameless separator.
+  const labelled = orientation === 'horizontal' && label !== undefined && label.trim() !== '';
   const shared = {
     ...rootProps,
     'data-orientation': orientation,

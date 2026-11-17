@@ -26,7 +26,11 @@ interface AccordionBaseProps extends Omit<
 
 export interface AccordionSingleProps extends AccordionBaseProps {
   multiple?: false;
-  /** Controlled open item; `null` closes everything. */
+  /**
+   * Controlled open item; `null` closes everything. Dropping the prop mid-life
+   * falls back to the mount-time seed (the Tabs/SegmentedControl convention),
+   * not to the last controlled value.
+   */
   value?: string | null;
   /** Initial open item; default `null` (all closed). */
   defaultValue?: string | null;
@@ -35,7 +39,7 @@ export interface AccordionSingleProps extends AccordionBaseProps {
 
 export interface AccordionMultipleProps extends AccordionBaseProps {
   multiple: true;
-  /** Controlled open items. */
+  /** Controlled open items; dropping the prop falls back to the mount-time seed. */
   values?: readonly string[];
   /** Initial open items; default `[]`. */
   defaultValues?: readonly string[];

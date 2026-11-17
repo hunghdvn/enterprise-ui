@@ -88,8 +88,10 @@ Decisions:
   The public props are identical.
 - **`label` is a string, not `ReactNode` (mine).** The label becomes the
   separator's accessible name (`aria-label`), so it must be text. The visible
-  span is `aria-hidden="true"` to avoid a double announcement. `label=""` is
-  treated as absent.
+  span is `aria-hidden="true"` to avoid a double announcement. `label=""` and a
+  whitespace-only label are treated as absent: neither can name the separator,
+  and rendering a nameless `role="separator"` with an empty span would leave a
+  24px gap in the line.
 - **A label on a vertical divider is ignored (mine).** Vertical labels have no
   room in a 1px rule and would need a different layout contract; the docs say
   so. `align` is likewise ignored when there is no label.
@@ -120,7 +122,10 @@ export interface AccordionItem {
   disabled?: boolean;
 }
 
-interface AccordionBaseProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange' | 'children'> {
+interface AccordionBaseProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'onChange' | 'children' | 'defaultValue' | 'value'
+> {
   items: readonly AccordionItem[];
   /** Default `'md'`. */
   size?: AccordionSize;
@@ -151,6 +156,12 @@ export type AccordionProps = AccordionSingleProps | AccordionMultipleProps;
 export function Accordion(props: AccordionProps): JSX.Element | null;
 ```
 
+> **Why the extra omits.** `HTMLAttributes` (React 18 types) declares
+> `defaultValue?: string | number | readonly string[]`; extending it with our
+> `defaultValue?: string | null` would not compile (TS2430). `'value'` is not
+> declared there, but it is omitted for symmetry and to keep the union in
+> control.
+
 Decisions:
 
 - **Single vs multiple is a discriminated union (mine).** `multiple` selects
@@ -168,18 +179,26 @@ Decisions:
   while its trigger stays disabled; the caller owns the value. A value with no
   matching item opens nothing. `null`/`[]` are valid controlled “all closed”
   values.
+- **Dropping a controlled prop falls back to the mount-time seed (mine).** While
+  controlled, internal state is deliberately not written, so removing
+  `value`/`values` returns to the seed captured at mount, not to the last
+  controlled value. This follows `Tabs`/`SegmentedControl` (not `Calendar`,
+  which mirrors); the docs and the `types.ts` doc-comments state it.
 - **Uncontrolled seeds skip disabled and unknown items (mine).** A
   `defaultValue`/`defaultValues` pointing at a disabled item is dropped at
   initialization; otherwise a disabled panel would be open with no click or
   keyboard path to close it (the `SegmentedControl` precedent). Unknown ids are
   dropped for the same reason. This filtering is initialization-only: a
   controlled value can still open a disabled panel, and an item that becomes
-  disabled after mount keeps its current state.
+  disabled after mount keeps its current state. Separately, an uncontrolled id
+  that disappears from `items` is pruned on the next render (before the empty
+  list returns), so re-adding the item does not spring its panel open.
 - **Duplicate item ids warn in development only (mine).** `item.id` is both the
   React key and the controlled value; duplicates make one value match two
   panels. Following `FileUpload`/`SavedViews`/`Combobox`/`NotificationCenter`,
   a dev-only `console.warn` names the duplicate (compiled away in production),
-  and the docs still say the ids must be unique.
+  and the docs still say the ids must be unique. A signature ref keeps it to
+  one warning per id list, even when a caller inlines `items` and re-renders.
 - **Panels persist and use `[hidden]` (mine).** Every panel is always mounted;
   collapsing only hides it, so form inputs and scroll state survive a toggle,
   and every `aria-controls` points at an existing node (same approach as
@@ -204,10 +223,12 @@ Decisions:
   `SegmentedControl`.
 - **No height animation (mine).** A `[hidden]` panel cannot animate; the only
   motion is the chevron rotation, disabled under `prefers-reduced-motion`.
-- **The root does not clip overflow (mine).** `Tooltip`, `Combobox`,
-  `Calendar` and `DateRangePicker` position their popovers absolutely and do
-  not portal them, so `overflow: hidden` on the accordion root would cut a
-  popover off at the card border. Rounded corners are instead applied to the
+- **The root does not clip overflow (mine).** `Tooltip` is the one popover in
+  the library that positions itself absolutely (`Tooltip.module.css`); the
+  others (`Combobox`, `SavedViews`, `NotificationCenter`, `DateRangePicker`)
+  use inline `position: 'fixed'` and `Calendar` has no popover, so they are not
+  affected either way. `overflow: hidden` on the accordion root would cut a
+  `Tooltip` off at the card border. Rounded corners are instead applied to the
   first trigger's top corners, the last trigger's bottom corners when closed,
   and the last panel's bottom corners when open.
 
@@ -221,21 +242,26 @@ Decisions:
   `--border` background;
 - labelled horizontal: flex row, 12px gap, two 1px `--border` pseudo-element
   lines; `align="start"`/`"end"` shortens the line on that side to 24px;
-- label: `--text-muted`, 12px, wraps rather than overflowing;
+- label: `--text`, 12px, `flex: 0 1 auto; min-width: 0` so a long label shrinks
+  and wraps inside `container − 24px` (the two gaps) instead of overflowing;
 - spacing: `none` 0, `sm` 8px, `md` 16px (`margin-block` horizontal /
-  `margin-inline` vertical).
+  `margin-inline` vertical). `.root` carries `margin: 0`, so `none` really is
+  zero.
 
 `Accordion.module.css`:
 
 - root: 1px `--border`, `--radius-lg`, `--surface` background; no `overflow:
-hidden`, so popovers inside panels are not clipped — the first trigger gets
+hidden`, so a `Tooltip` inside a panel is not clipped — the first trigger gets
   the top corner radii, the last trigger gets the bottom radii while closed,
   and the last panel gets the bottom radii while open;
 - items separated by a 1px `--border` top border;
-- trigger: full-width flex, `--text` title, 600 weight, size-scaled padding
-  (`sm` 8×12px, `md` 12×16px), transparent background; hover uses
-  `--surface-muted`; `:focus-visible` uses an inset 2px `--focus-ring`
-  outline so `overflow: hidden` cannot clip it;
+- trigger: full-width flex, `--text` title, 600 weight, transparent background,
+  inline padding only; height is `--input-h-lg` (`md`) or `--input-h` (`sm`),
+  and the title is `calc(var(--font-size) + 2px)` (`md`) or `--font-size`
+  (`sm`), so compact/comfortable density shifts the header like other row-like
+  controls; hover uses `--surface-muted`; `:focus-visible` uses an inset 2px
+  `--focus-ring` outline (`outline-offset: -2px`) that stays on the rounded
+  trigger surface;
 - disabled trigger: `--text-muted`, `not-allowed` cursor, no hover fill
   (disabled controls are exempt from contrast minimums);
 - chevron: `--text-muted`, rotates 180° when `aria-expanded="true"`, 150ms
@@ -245,9 +271,9 @@ hidden`, so popovers inside panels are not clipped — the first trigger gets
 
 No component CSS contains a hex colour; the repo's `css-conventions.test.ts`
 enforces it. Contrast targets: divider lines are decorative (`--border`, not a
-meaningful UI boundary); the label is `--text-muted` (4.76:1 light / 5.4:1
-dark on `--surface`, AA); accordion titles are `--text`; disabled titles are
-exempt.
+meaningful UI boundary); the label is `--text` (4.76:1 light / 5.71:1 dark on
+`--surface`, and still AA on `--surface-muted`, unlike `--text-muted` at
+4.34:1 / 4.04:1); accordion titles are `--text`; disabled titles are exempt.
 
 ## 6. Accessibility
 
@@ -298,49 +324,64 @@ exempt.
   `aria-orientation` override;
 - vertical renders a `<div role="separator" aria-orientation="vertical">`;
 - `label` renders visible text, gives the separator that accessible name and
-  hides the visible copy from AT; `label=""` renders a plain `<hr>`;
+  hides the visible copy from AT; `label=""` and a whitespace-only label render
+  a plain `<hr>`;
 - a label on a vertical divider is ignored;
-- `align` only lands on a labelled horizontal divider; `spacing` lands on
-  `data-spacing`;
+- `align` only lands on a labelled horizontal divider (including `end`);
+  `spacing` lands on `data-spacing`, and `spacing="none"` renders no margin;
 - `className`, `id` and rest props land on the root;
 - children are rejected at the type level (`@ts-expect-error`);
 - module CSS pins: horizontal border, vertical width/background/stretch,
-  labelled flex lines and align overrides, label colour, three spacing blocks.
+  labelled flex lines and both align overrides, the label's shrink
+  (`flex: 0 1 auto; min-width: 0`) and `--text` colour, the root `margin: 0`,
+  and the three spacing blocks.
 
 `Accordion.test.tsx`:
 
 - one `button` per item with `aria-expanded="false"`, `aria-controls` matching
   a present `role="region"` panel that is `hidden` and labelled by the button;
 - clicking opens and closes a single panel; `onChange` gets the id then `null`;
-- single mode closes the previously open item; multiple mode keeps both open
-  and emits item-order ids;
+- single mode closes the previously open item; multiple mode keeps both open,
+  emits item-order ids, and closes an open panel when clicked again;
 - controlled single/multiple values open exactly those panels and clicks only
-  fire `onChange`; `defaultValue`/`defaultValues` seed uncontrolled state;
+  fire `onChange`; controlled multiple clicks still report the next values;
+  `defaultValue`/`defaultValues` seed uncontrolled state, and dropping a
+  controlled prop returns to that seed (Tabs convention);
 - unknown seeded ids open nothing; disabled seeded ids are skipped; a
   controlled value pointing at a disabled item opens it while its trigger stays
   disabled;
+- an uncontrolled id that leaves `items` (including via `items=[]`) is pruned,
+  so a re-added item does not spring open;
 - a disabled trigger cannot toggle;
-- duplicate item ids log a dev-only warning naming the id;
-- Up/Down/Home/End focus enabled triggers only, wrap, and ignore an IME
-  keystroke;
+- duplicate item ids log one dev-only warning per id-list signature, and stay
+  silent when `DEV` is false;
+- Up/Down/Home/End focus enabled triggers only, wrap in both directions, and
+  ignore an IME keystroke;
 - `headingLevel` defaults to `h3` and renders the requested `h2`–`h6`;
 - collapsing keeps panel content mounted (input value survives);
 - `items=[]` renders nothing;
+- `data-size` lands on the root and switches the size block;
 - `className`, `id` and rest props land on the root;
 - children are rejected at the type level (`@ts-expect-error`);
 - module CSS pins: border/radius/background (and no `overflow` clipping), item
   separators, first/last corner radii, trigger hover, focus ring, chevron
-  rotation, reduced motion, panel padding, both size blocks.
+  rotation, reduced motion, panel padding, density-driven header height and
+  title ramp, and both size blocks.
 
 Mutation pass (backups via `cp`, never `git checkout`): drop the vertical
 `aria-orientation`, use `<hr>` for vertical, drop the labelled divider's
-`aria-label`, stop hiding the visible label, drop each spacing rule, make the
-accordion emit raw click order instead of item order, share one panel id across
-items, drop `aria-expanded`, drop `aria-controls`, unmount panels instead of
-hiding, stop skipping disabled headers, drop the IME guard, keep disabled
-seeded ids, add `overflow: hidden` back to the root, remove the
-`aria-expanded` chevron rule, remove the focus ring, and remove the empty-list
-return. Each mutant must fail its named test.
+`aria-label`, stop hiding the visible label, treat a whitespace-only label as
+present, drop each spacing rule, remove the root `margin: 0`, make the label
+unable to shrink, revert the label to `--text-muted`, drop the `end` align
+rule, make the accordion emit raw click order instead of item order, never
+close a multiple panel, skip `onChange` for controlled multiple, share one panel
+id across items, drop `aria-expanded`, drop `aria-controls`, unmount panels
+instead of hiding, stop skipping disabled headers, make ArrowUp move down, drop
+the IME guard, keep disabled seeded ids, skip the uncontrolled prune, re-warn
+on every render, drop the `DEV` guard, drop the density header height, add
+`overflow: hidden` back to the root, remove the `aria-expanded` chevron rule,
+remove the focus ring, remove the reduced-motion block, and remove the
+empty-list return. Each mutant must fail its named test.
 
 ## 9. Backlog after this slice (not in this PR)
 

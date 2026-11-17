@@ -1,7 +1,9 @@
 .root {
   --ac-pad-y: 12px;
   --ac-pad-x: 16px;
-  --ac-title: var(--font-size-md);
+  /* Header text tracks the density font ramp (13px compact / 14px comfortable),
+     the same way row-like controls follow `--input-h`. */
+  --ac-title: calc(var(--font-size) + 2px);
   --ac-body: var(--font-size);
   box-sizing: border-box;
   border: 1px solid var(--border);
@@ -21,7 +23,7 @@
 .root[data-size='md'] {
   --ac-pad-y: 12px;
   --ac-pad-x: 16px;
-  --ac-title: var(--font-size-md);
+  --ac-title: calc(var(--font-size) + 2px);
   --ac-body: var(--font-size);
 }
 
@@ -29,8 +31,8 @@
   border-top: 1px solid var(--border);
 }
 
-/* The root must not clip (popovers in panels are absolutely positioned), so
-   the card corners live on the first/last header and the last panel instead. */
+/* The root must not clip (a Tooltip inside a panel is absolutely positioned),
+   so the card corners live on the first/last header and the last panel instead. */
 .item:first-child .trigger {
   border-top-left-radius: calc(var(--radius-lg) - 1px);
   border-top-right-radius: calc(var(--radius-lg) - 1px);
@@ -57,7 +59,10 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: var(--ac-pad-y) var(--ac-pad-x);
+  /* Header height follows the density ramp like the other row-like controls
+     (`--input-h-lg` md / `--input-h` sm); vertical padding is not needed. */
+  min-height: var(--input-h-lg);
+  padding: 0 var(--ac-pad-x);
   border: 0;
   background: transparent;
   color: inherit;
@@ -69,12 +74,17 @@
   cursor: pointer;
 }
 
+.root[data-size='sm'] .trigger {
+  min-height: var(--input-h);
+}
+
 .trigger:hover:not(:disabled) {
   background: var(--surface-muted);
 }
 
 .trigger:focus-visible {
   outline: 2px solid var(--focus-ring);
+  /* Inset so the ring stays on the trigger's rounded surface, not outside the card. */
   outline-offset: -2px;
 }
 
