@@ -61,6 +61,8 @@ npm scope rename, no per-component deep-import entry points.
   "name": "@enterprise-ui/tokens",
   "version": "0.1.0",
   "license": "MIT",
+  "description": "Design tokens (CSS variables) for the Enterprise UI component library.",
+  "keywords": ["design-tokens", "css", "theming", "enterprise-ui"],
   "type": "module",
   "files": ["*.css"],
   "exports": {
@@ -134,8 +136,9 @@ Add:
 
 - Root `README.md` and `LICENSE` (MIT, `Copyright (c) 2026 hunghdvn`).
 - Docs: `apps/docs/src/content/docs/getting-started.mdx` drops the "internal
-  registry or package path" wording (the package is on npm public) and shows
-  `"@enterprise-ui/components": "^0.1.0"` in the install example.
+  registry or package path" wording (the package is on npm public), keeps
+  `"@enterprise-ui/components": "*"` in the monorepo workspace example, and
+  uses `npm install @enterprise-ui/components` for consumers.
 
 ## 5. Release workflow (OIDC)
 
