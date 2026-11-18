@@ -1,8 +1,8 @@
 .root {
   --ac-pad-y: 12px;
   --ac-pad-x: 16px;
-  /* Title stays `--font-size-md` like Tabs/SegmentedControl; only the height
-     follows density. */
+  /* The `md` title is fixed at `--font-size-md` like Tabs/SegmentedControl; the
+     `sm` block drops to `--font-size`, so at sm the title follows density too. */
   --ac-title: var(--font-size-md);
   --ac-body: var(--font-size);
   box-sizing: border-box;

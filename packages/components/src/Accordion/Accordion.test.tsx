@@ -126,6 +126,27 @@ test('dropping the controlled prop falls back to the mount seed when controlled 
   }
 });
 
+test('single mode falls back to the last internal state when value is dropped', () => {
+  const { rerender } = render(<Accordion items={items} defaultValue="billing" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thông tin chung' }));
+  // Internal state is now 'general', not the mount seed 'billing'.
+
+  rerender(<Accordion items={items} value="locked" onChange={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thanh toán' }));
+  // Controlled click: no internal write (internal stays 'general').
+
+  rerender(<Accordion items={items} />);
+  expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'Thanh toán' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  expect(screen.getByRole('button', { name: 'Bảo mật' })).toHaveAttribute('aria-expanded', 'false');
+});
+
 test('multiple mode falls back to the last internal state when values is dropped', () => {
   const { rerender } = render(<Accordion multiple items={items} defaultValues={['billing']} />);
   fireEvent.click(screen.getByRole('button', { name: 'Thông tin chung' }));
@@ -136,7 +157,7 @@ test('multiple mode falls back to the last internal state when values is dropped
   // Controlled click: the panels do not change and internal state must not be written.
 
   rerender(<Accordion multiple items={items} />);
-  // The last internal state returns, not the controlled ['locked', 'general'].
+  // The last internal state returns, not the controlled ['general', 'locked'].
   expect(screen.getByRole('button', { name: 'Thông tin chung' })).toHaveAttribute(
     'aria-expanded',
     'true',
@@ -365,6 +386,8 @@ test('module CSS pins the frame, trigger states, chevron, panel, density and siz
   expect(cssRule(css, '.root')).toMatch(/border:\s*1px solid var\(--border\)/);
   expect(cssRule(css, '.root')).toMatch(/border-radius:\s*var\(--radius-lg\)/);
   expect(cssRule(css, '.root')).toMatch(/background:\s*var\(--surface\)/);
+  // `data-size` is always rendered, so the base title is a fallback — pin it anyway.
+  expect(cssRule(css, '.root')).toMatch(/--ac-title:\s*var\(--font-size-md\)/);
   // Only Tooltip positions its popover absolutely; the root must not clip it.
   expect(cssRule(css, '.root')).not.toMatch(/overflow/);
   expect(cssRule(css, '.item + .item')).toMatch(/border-top:\s*1px solid var\(--border\)/);

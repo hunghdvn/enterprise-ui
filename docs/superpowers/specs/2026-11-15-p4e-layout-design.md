@@ -259,11 +259,12 @@ hidden`, so a `Tooltip` inside a panel is not clipped — the first trigger gets
   and the last panel gets the bottom radii while open;
 - items separated by a 1px `--border` top border;
 - trigger: full-width flex, `--text` title, 600 weight, transparent background,
-  inline padding only; height is `--input-h-lg` (`md`) or `--input-h` (`sm`), and
-  the title is `--font-size-md` (`md`) or `--font-size` (`sm`) — the same fixed
-  title ramp as `Tabs`/`SegmentedControl`, so only the height follows density;
-  hover uses `--surface-muted`; `:focus-visible` uses an inset 2px `--focus-ring`
-  outline (`outline-offset: -2px`) that stays on the rounded trigger surface;
+  inline padding only; height is `--input-h-lg` (`md`) or `--input-h` (`sm`). The
+  `md` title is fixed at `--font-size-md` (like `Tabs`/`SegmentedControl`); the
+  `sm` title is `--font-size`, the density body ramp, so at `sm` both the height
+  and the title follow density; hover uses `--surface-muted`; `:focus-visible`
+  uses an inset 2px `--focus-ring` outline (`outline-offset: -2px`) that stays on
+  the rounded trigger surface;
 - disabled trigger: `--text-muted`, `not-allowed` cursor, no hover fill
   (disabled controls are exempt from contrast minimums);
 - chevron: `--text-muted`, rotates 180° when `aria-expanded="true"`, 150ms
@@ -352,7 +353,8 @@ titles are exempt.
   fire `onChange`; controlled multiple clicks still report the next values;
   `defaultValue`/`defaultValues` seed uncontrolled state, and dropping a
   controlled prop returns to the last internal state — the mount seed when
-  controlled from mount (Tabs convention);
+  controlled from mount, the last uncontrolled state otherwise (Tabs
+  convention), pinned for single and multiple;
 - unknown seeded ids open nothing; disabled seeded ids are skipped; a
   controlled value pointing at a disabled item opens it while its trigger stays
   disabled; an item that becomes disabled after mount keeps its open state;
@@ -371,8 +373,9 @@ titles are exempt.
 - children are rejected at the type level (`@ts-expect-error`);
 - module CSS pins: border/radius/background (and no `overflow` clipping), item
   separators, first/last corner radii, trigger hover, focus ring, chevron
-  rotation, reduced motion, panel padding, density-driven header height, both
-  title sizes (`md` `--font-size-md`, `sm` `--font-size`), and both size blocks.
+  rotation, reduced motion, panel padding, density-driven header height, the base
+  `.root` title fallback, both title sizes (`md` `--font-size-md`, `sm`
+  `--font-size`), and both size blocks.
 
 Mutation pass (backups via `cp`, never `git checkout`): drop the vertical
 `aria-orientation`, use `<hr>` for vertical, drop the labelled divider's
