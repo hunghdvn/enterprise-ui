@@ -8,13 +8,12 @@ Styling is CSS Modules driven by CSS custom properties whose token layer
 ## Install
 
 ```bash
-npm install @enterprise-ui/components @enterprise-ui/tokens
+npm install @enterprise-ui/components
 ```
 
-Both packages are required — `@enterprise-ui/tokens` stays a dependency of
-`@enterprise-ui/components` — but you no longer have to import it yourself: the
-component stylesheet already carries the CSS variables it reads at runtime.
-React 18.3 and React DOM 18.3 are peer dependencies.
+`@enterprise-ui/tokens` is installed as a dependency of `@enterprise-ui/components` — you
+do not have to import it yourself: the component stylesheet already carries the CSS
+variables it reads at runtime. React 18.3 and React DOM 18.3 are peer dependencies.
 
 ## Styles
 
@@ -78,12 +77,12 @@ export function App() {
 
 Full documentation — every component with props and examples, plus theming and tokens —
 is published at <https://hunghdvn.github.io/enterprise-ui/>. Source lives in
-[`apps/docs`](../apps/docs).
+[`apps/docs`](../../apps/docs).
 
 ## Showcase
 
 See the runnable demo — Light/Dark switching, dense table, FilterBar, Form/Modal —
-in [`apps/showcase`](../apps/showcase):
+in [`apps/showcase`](../../apps/showcase):
 
 ```bash
 npm run dev --workspace=@enterprise-ui/showcase

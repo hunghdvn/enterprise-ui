@@ -68,7 +68,11 @@ npm scope rename, no per-component deep-import entry points.
     "./*.css": "./*.css"
   },
   "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "git+https://github.com/hunghdvn/enterprise-ui.git", "directory": "packages/tokens" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunghdvn/enterprise-ui.git",
+    "directory": "packages/tokens"
+  },
   "homepage": "https://github.com/hunghdvn/enterprise-ui/tree/main/packages/tokens"
 }
 ```
