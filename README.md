@@ -75,7 +75,7 @@ versions both.
 
 ```bash
 npm run changeset   # record a changeset describing the next release
-npm run version     # apply the version bump and refresh the lockfile
+npm run version:packages # apply the version bump and refresh the lockfile
 npm run release     # publish the bumped packages to npm
 ```
 

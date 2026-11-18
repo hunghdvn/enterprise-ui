@@ -1,6 +1,13 @@
 {
   "name": "@enterprise-ui/tokens",
   "version": "0.1.0",
+  "description": "Design tokens (CSS variables) for the Enterprise UI component library.",
+  "keywords": [
+    "design-tokens",
+    "css",
+    "theming",
+    "enterprise-ui"
+  ],
   "license": "MIT",
   "type": "module",
   "main": "./tokens.css",

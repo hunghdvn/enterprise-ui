@@ -1,6 +1,16 @@
 {
   "name": "@enterprise-ui/components",
   "version": "0.1.0",
+  "description": "React ERP UI component library with accessible primitives, theming and density support.",
+  "keywords": [
+    "react",
+    "ui",
+    "components",
+    "design-system",
+    "erp",
+    "typescript",
+    "css"
+  ],
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

@@ -77,12 +77,12 @@ export function App() {
 
 Full documentation — every component with props and examples, plus theming and tokens —
 is published at <https://hunghdvn.github.io/enterprise-ui/>. Source lives in
-[`apps/docs`](../../apps/docs).
+[`apps/docs`](https://github.com/hunghdvn/enterprise-ui/tree/main/apps/docs).
 
 ## Showcase
 
 See the runnable demo — Light/Dark switching, dense table, FilterBar, Form/Modal —
-in [`apps/showcase`](../../apps/showcase):
+in [`apps/showcase`](https://github.com/hunghdvn/enterprise-ui/tree/main/apps/showcase):
 
 ```bash
 npm run dev --workspace=@enterprise-ui/showcase
@@ -91,4 +91,4 @@ npm run dev --workspace=@enterprise-ui/showcase
 ## License
 
 MIT. Icon geometry is derived from Lucide (ISC) and Feather (MIT); see
-[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md).
+[`THIRD_PARTY_NOTICES.md`](https://github.com/hunghdvn/enterprise-ui/blob/main/packages/components/THIRD_PARTY_NOTICES.md).

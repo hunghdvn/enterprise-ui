@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +26,6 @@ jobs:
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
-          package-manager-cache: false
       - run: npm install -g npm@11
       - run: npm ci
       - run: npm test
@@ -40,6 +40,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           publish: npm run release
-          version: npm run version
+          version: npm run version:packages
           commit: 'chore: version packages'
           title: 'chore: version packages'
