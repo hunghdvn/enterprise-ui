@@ -1,0 +1,73 @@
+.root {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 0;
+  font-family: var(--font);
+}
+
+.root[data-orientation='horizontal'] {
+  width: 100%;
+  border-top: 1px solid var(--border);
+}
+
+.root[data-orientation='vertical'] {
+  width: 1px;
+  min-height: 1em;
+  align-self: stretch;
+  background: var(--border);
+}
+
+.root[data-labelled] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-top: 0;
+}
+
+.root[data-labelled]::before,
+.root[data-labelled]::after {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.root[data-labelled][data-align='start']::before {
+  flex: 0 0 24px;
+}
+
+.root[data-labelled][data-align='end']::after {
+  flex: 0 0 24px;
+}
+
+.label {
+  /* Shrinks so a long label wraps inside `container - 24px` (the two gaps; 48px for
+     align start/end, which also spends the fixed 24px stub) instead of pushing the
+     lines past the root; `min-width: 0` is what lets it below max-content. */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  /* AA on `--surface-muted` too: `--text-muted` is only 4.34:1 / 4.04:1 there. */
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.root[data-orientation='horizontal'][data-spacing='sm'] {
+  margin-block: 8px;
+}
+
+.root[data-orientation='horizontal'][data-spacing='md'] {
+  margin-block: 16px;
+}
+
+.root[data-orientation='vertical'][data-spacing='sm'] {
+  margin-inline: 8px;
+}
+
+.root[data-orientation='vertical'][data-spacing='md'] {
+  margin-inline: 16px;
+}

@@ -133,3 +133,19 @@ export type {
 } from './NotificationCenter/types';
 export { Tree } from './Tree/Tree';
 export type { TreeProps, TreeNode } from './Tree/types';
+export { Divider } from './Divider';
+export type {
+  DividerAlign,
+  DividerOrientation,
+  DividerProps,
+  DividerSpacing,
+} from './Divider/types';
+export { Accordion } from './Accordion';
+export type {
+  AccordionHeadingLevel,
+  AccordionItem,
+  AccordionMultipleProps,
+  AccordionProps,
+  AccordionSingleProps,
+  AccordionSize,
+} from './Accordion/types';

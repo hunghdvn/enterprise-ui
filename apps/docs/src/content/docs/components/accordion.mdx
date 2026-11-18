@@ -1,0 +1,121 @@
+---
+title: Accordion
+description: Danh sách section thu gọn/mở rộng với single hoặc multiple, controlled hoặc uncontrolled.
+---
+
+import { AccordionDemo } from '../../../components/demos/AccordionDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Accordion` gom nội dung dài thành các section thu gọn: form cài đặt, bộ lọc, câu hỏi thường gặp, chi tiết đơn hàng. Mỗi header là một `<button>` trong một heading thật, panel là `role="region"` được gắn tên bằng chính header đó. Component không tự fetch, không lưu trạng thái ra ngoài và không animate chiều cao panel.
+
+<Demo title="Một mục, nhiều mục và chế độ controlled">
+  <AccordionDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Accordion } from '@enterprise-ui/components';
+
+export function SettingsPane() {
+  return (
+    <Accordion
+      defaultValue="general"
+      items={[
+        {
+          id: 'general',
+          title: 'Thông tin chung',
+          content: <p>Tên công ty, mã số thuế và địa chỉ trụ sở.</p>,
+        },
+        {
+          id: 'billing',
+          title: 'Thanh toán',
+          content: <p>Phương thức thanh toán và hoá đơn điện tử.</p>,
+        },
+        {
+          id: 'security',
+          title: 'Bảo mật',
+          content: <p>Chỉ quản trị viên hệ thống mở được mục này.</p>,
+          disabled: true,
+        },
+      ]}
+    />
+  );
+}
+```
+
+Nhiều mục mở cùng lúc, có kiểm soát từ bên ngoài:
+
+```tsx
+import { useState } from 'react';
+import { Accordion } from '@enterprise-ui/components';
+
+export function FilterAccordion() {
+  const [open, setOpen] = useState<string[]>(['status']);
+
+  return (
+    <Accordion
+      multiple
+      values={open}
+      onChange={setOpen}
+      items={[
+        {
+          id: 'status',
+          title: 'Trạng thái',
+          content: <p>Đang xử lý, chờ duyệt, hoàn thành.</p>,
+        },
+        {
+          id: 'owner',
+          title: 'Người phụ trách',
+          content: <p>Lọc theo nhóm kinh doanh hoặc từng nhân viên.</p>,
+        },
+      ]}
+    />
+  );
+}
+```
+
+## Props
+
+### `Accordion`
+
+| Prop            | Kiểu                                                                | Mặc định | Mô tả                                                                           |
+| --------------- | ------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------- |
+| `items`         | `readonly AccordionItem[]`                                          | —        | **Bắt buộc.** Các section theo thứ tự hiển thị.                                 |
+| `multiple`      | `boolean`                                                           | `false`  | Cho phép nhiều panel mở cùng lúc. Bật cờ này thì dùng `values`/`defaultValues`. |
+| `value`         | `string \| null`                                                    | —        | Chế độ single controlled; `null` đóng tất cả.                                   |
+| `defaultValue`  | `string \| null`                                                    | `null`   | Mục mở ban đầu ở chế độ single uncontrolled; mặc định đóng tất cả.              |
+| `values`        | `readonly string[]`                                                 | —        | Chế độ multiple controlled; mảng rỗng đóng tất cả.                              |
+| `defaultValues` | `readonly string[]`                                                 | `[]`     | Các mục mở ban đầu ở chế độ multiple uncontrolled.                              |
+| `onChange`      | `(value: string \| null) => void` hoặc `(values: string[]) => void` | —        | Single nhận id hoặc `null`; multiple nhận mảng id theo thứ tự `items`.          |
+| `size`          | `'sm' \| 'md'`                                                      | `'md'`   | Kích thước padding và cỡ chữ header.                                            |
+| `headingLevel`  | `2 \| 3 \| 4 \| 5 \| 6`                                             | `3`      | Cấp heading bọc button, chọn theo outline của trang.                            |
+| `className`     | `string`                                                            | —        | Class thêm cho phần tử gốc.                                                     |
+
+### `AccordionItem`
+
+| Prop       | Kiểu        | Mặc định | Mô tả                                                                                |
+| ---------- | ----------- | -------- | ------------------------------------------------------------------------------------ |
+| `id`       | `string`    | —        | **Bắt buộc.** Định danh duy nhất, làm `key` và giá trị controlled.                   |
+| `title`    | `ReactNode` | —        | **Bắt buộc.** Nội dung header, nằm trong button — không đặt link/button/input ở đây. |
+| `content`  | `ReactNode` | —        | **Bắt buộc.** Nội dung panel; có thể chứa form control.                              |
+| `disabled` | `boolean`   | `false`  | Khoá riêng header; panel vẫn có thể mở nếu giá trị controlled trỏ vào nó.            |
+
+## Hành vi
+
+- Single là mặc định và mọi panel bắt đầu đóng. Mở một mục sẽ đóng mục đang mở; bấm lại mục đang mở sẽ đóng nó và `onChange` nhận `null`.
+- Multiple giữ nhiều panel cùng mở; `onChange` trả mảng id theo thứ tự `items`, kể cả khi người dùng bấm theo thứ tự khác.
+- `value`/`values` là nguồn sự thật khi được truyền: click chỉ phát `onChange`, component không tự đổi trạng thái. Giá trị controlled trỏ vào mục `disabled` vẫn mở panel nhưng header không bấm được; id không tồn tại thì không mở gì. Bỏ `value`/`values` giữa vòng đời quay về trạng thái nội bộ cuối (bằng seed lúc mount nếu component được controlled ngay từ đầu — cùng quy ước `Tabs`/`SegmentedControl`), không giữ mục mà cha vừa điều khiển.
+- `defaultValue`/`defaultValues` bỏ qua mục `disabled` và id không tồn tại — panel `disabled` mở sẵn sẽ không có đường đóng. Đây là lọc lúc khởi tạo; id bị xoá khỏi `items` được dọn ngay trong render, nên khi item quay lại panel không tự mở. Đổi `disabled` sau mount giữ nguyên trạng thái.
+- Panel luôn được mount và chỉ ẩn bằng `[hidden]`, nên input, scroll và state bên trong không mất khi thu gọn. Id DOM sinh theo từng instance nên nhiều accordion trên cùng trang không đụng nhau. Root không đặt `overflow: hidden`, nên `Tooltip` (popover absolute duy nhất trong thư viện) bên trong panel không bị cắt.
+- `item.id` phải duy nhất; id trùng in cảnh báo một lần mỗi chữ ký danh sách, chỉ trong môi trường phát triển.
+- `items={[]}` render `null`. Không có animation chiều cao; chỉ icon chevron xoay và tôn trọng `prefers-reduced-motion`.
+- Header cao theo `--input-h-lg` (`md`) hoặc `--input-h` (`sm`) như các control dạng hàng khác, nên `compact`/`comfortable` làm cả card giãn/co lại.
+
+## Accessibility
+
+- Theo pattern WAI-ARIA accordion: mỗi header là `<button type="button">` nằm trong `h2`–`h6`, có `aria-expanded` và `aria-controls`; mỗi panel là `role="region"` với `aria-labelledby` trỏ về button và `[hidden]` khi đóng.
+- `headingLevel` mặc định là `3` — đặt lại cho khớp outline thật của trang (ví dụ `4` hoặc `5` khi accordion nằm dưới một heading nhỏ hơn).
+- Tab đi qua mọi header đang bật và nội dung của panel đang mở. ↑/↓ di chuyển focus giữa các header đang bật, Home/End nhảy về đầu/cuối; danh sách quay vòng và bỏ qua header `disabled`. Các phím này chỉ đổi focus, không đổi trạng thái mở.
+- `title` nằm trong button nên không được chứa link/button/input — nội dung tương tác đặt trong `content`.
+- Panel đóng dùng `[hidden]` nên nội dung bên trong không nhận focus; mở panel đưa nội dung trở lại trình tự Tab.

@@ -74,6 +74,23 @@
   gap: 0.75rem;
 }
 
+.dividerRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dividerRow > span {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+
 .plainList {
   display: grid;
   margin: 0;

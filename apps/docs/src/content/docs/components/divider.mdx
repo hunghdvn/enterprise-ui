@@ -1,0 +1,67 @@
+---
+title: Divider
+description: Đường phân cách ngang hoặc dọc, có nhãn tuỳ chọn và ba mức khoảng cách.
+---
+
+import { DividerDemo } from '../../../components/demos/DividerDemo.tsx';
+import Demo from '../../../components/Demo.astro';
+
+`Divider` tách các khối nội dung hoặc các nhóm hành động: đường kẻ ngang giữa hai section, đường kẻ dọc trong thanh công cụ, và đường kẻ có nhãn “Hoặc” giữa hai lựa chọn. Component chỉ vẽ đường phân cách; nó không tạo tiêu đề, không co giãn theo nội dung và không tự đặt khoảng cách dọc cho cả trang.
+
+<Demo title="Ngang, có nhãn và dọc trong thanh công cụ">
+  <DividerDemo client:visible />
+</Demo>
+
+## Cách dùng
+
+```tsx
+import { Divider } from '@enterprise-ui/components';
+
+export function AccountActions() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: 12 }}>
+      <span>Sửa</span>
+      <Divider orientation="vertical" spacing="none" />
+      <span>Nhân bản</span>
+      <Divider orientation="vertical" spacing="none" />
+      <span>Lưu trữ</span>
+    </div>
+  );
+}
+```
+
+Đường kẻ ngang có nhãn:
+
+```tsx
+import { Divider } from '@enterprise-ui/components';
+
+export function OrDivider() {
+  return <Divider label="Hoặc" spacing="sm" />;
+}
+```
+
+## Props
+
+### `Divider`
+
+| Prop          | Kiểu                           | Mặc định       | Mô tả                                                                                                 |
+| ------------- | ------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------- |
+| `orientation` | `'horizontal' \| 'vertical'`   | `'horizontal'` | Hướng đường kẻ.                                                                                       |
+| `label`       | `string`                       | —              | Nhãn giữa đường kẻ; chỉ dùng cho hướng ngang. Chuỗi rỗng hoặc chỉ khoảng trắng coi như không có nhãn. |
+| `spacing`     | `'none' \| 'sm' \| 'md'`       | `'md'`         | Khoảng cách trục vuông góc: `margin-block` khi ngang, `margin-inline` khi dọc (`sm` 8px, `md` 16px).  |
+| `align`       | `'start' \| 'center' \| 'end'` | `'center'`     | Căn nhãn của đường kẻ ngang có nhãn; bỏ qua khi không có nhãn.                                        |
+| `className`   | `string`                       | —              | Class thêm cho phần tử gốc.                                                                           |
+
+## Bố cục và giới hạn
+
+- Đường kẻ ngang không có nhãn render `<hr>`; đường kẻ dọc và đường kẻ ngang có nhãn render `<div role="separator">`. Props giống nhau ở cả hai trường hợp.
+- `label` là chuỗi vì nó trở thành tên accessible của separator. Nhãn trên đường kẻ dọc bị bỏ qua — không có đủ chỗ trong một đường rộng 1px.
+- Đường kẻ dọc cần cha flex/grid kéo giãn: component đặt `align-self: stretch` và `min-height: 1em`. Ngoài flex/grid, nó chỉ cao 1em; đặt trong một hàng có chiều cao xác định nếu cần dài hơn.
+- Đường kẻ ngang chiếm 100% chiều rộng khả dụng và không có `max-width`; cha quyết định bề rộng. Nhãn dài tự co và xuống dòng trong `chiều rộng − 24px` (hai khoảng gap; `− 48px` khi `align="start"`/`"end"` vì thêm stub 24px), không đẩy đường kẻ tràn khỏi card.
+- Component không có trạng thái, không focus được và không phát sự kiện.
+
+## Accessibility
+
+- `<hr>` ngang mang sẵn role `separator`; đường kẻ dọc đặt tường minh `role="separator"` và `aria-orientation="vertical"`.
+- Đường kẻ ngang có nhãn dùng chính nhãn làm `aria-label`; bản chữ hiển thị được đánh dấu `aria-hidden="true"` để screen reader không đọc hai lần. Nhãn rỗng hoặc chỉ có khoảng trắng coi như không có nhãn.
+- Đường kẻ là thành phần trang trí: màu `--border` không phải tín hiệu trạng thái. Nhãn dùng `--text` để đạt AA cả trên `--surface` lẫn `--surface-muted` ở cả hai theme.

@@ -1,0 +1,125 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { render, screen } from '@testing-library/react';
+import { cssRule } from '../internal/cssRule';
+import { Divider } from './Divider';
+
+const css = readFileSync(join(import.meta.dirname, 'Divider.module.css'), 'utf8');
+
+test('default horizontal renders a native hr separator', () => {
+  render(<Divider />);
+  const separator = screen.getByRole('separator');
+  expect(separator.tagName).toBe('HR');
+  expect(separator).toHaveAttribute('data-orientation', 'horizontal');
+  expect(separator).toHaveAttribute('data-spacing', 'md');
+  expect(separator).not.toHaveAttribute('aria-orientation');
+});
+
+test('vertical renders a div separator with aria-orientation', () => {
+  render(<Divider orientation="vertical" spacing="sm" />);
+  const separator = screen.getByRole('separator');
+  expect(separator.tagName).toBe('DIV');
+  expect(separator).toHaveAttribute('aria-orientation', 'vertical');
+  expect(separator).toHaveAttribute('data-spacing', 'sm');
+});
+
+test('a label names the separator and the visible copy is hidden from AT', () => {
+  render(<Divider label="Hoặc" align="start" />);
+  const separator = screen.getByRole('separator', { name: 'Hoặc' });
+  expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
+  expect(separator).toHaveAttribute('data-align', 'start');
+  expect(separator).toHaveAttribute('data-labelled');
+  const label = screen.getByText('Hoặc');
+  expect(label.tagName).toBe('SPAN');
+  expect(label).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('an empty or whitespace-only label renders a plain hr and a vertical label is ignored', () => {
+  const { container, rerender } = render(<Divider label="" />);
+  expect(container.querySelector('hr')).not.toBeNull();
+  expect(screen.getByRole('separator')).not.toHaveAttribute('aria-label');
+
+  rerender(<Divider label="   " />);
+  const plain = screen.getByRole('separator');
+  expect(plain.tagName).toBe('HR');
+  expect(plain).not.toHaveAttribute('aria-label');
+
+  rerender(<Divider orientation="vertical" label="Hoặc" />);
+  expect(container.querySelector('hr')).toBeNull();
+  expect(screen.queryByText('Hoặc')).toBeNull();
+  expect(screen.getByRole('separator')).not.toHaveAttribute('aria-label');
+});
+
+test('align only lands on a labelled horizontal divider', () => {
+  const { container, rerender } = render(<Divider align="end" />);
+  expect(container.querySelector('hr')).not.toHaveAttribute('data-align');
+
+  rerender(<Divider label="Kết thúc" align="end" />);
+  expect(screen.getByRole('separator', { name: 'Kết thúc' })).toHaveAttribute('data-align', 'end');
+});
+
+test('spacing="none" renders without a cross-axis margin', () => {
+  render(<Divider spacing="none" data-testid="rule" />);
+  expect(screen.getByTestId('rule')).toHaveAttribute('data-spacing', 'none');
+});
+
+test('non-string labels fall back to a plain hr instead of throwing', () => {
+  // `label` is typed `string`; JS callers can still pass null/number via spread.
+  const { container } = render(<Divider label={null as unknown as string} />);
+  const hr = container.querySelector('hr');
+  expect(hr).not.toBeNull();
+  expect(hr).not.toHaveAttribute('aria-label');
+
+  const { container: numeric } = render(<Divider label={42 as unknown as string} />);
+  expect(numeric.querySelector('hr')).not.toBeNull();
+});
+
+test('className, id and rest props land on the root', () => {
+  render(<Divider id="rule" className="extra" data-testid="rule" />);
+  const separator = screen.getByTestId('rule');
+  expect(separator).toHaveAttribute('id', 'rule');
+  expect(separator).toHaveClass('extra');
+});
+
+test('children are rejected at the type level and never rendered', () => {
+  render(
+    // @ts-expect-error children are deliberately omitted from DividerProps.
+    <Divider data-testid="rule">Thừa</Divider>,
+  );
+  expect(screen.queryByText('Thừa')).toBeNull();
+});
+
+test('module CSS pins separator, label, alignment and spacing rules', () => {
+  expect(cssRule(css, ".root[data-orientation='horizontal']")).toMatch(
+    /border-top:\s*1px solid var\(--border\)/,
+  );
+  expect(cssRule(css, ".root[data-orientation='vertical']")).toMatch(/width:\s*1px/);
+  expect(cssRule(css, ".root[data-orientation='vertical']")).toMatch(/align-self:\s*stretch/);
+  expect(cssRule(css, ".root[data-orientation='vertical']")).toMatch(
+    /background:\s*var\(--border\)/,
+  );
+  expect(cssRule(css, '.root[data-labelled]')).toMatch(/display:\s*flex/);
+  expect(cssRule(css, '.root[data-labelled]::before')).toContain('background');
+  expect(cssRule(css, '.root')).toMatch(/margin:\s*0/);
+  expect(cssRule(css, ".root[data-labelled][data-align='start']::before")).toMatch(
+    /flex:\s*0 0 24px/,
+  );
+  expect(cssRule(css, ".root[data-labelled][data-align='end']::after")).toMatch(/flex:\s*0 0 24px/);
+  expect(cssRule(css, '.label')).toMatch(/flex:\s*0 1 auto/);
+  expect(cssRule(css, '.label')).toMatch(/min-width:\s*0/);
+  expect(cssRule(css, '.label')).toMatch(/color:\s*var\(--text\)/);
+  expect(cssRule(css, ".root[data-orientation='horizontal'][data-spacing='sm']")).toMatch(
+    /margin-block:\s*8px/,
+  );
+  expect(cssRule(css, ".root[data-orientation='horizontal'][data-spacing='md']")).toMatch(
+    /margin-block:\s*16px/,
+  );
+  expect(cssRule(css, ".root[data-orientation='vertical'][data-spacing='sm']")).toMatch(
+    /margin-inline:\s*8px/,
+  );
+  expect(cssRule(css, ".root[data-orientation='vertical'][data-spacing='md']")).toMatch(
+    /margin-inline:\s*16px/,
+  );
+  // `none` must stay a real zero: no rule may attach a margin to it.
+  expect(css).not.toMatch(/\[data-spacing='none'\][^{]*\{[^}]*margin/);
+});

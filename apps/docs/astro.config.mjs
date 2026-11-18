@@ -83,6 +83,8 @@ export default defineConfig({
                 { label: 'PageHeader', slug: 'components/page-header' },
                 { label: 'SplitView', slug: 'components/split-view' },
                 { label: 'Pagination', slug: 'components/pagination' },
+                { label: 'Divider', slug: 'components/divider' },
+                { label: 'Accordion', slug: 'components/accordion' },
               ],
             },
             {
