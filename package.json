@@ -11,9 +11,14 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "docs:snippets": "node scripts/check-docs-snippets.mjs"
+    "docs:snippets": "node scripts/check-docs-snippets.mjs",
+    "changeset": "changeset",
+    "version": "changeset version && npm install --package-lock-only",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-git": "^1.0.0",
+    "@changesets/cli": "^2.31.1",
     "@eslint/js": "^9.39.5",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
