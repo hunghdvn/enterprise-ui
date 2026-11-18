@@ -89,7 +89,7 @@ Add:
 ```json
 {
   "publishConfig": { "access": "public" },
-  "sideEffects": ["*.css"],
+  "sideEffects": ["**/*.css"],
   "engines": { "node": ">=18" },
   "prepublishOnly": "npm run build"
 }
@@ -101,7 +101,7 @@ Add:
 
 ### 4.3 Root
 
-- Add `@changesets/cli@2.31.1` and `@changesets/changelog-git@1.0.0` devDeps.
+- Add `@changesets/cli@2.31.1` and `@changesets/changelog-git@^0.2.1` devDeps.
 - Scripts:
 
 ```json
