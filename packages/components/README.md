@@ -1,9 +1,10 @@
 # @enterprise-ui/components
 
-React 18 + TypeScript ERP component kit (zero runtime dependencies). Components are
-presentational-only: data in via props, events out via `onChange`/`onSort`/`onPage`.
-Styling is CSS Modules driven by CSS custom properties whose token layer
-(`@enterprise-ui/tokens`) is bundled straight into the built stylesheet.
+React 18 + TypeScript ERP component kit with no runtime JavaScript dependencies beyond
+`@enterprise-ui/tokens`. Components are presentational-only: data in via props, events
+out via `onChange`/`onSort`/`onPage`. Styling is CSS Modules driven by CSS custom
+properties whose token layer (`@enterprise-ui/tokens`) is bundled straight into the
+built stylesheet.
 
 ## Install
 
@@ -14,6 +15,10 @@ npm install @enterprise-ui/components
 `@enterprise-ui/tokens` is installed as a dependency of `@enterprise-ui/components` — you
 do not have to import it yourself: the component stylesheet already carries the CSS
 variables it reads at runtime. React 18.3 and React DOM 18.3 are peer dependencies.
+
+The published types use extensionless relative imports, so use
+`moduleResolution: "bundler"` (the standard for React 18 + Vite/Next/Remix/Astro) or set
+`skipLibCheck: true`; `node16`/`nodenext` are not supported by the declaration output.
 
 ## Styles
 
@@ -51,8 +56,9 @@ export function Actions() {
 ## Theming
 
 Wrap the app in `ThemeProvider` — it sets `data-theme`/`data-density` on the root
-element (light + compact by default, persisted to localStorage). Toggle with
-`useTheme()`:
+element (light + compact by default, persisted to localStorage). The `theme`/`density`
+props are the initial values; a choice persisted in localStorage overrides them on later
+loads. Toggle with `useTheme()`:
 
 ```tsx
 import { ThemeProvider, useTheme } from '@enterprise-ui/components';

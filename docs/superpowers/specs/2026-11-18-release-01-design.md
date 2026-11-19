@@ -164,26 +164,40 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
-      - run: npm install -g npm@11
-      - run: npm ci
-      - run: npm test
-      - run: npm --workspaces run typecheck --if-present
-      - run: npm run docs:snippets
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run build --workspace=@enterprise-ui/components
-      - run: npm run build --workspace=@enterprise-ui/showcase
-      - run: npm run build --workspace=@enterprise-ui/docs
-      - uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+      - name: Install npm
+        run: npm install -g npm@11
+      # Keep these gate steps in sync with .github/workflows/ci.yml (verify job).
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Typecheck (all workspaces)
+        run: npm --workspaces run typecheck --if-present
+      - name: Docs snippets typecheck
+        run: npm run docs:snippets
+      - name: Lint
+        run: npm run lint
+      - name: Prettier check
+        run: npm run format:check
+      - name: Build components lib
+        run: npm run build --workspace=@enterprise-ui/components
+      - name: Build showcase
+        run: npm run build --workspace=@enterprise-ui/showcase
+      - name: Build docs site
+        run: npm run build --workspace=@enterprise-ui/docs
+      - name: Publish
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           publish: npm run release
@@ -251,9 +265,16 @@ because no trusted publisher exists yet — this is expected. Publish manually
 
 ## 7. Risks & decisions
 
-- **Tokens must ship.** `dist/index.d.ts` imports `@enterprise-ui/tokens/all.css`;
-  removing the runtime dependency would require rewriting the emitted types.
-  Publishing both is the smallest safe step.
+- **Tokens must ship.** `@enterprise-ui/tokens` remains a runtime dependency (the
+  built stylesheet bundles its CSS, and consumers may import `all.css`
+  directly); the declaration build strips the build-time CSS import so
+  `dist/index.d.ts` no longer forces consumers to resolve it. Publishing both is
+  the smallest safe step.
+- **Published types portability.** The declarations use extensionless relative
+  imports, so the components README documents `moduleResolution: "bundler"`
+  (or `skipLibCheck: true`); NodeNext emission is a follow-up. The build also
+  strips the tokens CSS import to keep TS < 5.6 / `noUncheckedSideEffectImports`
+  consumers building.
 - **Trusted publishing bootstrap.** The first publish cannot use OIDC because
   the package does not exist yet; step 5.1 publishes once locally with 2FA.
 - **Trust config expiry.** A new trusted publisher must be used within 2 days;

@@ -48,19 +48,22 @@ export function App() {
 ```
 
 `ThemeProvider` sets `data-theme` and `data-density` on a wrapping element and persists
-the choice to localStorage. Read and change them with the `useTheme()` hook. Without a
-provider the components still render, but theme tokens only apply to elements carrying a
-`data-theme` attribute.
+the choice to localStorage. The `theme`/`density` props are the initial values; a
+persisted choice overrides them on subsequent loads. Read and change them with the
+`useTheme()` hook. Without a provider the components still render, but theme tokens
+only apply to elements carrying a `data-theme` attribute.
 
 ## Development
 
 ```bash
 npm install          # install all workspaces
-npm test             # tokens test + every workspace test suite
+npm test             # tokens + licenses test + every workspace test suite
 npm run lint         # eslint flat config at the repo root
 npm run format:check # prettier check
-npm run docs:snippets # typecheck the TSX snippets in the docs
+npm run docs:snippets # typecheck the TSX snippets in the docs and READMEs
+npm --workspaces run typecheck --if-present
 npm run build --workspace=@enterprise-ui/components
+npm run build --workspace=@enterprise-ui/docs
 npm run dev --workspace=@enterprise-ui/showcase
 ```
 
@@ -69,18 +72,16 @@ npm run dev --workspace=@enterprise-ui/showcase
 
 ## Publishing
 
-Releases are managed with [Changesets](https://github.com/changesets/changesets). Both
-packages are public and move together in a fixed group, so a changeset for either one
-versions both.
+Releases use [Changesets](https://github.com/changesets/changesets) with a fixed group
+(`@enterprise-ui/tokens` + `@enterprise-ui/components`), so a changeset for either one
+versions both. The full runbook — first publish, trusted publishing, bootstrap — lives in
+[`docs/superpowers/specs/2026-11-18-release-01-design.md`](./docs/superpowers/specs/2026-11-18-release-01-design.md#51-one-time-bootstrap).
 
 ```bash
-npm run changeset   # record a changeset describing the next release
-npm run version:packages # apply the version bump and refresh the lockfile
-npm run release     # publish the bumped packages to npm
+npm run changeset        # record a changeset
+npm run version:packages # apply the bump and refresh the lockfile
+npm run release          # publish the bumped packages
 ```
-
-`@enterprise-ui/components` runs its build in `prepublishOnly`, so publishing always ships
-a fresh `dist/`.
 
 ## Documentation
 

@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "node packages/tokens/tokens.test.mjs && npm --workspaces run test",
+    "test": "node scripts/check-licenses.mjs && node packages/tokens/tokens.test.mjs && npm --workspaces run test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

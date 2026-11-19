@@ -12,14 +12,14 @@ npm install @enterprise-ui/tokens
 
 ## Files
 
-| File              | Contents                                                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| `tokens.css`      | Base palette and primitives: colours, spacing, radii, shadows, typography, sizes          |
-| `theme-light.css` | Light theme values under `[data-theme='light']`                                           |
-| `theme-dark.css`  | Dark theme values under `[data-theme='dark']`                                             |
-| `density.css`     | Control and row metrics under `[data-density='compact']` / `[data-density='comfortable']` |
-| `breakpoints.css` | Breakpoint variables (`--bp-tablet`, `--bp-desktop`)                                      |
-| `all.css`         | Imports every file above in dependency order                                              |
+| File              | Contents                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `tokens.css`      | Base palette and primitives: colours, radii, shadows, typography, sizes                           |
+| `theme-light.css` | Light theme values under `[data-theme='light']`                                                   |
+| `theme-dark.css`  | Dark theme values under `[data-theme='dark']`                                                     |
+| `density.css`     | Spacing and control/row metrics under `[data-density='compact']` / `[data-density='comfortable']` |
+| `breakpoints.css` | Breakpoint variables (`--bp-tablet`, `--bp-desktop`)                                              |
+| `all.css`         | Imports every file above in dependency order                                                      |
 
 ## Usage
 

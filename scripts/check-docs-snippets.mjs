@@ -22,6 +22,13 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
+// README fences are consumer-facing too (npm pages, quick start); check them with
+// the same tsconfig so a renamed component cannot leave the README stale.
+const extraFiles = [
+  path.join(repoRoot, 'README.md'),
+  path.join(repoRoot, 'packages', 'components', 'README.md'),
+  path.join(repoRoot, 'packages', 'tokens', 'README.md'),
+].filter((file) => existsSync(file));
 const outDir = path.join(repoRoot, 'node_modules', '.docs-snippets');
 // `tsc` is not on PATH in CI/npm-scripts contexts — use the hoisted workspace
 // install directly, falling back to PATH for exotic setups.
@@ -87,12 +94,14 @@ function extractFences(source, file) {
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-const files = contentFiles(contentDir);
+const files = [...contentFiles(contentDir), ...extraFiles];
 let snippets = 0;
 const guardFailures = [];
 
 for (const file of files) {
-  const rel = path.relative(contentDir, file);
+  const rel = file.startsWith(contentDir + path.sep)
+    ? path.relative(contentDir, file)
+    : path.relative(repoRoot, file);
   const source = readFileSync(file, 'utf8');
   const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
   let blocks;

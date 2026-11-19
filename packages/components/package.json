@@ -69,7 +69,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "gen:icon-types": "node scripts/gen-icon-types.mjs",
     "gen:icon-manifest": "vite-node scripts/gen-icon-manifest.mjs",
-    "build": "vite build && tsc -p tsconfig.build.json && node scripts/check-bundle-size.mjs",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/strip-css-import.mjs && node scripts/check-bundle-size.mjs",
     "prepublishOnly": "npm run build"
   }
 }
