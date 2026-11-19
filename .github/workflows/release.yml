@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install npm
+        run: npm install -g npm@11
+      # Keep these gate steps in sync with .github/workflows/ci.yml (verify job).
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Typecheck (all workspaces)
+        run: npm --workspaces run typecheck --if-present
+      - name: Docs snippets typecheck
+        run: npm run docs:snippets
+      - name: Lint
+        run: npm run lint
+      - name: Prettier check
+        run: npm run format:check
+      - name: Build components lib
+        run: npm run build --workspace=@enterprise-ui/components
+      - name: Build showcase
+        run: npm run build --workspace=@enterprise-ui/showcase
+      - name: Build docs site
+        run: npm run build --workspace=@enterprise-ui/docs
+      - name: Publish
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish: npm run release
+          version: npm run version:packages
+          commit: 'chore: version packages'
+          title: 'chore: version packages'

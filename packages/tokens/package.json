@@ -1,10 +1,32 @@
 {
   "name": "@enterprise-ui/tokens",
   "version": "0.1.0",
+  "description": "Design tokens (CSS variables) for the Enterprise UI component library.",
+  "keywords": [
+    "design-tokens",
+    "css",
+    "theming",
+    "enterprise-ui"
+  ],
   "license": "MIT",
+  "type": "module",
+  "main": "./tokens.css",
+  "exports": {
+    ".": "./tokens.css",
+    "./*.css": "./*.css"
+  },
   "files": [
     "*.css"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunghdvn/enterprise-ui.git",
+    "directory": "packages/tokens"
+  },
+  "homepage": "https://github.com/hunghdvn/enterprise-ui/tree/main/packages/tokens",
   "scripts": {
     "test": "node tokens.test.mjs"
   }
