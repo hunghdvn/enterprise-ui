@@ -42,8 +42,9 @@ import Demo from '../../components/Demo.astro';
   <div class="feature-card">
     <h3>Chỉ một dependency runtime</h3>
     <p>
-      Package chỉ cần React 18 làm peer dependency và <code>@enterprise-ui/tokens</code> làm
-      dependency runtime duy nhất; CSS Modules đóng gói trong một file <code>style.css</code>.
+      React 18.3 và React DOM 18.3 là peer dependencies;
+      <code>@enterprise-ui/tokens</code> là dependency runtime duy nhất. CSS Modules đóng gói trong
+      một file <code>style.css</code>.
     </p>
   </div>
 </div>
@@ -57,7 +58,7 @@ npm install @enterprise-ui/components
 ```
 
 :::note
-Bản npm đầu tiên là `0.1.0`; nếu `npm install` báo E404, package chưa được publish — xem runbook release trong repo.
+Bản npm đầu tiên là `0.1.0`; nếu `npm install` báo E404, package chưa được publish — xem [runbook release](https://github.com/hunghdvn/enterprise-ui/blob/main/docs/superpowers/specs/2026-11-18-release-01-design.md#51-one-time-bootstrap).
 :::
 
 ```tsx

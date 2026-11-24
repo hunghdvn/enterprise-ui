@@ -25,19 +25,42 @@ const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs')
 // README fences are consumer-facing too (npm pages, quick start); check them with
 // the same tsconfig so a renamed component cannot leave the README stale. Every
 // publishable package must have one — a missing file is an error, not a silent skip.
-const packagesDir = path.join(repoRoot, 'packages');
+const rootPkgPath = path.join(repoRoot, 'package.json');
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    throw new Error(`invalid JSON in ${file}: ${error.message}`);
+  }
+}
+const rootPkg = readJson(rootPkgPath);
 const readmeFiles = [path.join(repoRoot, 'README.md')];
-for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
-  if (!entry.isDirectory()) continue;
-  const pkgPath = path.join(packagesDir, entry.name, 'package.json');
-  if (!existsSync(pkgPath)) continue;
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-  if (pkg.private) continue;
-  const readme = path.join(packagesDir, entry.name, 'README.md');
+const seenReadmes = new Set();
+
+function considerReadme(dir) {
+  const pkgPath = path.join(dir, 'package.json');
+  if (!existsSync(pkgPath)) return;
+  const pkg = readJson(pkgPath);
+  if (pkg.private) return;
+  const readme = path.join(dir, 'README.md');
   if (!existsSync(readme)) {
     throw new Error(`missing README for publishable package ${pkg.name}: ${readme}`);
   }
+  if (seenReadmes.has(readme)) return;
+  seenReadmes.add(readme);
   readmeFiles.push(readme);
+}
+
+for (const pattern of rootPkg.workspaces ?? []) {
+  if (pattern.endsWith('/*')) {
+    const base = path.join(repoRoot, pattern.slice(0, -2));
+    if (!existsSync(base)) continue;
+    for (const entry of readdirSync(base, { withFileTypes: true })) {
+      if (entry.isDirectory()) considerReadme(path.join(base, entry.name));
+    }
+  } else {
+    considerReadme(path.join(repoRoot, pattern));
+  }
 }
 for (const file of readmeFiles) {
   if (!existsSync(file)) throw new Error(`missing README: ${file}`);
@@ -50,10 +73,7 @@ const tscBin = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const tscCmd = existsSync(tscBin) ? tscBin : 'tsc';
 
 const CHECKED_LANGS = new Set(['tsx', 'ts']);
-// A fence switched to these is almost always an attempt to "green" a broken
-// example rather than a real non-TypeScript snippet.
-const BLOCKED_LANGS = new Set(['js', 'javascript', 'txt']);
-const MIN_SNIPPETS = 70;
+const manifestPath = path.join(repoRoot, 'scripts', 'docs-snippets-manifest.json');
 
 /** Recursively collect *.md and *.mdx content files. */
 function contentFiles(dir) {
@@ -116,6 +136,7 @@ const files = [...contentFiles(contentDir), ...extraFiles];
 let snippets = 0;
 const skipped = new Map();
 const guardFailures = [];
+const actual = {};
 
 for (const file of files) {
   const rel = file.startsWith(contentDir + path.sep)
@@ -124,6 +145,7 @@ for (const file of files) {
   const source = readFileSync(file, 'utf8');
   const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
   let blocks;
+  let fileSnippets = 0;
   try {
     blocks = extractFences(source, rel);
   } catch (error) {
@@ -134,19 +156,16 @@ for (const file of files) {
   blocks.forEach((block, index) => {
     if (!CHECKED_LANGS.has(block.lang)) {
       skipped.set(block.lang, (skipped.get(block.lang) ?? 0) + 1);
-      if (BLOCKED_LANGS.has(block.lang)) {
-        guardFailures.push(
-          `${rel}:${block.line}: ${block.lang} fence — use ts/tsx for executable examples`,
-        );
-      }
       return;
     }
     const body = block.body.join('\n');
     if (!body.trim()) return;
     snippets += 1;
+    fileSnippets += 1;
     const ext = block.lang === 'ts' ? 'ts' : 'tsx';
     writeFileSync(path.join(outDir, `${name}-${index}.${ext}`), `${body}\n`);
   });
+  actual[rel] = fileSnippets;
 }
 
 if (guardFailures.length > 0) {
@@ -155,11 +174,37 @@ if (guardFailures.length > 0) {
   process.exit(1);
 }
 
-if (snippets < MIN_SNIPPETS) {
+if (process.argv.includes('--update')) {
+  writeFileSync(manifestPath, `${JSON.stringify(actual, null, 2)}\n`);
+  console.log(`updated snippet manifest (${snippets} snippets across ${files.length} files)`);
+  process.exit(0);
+}
+
+let expected;
+try {
+  expected = JSON.parse(readFileSync(manifestPath, 'utf8'));
+} catch (error) {
   console.error(
-    `\n✖ only ${snippets} snippet(s) checked; expected at least ${MIN_SNIPPETS}. ` +
-      'A fence switched to a non-TypeScript language is not typechecked.',
+    `\n✖ cannot read snippet manifest ${manifestPath}: ${error.message}\n` +
+      '  Run `npm run docs:snippets -- --update` to regenerate it.',
   );
+  process.exit(1);
+}
+
+const drift = [];
+for (const [rel, count] of Object.entries(expected)) {
+  if (actual[rel] !== count) {
+    drift.push(`${rel}: expected ${count}, found ${actual[rel] ?? 0} checked fence(s)`);
+  }
+}
+for (const [rel, count] of Object.entries(actual)) {
+  if (!(rel in expected) && count > 0) {
+    drift.push(`${rel}: new file with ${count} checked fence(s) — run --update`);
+  }
+}
+if (drift.length > 0) {
+  console.error('\n✖ snippet coverage drift (a fence may have been retagged to skip checks):');
+  for (const line of drift) console.error(`  ✖ ${line}`);
   process.exit(1);
 }
 

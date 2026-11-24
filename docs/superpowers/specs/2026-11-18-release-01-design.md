@@ -266,11 +266,12 @@ because no trusted publisher exists yet — this is expected. Publish manually
 
 ## 7. Risks & decisions
 
-- **Tokens must ship.** `@enterprise-ui/tokens` remains a runtime dependency (the
-  built stylesheet bundles its CSS, and consumers may import `all.css`
-  directly); the declaration build strips the build-time CSS import so
-  `dist/index.d.ts` no longer forces consumers to resolve it. Publishing both is
-  the smallest safe step.
+- **Tokens must ship.** `@enterprise-ui/tokens` remains a runtime dependency
+  because consumers may import `all.css` directly (and the fixed group keeps the
+  pair in lockstep) — bundling its CSS into `dist/style.css` alone would remove
+  the need. The declaration build strips the build-time side-effect CSS import
+  from every emitted `.d.ts` under `dist`, so consumers do not have to resolve
+  it. Publishing both is the smallest safe step.
 - **Published types portability.** The declarations use extensionless relative
   imports, so the components README documents `moduleResolution: "bundler"`
   (or `skipLibCheck: true`); NodeNext emission is a follow-up. The build also
