@@ -1,10 +1,10 @@
 ---
 title: Giới thiệu
-description: Bộ component React cho ứng dụng quản trị doanh nghiệp — token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+description: Bộ component React cho ứng dụng quản trị doanh nghiệp — token rõ ràng, theme sáng/tối, mật độ compact và chỉ một dependency runtime JavaScript là `@enterprise-ui/tokens`.
 template: splash
 hero:
   title: Enterprise UI
-  tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+  tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và chỉ một dependency runtime JavaScript là `@enterprise-ui/tokens`.
   actions:
     - text: Bắt đầu
       link: getting-started/
@@ -40,10 +40,10 @@ import Demo from '../../components/Demo.astro';
     </p>
   </div>
   <div class="feature-card">
-    <h3>Không phụ thuộc runtime</h3>
+    <h3>Chỉ một dependency runtime</h3>
     <p>
-      Package chỉ cần React 18 làm peer dependency. CSS Modules đóng gói trong một file
-      <code>style.css</code> duy nhất.
+      Package chỉ cần React 18 làm peer dependency và <code>@enterprise-ui/tokens</code> làm
+      dependency runtime duy nhất; CSS Modules đóng gói trong một file <code>style.css</code>.
     </p>
   </div>
 </div>
@@ -57,7 +57,7 @@ npm install @enterprise-ui/components
 ```
 
 :::note
-Bản npm đầu tiên là `0.1.0`; nếu `npm install` báo E404, package chưa được publish.
+Bản npm đầu tiên là `0.1.0`; nếu `npm install` báo E404, package chưa được publish — xem runbook release trong repo.
 :::
 
 ```tsx

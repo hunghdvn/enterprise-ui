@@ -50,6 +50,10 @@ const tscBin = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const tscCmd = existsSync(tscBin) ? tscBin : 'tsc';
 
 const CHECKED_LANGS = new Set(['tsx', 'ts']);
+// A fence switched to these is almost always an attempt to "green" a broken
+// example rather than a real non-TypeScript snippet.
+const BLOCKED_LANGS = new Set(['js', 'javascript', 'txt']);
+const MIN_SNIPPETS = 70;
 
 /** Recursively collect *.md and *.mdx content files. */
 function contentFiles(dir) {
@@ -110,6 +114,7 @@ mkdirSync(outDir, { recursive: true });
 
 const files = [...contentFiles(contentDir), ...extraFiles];
 let snippets = 0;
+const skipped = new Map();
 const guardFailures = [];
 
 for (const file of files) {
@@ -127,7 +132,15 @@ for (const file of files) {
   }
 
   blocks.forEach((block, index) => {
-    if (!CHECKED_LANGS.has(block.lang)) return;
+    if (!CHECKED_LANGS.has(block.lang)) {
+      skipped.set(block.lang, (skipped.get(block.lang) ?? 0) + 1);
+      if (BLOCKED_LANGS.has(block.lang)) {
+        guardFailures.push(
+          `${rel}:${block.line}: ${block.lang} fence — use ts/tsx for executable examples`,
+        );
+      }
+      return;
+    }
     const body = block.body.join('\n');
     if (!body.trim()) return;
     snippets += 1;
@@ -139,6 +152,14 @@ for (const file of files) {
 if (guardFailures.length > 0) {
   console.error(`\n✖ ${guardFailures.length} docs fence failure(s):`);
   for (const failure of guardFailures) console.error(`  ✖ ${failure}`);
+  process.exit(1);
+}
+
+if (snippets < MIN_SNIPPETS) {
+  console.error(
+    `\n✖ only ${snippets} snippet(s) checked; expected at least ${MIN_SNIPPETS}. ` +
+      'A fence switched to a non-TypeScript language is not typechecked.',
+  );
   process.exit(1);
 }
 
@@ -176,6 +197,13 @@ try {
   process.exit(1);
 }
 
+const skippedSummary = [...skipped.entries()]
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([lang, count]) => `${lang || '(none)'} ${count}`)
+  .join(', ');
+
 console.log(
-  `docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked; ${extraFiles.length} READMEs scanned)`,
+  `docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked; ${extraFiles.length} READMEs scanned` +
+    (skippedSummary ? `; skipped non-TS fences: ${skippedSummary}` : '') +
+    ')',
 );
