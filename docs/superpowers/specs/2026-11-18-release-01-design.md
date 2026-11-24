@@ -39,10 +39,11 @@ npm scope rename, no per-component deep-import entry points.
 ## 3. Constraints
 
 - npm workspaces; root is private, packages are publishable.
-- Components bundles `@enterprise-ui/tokens/all.css` into `dist/style.css`, but
-  the emitted `dist/index.d.ts` keeps `import '@enterprise-ui/tokens/all.css'`.
-  Tokens must therefore be published as a real package; bundling it away is out
-  of scope.
+- Components bundles `@enterprise-ui/tokens/all.css` into `dist/style.css`, and
+  the declaration build strips that build-time CSS import from `dist/index.d.ts`
+  (see §7). Tokens is still a runtime dependency because `dist/style.css`
+  bundles its CSS and consumers may import `all.css` directly; bundling the
+  token package away is out of scope.
 - React 18 peer dependency stays `^18.3.0`.
 - Local/CI Node 20 must keep working; changesets CLI v3 requires Node 22+, so
   use `@changesets/cli` v2 + `changesets/action` v1.7.0 (v1 line, trusted

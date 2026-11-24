@@ -23,12 +23,26 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
 // README fences are consumer-facing too (npm pages, quick start); check them with
-// the same tsconfig so a renamed component cannot leave the README stale.
-const extraFiles = [
-  path.join(repoRoot, 'README.md'),
-  path.join(repoRoot, 'packages', 'components', 'README.md'),
-  path.join(repoRoot, 'packages', 'tokens', 'README.md'),
-].filter((file) => existsSync(file));
+// the same tsconfig so a renamed component cannot leave the README stale. Every
+// publishable package must have one — a missing file is an error, not a silent skip.
+const packagesDir = path.join(repoRoot, 'packages');
+const readmeFiles = [path.join(repoRoot, 'README.md')];
+for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
+  if (!entry.isDirectory()) continue;
+  const pkgPath = path.join(packagesDir, entry.name, 'package.json');
+  if (!existsSync(pkgPath)) continue;
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  if (pkg.private) continue;
+  const readme = path.join(packagesDir, entry.name, 'README.md');
+  if (!existsSync(readme)) {
+    throw new Error(`missing README for publishable package ${pkg.name}: ${readme}`);
+  }
+  readmeFiles.push(readme);
+}
+for (const file of readmeFiles) {
+  if (!existsSync(file)) throw new Error(`missing README: ${file}`);
+}
+const extraFiles = readmeFiles;
 const outDir = path.join(repoRoot, 'node_modules', '.docs-snippets');
 // `tsc` is not on PATH in CI/npm-scripts contexts — use the hoisted workspace
 // install directly, falling back to PATH for exotic setups.
@@ -162,4 +176,6 @@ try {
   process.exit(1);
 }
 
-console.log(`docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked)`);
+console.log(
+  `docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked; ${extraFiles.length} READMEs scanned)`,
+);

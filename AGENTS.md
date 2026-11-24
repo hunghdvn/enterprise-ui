@@ -1,15 +1,16 @@
 # AGENTS.md — enterprise-ui
 
 Monorepo npm workspaces: `packages/tokens` (pure CSS variables, tested with plain
-node) → `packages/components` (React 18 + TS strict component library, zero runtime
-deps) → `apps/showcase` (Vite demo). Specs live in `docs/superpowers/specs/`,
+node) → `packages/components` (React 18 + TS strict component library, with
+`@enterprise-ui/tokens` as its only runtime dependency) → `apps/showcase` (Vite
+demo). Specs live in `docs/superpowers/specs/`,
 implementation plans in `docs/superpowers/plans/`. `.superpowers/` is gitignored
 scratch (mockups, agent ledgers) — never commit it.
 
 ## Commands
 
 ```bash
-npm test                                   # full suite: tokens node test + all workspaces
+npm test                                   # full suite: licenses + tokens node test + all workspaces
 npm run test --workspace=@enterprise-ui/components -- --run src/Table
                                            # focused vitest run (path = component folder)
 npm --workspaces run typecheck --if-present
