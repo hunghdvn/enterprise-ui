@@ -79,9 +79,13 @@ for (const file of files) {
   let leaked = false;
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     const startsInBlock = commentState(line, state);
-    const bare = line.replace(/\r$/, '').trim();
-    if (startsInBlock || bare.startsWith('/*') || bare.startsWith('//')) continue;
-    if (cssSpecifier.test(bare)) {
+    const bare = line.replace(/\r$/, '');
+    if (startsInBlock) continue;
+    if (/^\s*\/\//.test(bare)) continue;
+    // Strip inline block comments rather than skipping the whole line: a line
+    // like `/* docs */ import './x.css';` still contains a real specifier.
+    const code = bare.replace(/\/\*[\s\S]*?\*\//g, '');
+    if (cssSpecifier.test(code)) {
       leaked = true;
       break;
     }

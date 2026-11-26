@@ -99,7 +99,7 @@ function contentFiles(dir) {
  * as a reader would copy it.
  */
 function extractFences(source, file) {
-  const lines = source.split('\n');
+  const lines = source.replace(/\r\n/g, '\n').split('\n');
   const blocks = [];
   let open = null;
 
@@ -148,7 +148,7 @@ for (const file of files) {
     .split(path.sep)
     .join('/');
   const source = readFileSync(file, 'utf8');
-  const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
+  const name = rel.replace(/[/. :]/g, '-').replace(/\.mdx?$/, '');
   let blocks;
   try {
     blocks = extractFences(source, rel);
@@ -227,29 +227,48 @@ if (existsSync(manifestPath)) {
   }
 }
 
+if (expected === null && process.argv.includes('--update')) {
+  // A deleted working copy must not bypass the append guard — fall back to the
+  // committed manifest as the baseline.
+  try {
+    const committed = execFileSync(
+      'git',
+      ['show', `HEAD:${path.relative(repoRoot, manifestPath)}`],
+      { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    expected = JSON.parse(committed);
+  } catch {
+    // No committed manifest either — first creation, allowed with a warning.
+  }
+}
+
 if (process.argv.includes('--update')) {
-  if (expected) {
+  if (expected && !process.argv.includes('--force')) {
+    const counts = (list) => {
+      const map = new Map();
+      for (const value of list) map.set(value, (map.get(value) ?? 0) + 1);
+      return map;
+    };
     const changed = Object.entries(expected)
       .map(([rel, beforeList]) => {
-        const before = Array.isArray(beforeList) ? beforeList : [];
-        const after = fences[rel] ?? [];
-        if (after.length < before.length || before.some((value, index) => after[index] !== value)) {
-          return `${rel}: existing checked fences changed or removed`;
-        }
-        return null;
+        const before = counts(Array.isArray(beforeList) ? beforeList : []);
+        const after = counts(fences[rel] ?? []);
+        const missing = [...before].some(([value, count]) => (after.get(value) ?? 0) < count);
+        return missing ? `${rel}: an existing checked fence changed or was removed` : null;
       })
       .filter(Boolean);
     if (changed.length > 0) {
       console.error(
         '\n✖ --update may only append checked fences; existing ones changed:\n' +
-          changed.map((line) => `  ✖ ${line}`).join('\n'),
+          changed.map((line) => `  ✖ ${line}`).join('\n') +
+          '\n  Use --force for a deliberate manifest rewrite (review the diff).',
       );
       process.exit(1);
     }
   }
   writeFileSync(manifestPath, `${JSON.stringify(fences, null, 2)}\n`);
   console.log(
-    `manifest regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
+    `manifest ${process.argv.includes('--force') ? 'force-' : ''}regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
   );
   process.exit(0);
 }
