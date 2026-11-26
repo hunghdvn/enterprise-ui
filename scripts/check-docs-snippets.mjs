@@ -16,6 +16,7 @@
  * fence was unclosed, or the harness itself failed.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -137,20 +138,18 @@ let snippets = 0;
 const skipped = new Map();
 const guardFailures = [];
 const fences = {};
-const checked = {};
 
 for (const file of files) {
   const rel = (
     file.startsWith(contentDir + path.sep)
       ? path.relative(contentDir, file)
-      : path.relative(repoRoot, file)
+      : `readme:${path.relative(repoRoot, file)}`
   )
     .split(path.sep)
     .join('/');
   const source = readFileSync(file, 'utf8');
   const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
   let blocks;
-  let fileSnippets = 0;
   try {
     blocks = extractFences(source, rel);
   } catch (error) {
@@ -166,12 +165,16 @@ for (const file of files) {
     const body = block.body.join('\n');
     if (!body.trim()) return;
     snippets += 1;
-    fileSnippets += 1;
     const ext = block.lang === 'ts' ? 'ts' : 'tsx';
     writeFileSync(path.join(outDir, `${name}-${index}.${ext}`), `${body}\n`);
   });
-  fences[rel] = blocks.map((block) => block.lang);
-  checked[rel] = fileSnippets;
+  fences[rel] = blocks
+    .filter((block) => CHECKED_LANGS.has(block.lang) && block.body.join('\n').trim())
+    .map((block) => {
+      const body = block.body.join('\n');
+      const hash = createHash('sha256').update(body).digest('hex').slice(0, 16);
+      return `${block.lang}:${hash}`;
+    });
 }
 
 if (guardFailures.length > 0) {
@@ -226,21 +229,20 @@ if (existsSync(manifestPath)) {
 
 if (process.argv.includes('--update')) {
   if (expected) {
-    const reduced = Object.entries(expected)
-      .map(([rel, langs]) => {
-        const before = Array.isArray(langs)
-          ? langs.filter((lang) => CHECKED_LANGS.has(lang)).length
-          : typeof langs === 'number'
-            ? langs
-            : 0;
-        const after = checked[rel] ?? 0;
-        return after < before ? `${rel}: ${before} → ${after}` : null;
+    const changed = Object.entries(expected)
+      .map(([rel, beforeList]) => {
+        const before = Array.isArray(beforeList) ? beforeList : [];
+        const after = fences[rel] ?? [];
+        if (after.length < before.length || before.some((value, index) => after[index] !== value)) {
+          return `${rel}: existing checked fences changed or removed`;
+        }
+        return null;
       })
       .filter(Boolean);
-    if (reduced.length > 0) {
+    if (changed.length > 0) {
       console.error(
-        '\n✖ --update may not reduce checked snippets (a fence was likely retagged):\n' +
-          reduced.map((line) => `  ✖ ${line}`).join('\n'),
+        '\n✖ --update may only append checked fences; existing ones changed:\n' +
+          changed.map((line) => `  ✖ ${line}`).join('\n'),
       );
       process.exit(1);
     }
@@ -266,7 +268,7 @@ for (const rel of Object.keys(fences)) {
     drift.push(`${rel}: new scanned file — run --update`);
   } else if (JSON.stringify(fences[rel]) !== JSON.stringify(expected[rel])) {
     drift.push(
-      `${rel}: fence languages changed — expected ${JSON.stringify(expected[rel])}, found ${JSON.stringify(fences[rel])}`,
+      `${rel}: checked fences changed — expected ${JSON.stringify(expected[rel])}, found ${JSON.stringify(fences[rel])}`,
     );
   }
 }

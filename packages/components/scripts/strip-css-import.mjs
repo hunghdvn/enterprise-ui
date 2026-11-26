@@ -8,8 +8,10 @@
  * TS < 5.6 (or with `noUncheckedSideEffectImports`). This script removes those
  * lines and fails if any other CSS module specifier remains in the types.
  *
- * Line-based with block-comment tracking: a JSDoc example that happens to look
- * like an import is documentation, not a build-time import, and is preserved.
+ * Line-based with block-comment tracking: every line is retained unless it is
+ * exactly a tokens CSS side-effect import outside a comment. JSDoc examples are
+ * documentation and are never edited. CRLF input is handled without losing the
+ * original line ending.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,30 +43,31 @@ const tokensImport =
   /^[ \t]*import\s+(['"])@enterprise-ui\/tokens\/[^'"]+\.css(?:\?[^'"]*)?\1;[ \t]*$/;
 const cssSpecifier = /['"][^'"]+\.css([?#][^'"]*)?['"]/;
 
-/** Walk lines, tracking block-comment state so JSDoc examples are left alone. */
-function scan(lines, onLine) {
-  let inBlock = false;
-  for (const line of lines) {
-    const startsInBlock = inBlock;
-    const opens = (line.match(/\/\*/g) ?? []).length;
-    const closes = (line.match(/\*\//g) ?? []).length;
-    if (startsInBlock) inBlock = closes <= opens;
-    else inBlock = opens > closes;
-    if (!startsInBlock) onLine(line);
-  }
+/** Block-comment state for one line; returns whether the line starts in a block. */
+function commentState(line, state) {
+  const startsInBlock = state.inBlock;
+  const bare = line.replace(/\r$/, '');
+  const opens = (bare.match(/\/\*/g) ?? []).length;
+  const closes = (bare.match(/\*\//g) ?? []).length;
+  state.inBlock = startsInBlock ? closes <= opens : opens > closes;
+  return startsInBlock;
 }
 
 let changedFiles = 0;
 let removed = 0;
 
 for (const file of files) {
-  const lines = readFileSync(file, 'utf8').split('\n');
+  const state = { inBlock: false };
   const kept = [];
   let removedHere = 0;
-  scan(lines, (line) => {
-    if (tokensImport.test(line)) removedHere += 1;
-    else kept.push(line);
-  });
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const startsInBlock = commentState(line, state);
+    if (!startsInBlock && tokensImport.test(line.replace(/\r$/, ''))) {
+      removedHere += 1;
+    } else {
+      kept.push(line);
+    }
+  }
   if (removedHere === 0) continue;
   writeFileSync(file, kept.join('\n'));
   changedFiles += 1;
@@ -72,12 +75,17 @@ for (const file of files) {
 }
 
 for (const file of files) {
-  const lines = readFileSync(file, 'utf8').split('\n');
+  const state = { inBlock: false };
   let leaked = false;
-  scan(lines, (line) => {
-    if (/^\s*\/\//.test(line)) return;
-    if (cssSpecifier.test(line)) leaked = true;
-  });
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const startsInBlock = commentState(line, state);
+    const bare = line.replace(/\r$/, '').trim();
+    if (startsInBlock || bare.startsWith('/*') || bare.startsWith('//')) continue;
+    if (cssSpecifier.test(bare)) {
+      leaked = true;
+      break;
+    }
+  }
   if (leaked) {
     throw new Error(
       `strip-css-import: CSS module specifier remains in ${file} ` +
