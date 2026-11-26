@@ -1,19 +1,15 @@
 #!/usr/bin/env node
 /**
- * Remove the build-time tokens CSS side-effect import from emitted declarations.
+ * Remove build-time tokens CSS side-effect imports from emitted declarations.
  *
  * `src/index.ts` side-effect imports `@enterprise-ui/tokens/all.css` so Vite
  * bundles the token layer into `dist/style.css`, but the published JS does not
- * import CSS. `tsc` preserves the import in the `.d.ts` files, which makes
- * consumers on TS < 5.6 (or with `noUncheckedSideEffectImports`) fail with
- * TS2307. The d.ts describes the JS module, so that build-time import must not
- * be part of its public surface.
+ * import CSS. `tsc` preserves the import in `.d.ts`, which breaks consumers on
+ * TS < 5.6 (or with `noUncheckedSideEffectImports`). This script removes those
+ * lines and fails if any other CSS module specifier remains in the types.
  *
- * Only a whole line that is exactly a side-effect import of a tokens CSS file
- * is removed. Patterns are anchored at line boundaries and never touch
- * comments, string literals, type imports, re-exports, or other statements on
- * the same line. Fails if dist has no declarations or any pure side-effect CSS
- * import survives.
+ * Line-based with block-comment tracking: a JSDoc example that happens to look
+ * like an import is documentation, not a build-time import, and is preserved.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,29 +37,52 @@ if (files.length === 0) {
   throw new Error('strip-css-import: no .d.ts files under dist');
 }
 
-// An entire line consisting solely of `import '@enterprise-ui/tokens/....css';`
-// (a ?query suffix is allowed). Anchored with `^` and line-end so nothing else
-// on the line — comments, exports, strings — can be swallowed.
-const tokensCssImport =
-  /^[ \t]*import\s+(['"])@enterprise-ui\/tokens\/[^'"]+\.css(?:\?[^'"]*)?\1;[ \t]*\r?\n?/gm;
-// Any other pure side-effect CSS import would reintroduce TS2307; fail loudly.
-const danglingCssImport = /^[ \t]*import\s+(['"])[^'"]+\.css(?:\?[^'"]*)?\1/m;
+const tokensImport =
+  /^[ \t]*import\s+(['"])@enterprise-ui\/tokens\/[^'"]+\.css(?:\?[^'"]*)?\1;[ \t]*$/;
+const cssSpecifier = /['"][^'"]+\.css([?#][^'"]*)?['"]/;
+
+/** Walk lines, tracking block-comment state so JSDoc examples are left alone. */
+function scan(lines, onLine) {
+  let inBlock = false;
+  for (const line of lines) {
+    const startsInBlock = inBlock;
+    const opens = (line.match(/\/\*/g) ?? []).length;
+    const closes = (line.match(/\*\//g) ?? []).length;
+    if (startsInBlock) inBlock = closes <= opens;
+    else inBlock = opens > closes;
+    if (!startsInBlock) onLine(line);
+  }
+}
 
 let changedFiles = 0;
 let removed = 0;
 
 for (const file of files) {
-  const source = readFileSync(file, 'utf8');
-  const matches = source.match(tokensCssImport);
-  if (!matches) continue;
-  writeFileSync(file, source.replace(tokensCssImport, ''));
+  const lines = readFileSync(file, 'utf8').split('\n');
+  const kept = [];
+  let removedHere = 0;
+  scan(lines, (line) => {
+    if (tokensImport.test(line)) removedHere += 1;
+    else kept.push(line);
+  });
+  if (removedHere === 0) continue;
+  writeFileSync(file, kept.join('\n'));
   changedFiles += 1;
-  removed += matches.length;
+  removed += removedHere;
 }
 
 for (const file of files) {
-  if (danglingCssImport.test(readFileSync(file, 'utf8'))) {
-    throw new Error(`strip-css-import: side-effect CSS import still present in ${file}`);
+  const lines = readFileSync(file, 'utf8').split('\n');
+  let leaked = false;
+  scan(lines, (line) => {
+    if (/^\s*\/\//.test(line)) return;
+    if (cssSpecifier.test(line)) leaked = true;
+  });
+  if (leaked) {
+    throw new Error(
+      `strip-css-import: CSS module specifier remains in ${file} ` +
+        '(consumer types need a *.css declaration; ship one or remove the specifier)',
+    );
   }
 }
 

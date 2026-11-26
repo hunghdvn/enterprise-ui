@@ -19,6 +19,7 @@ hero:
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 import { HomePreview } from '../../components/demos/HomePreview.tsx';
 import Demo from '../../components/Demo.astro';
+import ReleaseInstallNote from '../../components/ReleaseInstallNote.astro';
 
 <Demo title="Bảng điều khiển mẫu" hint="Component thật, chạy trực tiếp trong trang docs">
   <HomePreview client:visible />
@@ -57,9 +58,7 @@ Cài package, import stylesheet một lần và bọc ứng dụng bằng `Theme
 npm install @enterprise-ui/components
 ```
 
-:::note
-Bản npm đầu tiên là `0.1.0`; nếu `npm install` báo E404, package chưa được publish — xem [runbook release](https://github.com/hunghdvn/enterprise-ui/blob/main/docs/superpowers/specs/2026-11-18-release-01-design.md#51-one-time-bootstrap).
-:::
+<ReleaseInstallNote />
 
 ```tsx
 import { Button, ThemeProvider } from '@enterprise-ui/components';

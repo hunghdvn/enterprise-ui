@@ -136,12 +136,17 @@ const files = [...contentFiles(contentDir), ...extraFiles];
 let snippets = 0;
 const skipped = new Map();
 const guardFailures = [];
-const actual = {};
+const fences = {};
+const checked = {};
 
 for (const file of files) {
-  const rel = file.startsWith(contentDir + path.sep)
-    ? path.relative(contentDir, file)
-    : path.relative(repoRoot, file);
+  const rel = (
+    file.startsWith(contentDir + path.sep)
+      ? path.relative(contentDir, file)
+      : path.relative(repoRoot, file)
+  )
+    .split(path.sep)
+    .join('/');
   const source = readFileSync(file, 'utf8');
   const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
   let blocks;
@@ -165,46 +170,13 @@ for (const file of files) {
     const ext = block.lang === 'ts' ? 'ts' : 'tsx';
     writeFileSync(path.join(outDir, `${name}-${index}.${ext}`), `${body}\n`);
   });
-  actual[rel] = fileSnippets;
+  fences[rel] = blocks.map((block) => block.lang);
+  checked[rel] = fileSnippets;
 }
 
 if (guardFailures.length > 0) {
   console.error(`\n✖ ${guardFailures.length} docs fence failure(s):`);
   for (const failure of guardFailures) console.error(`  ✖ ${failure}`);
-  process.exit(1);
-}
-
-if (process.argv.includes('--update')) {
-  writeFileSync(manifestPath, `${JSON.stringify(actual, null, 2)}\n`);
-  console.log(`updated snippet manifest (${snippets} snippets across ${files.length} files)`);
-  process.exit(0);
-}
-
-let expected;
-try {
-  expected = JSON.parse(readFileSync(manifestPath, 'utf8'));
-} catch (error) {
-  console.error(
-    `\n✖ cannot read snippet manifest ${manifestPath}: ${error.message}\n` +
-      '  Run `npm run docs:snippets -- --update` to regenerate it.',
-  );
-  process.exit(1);
-}
-
-const drift = [];
-for (const [rel, count] of Object.entries(expected)) {
-  if (actual[rel] !== count) {
-    drift.push(`${rel}: expected ${count}, found ${actual[rel] ?? 0} checked fence(s)`);
-  }
-}
-for (const [rel, count] of Object.entries(actual)) {
-  if (!(rel in expected) && count > 0) {
-    drift.push(`${rel}: new file with ${count} checked fence(s) — run --update`);
-  }
-}
-if (drift.length > 0) {
-  console.error('\n✖ snippet coverage drift (a fence may have been retagged to skip checks):');
-  for (const line of drift) console.error(`  ✖ ${line}`);
   process.exit(1);
 }
 
@@ -239,6 +211,71 @@ try {
   // Compiler failed without per-file diagnostics (config-level error).
   console.error('\n✖ snippet typecheck failed (no per-file diagnostics):\n');
   console.error(tsc);
+  process.exit(1);
+}
+
+let expected = null;
+if (existsSync(manifestPath)) {
+  try {
+    expected = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  } catch (error) {
+    console.error(`\n✖ cannot read snippet manifest ${manifestPath}: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+if (process.argv.includes('--update')) {
+  if (expected) {
+    const reduced = Object.entries(expected)
+      .map(([rel, langs]) => {
+        const before = Array.isArray(langs)
+          ? langs.filter((lang) => CHECKED_LANGS.has(lang)).length
+          : typeof langs === 'number'
+            ? langs
+            : 0;
+        const after = checked[rel] ?? 0;
+        return after < before ? `${rel}: ${before} → ${after}` : null;
+      })
+      .filter(Boolean);
+    if (reduced.length > 0) {
+      console.error(
+        '\n✖ --update may not reduce checked snippets (a fence was likely retagged):\n' +
+          reduced.map((line) => `  ✖ ${line}`).join('\n'),
+      );
+      process.exit(1);
+    }
+  }
+  writeFileSync(manifestPath, `${JSON.stringify(fences, null, 2)}\n`);
+  console.log(
+    `manifest regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
+  );
+  process.exit(0);
+}
+
+if (!expected) {
+  console.error(
+    `\n✖ missing snippet manifest ${manifestPath}. Generate it with ` +
+      '`npm run docs:snippets -- --update` (after a successful typecheck).',
+  );
+  process.exit(1);
+}
+
+const drift = [];
+for (const rel of Object.keys(fences)) {
+  if (!(rel in expected)) {
+    drift.push(`${rel}: new scanned file — run --update`);
+  } else if (JSON.stringify(fences[rel]) !== JSON.stringify(expected[rel])) {
+    drift.push(
+      `${rel}: fence languages changed — expected ${JSON.stringify(expected[rel])}, found ${JSON.stringify(fences[rel])}`,
+    );
+  }
+}
+for (const rel of Object.keys(expected)) {
+  if (!(rel in fences)) drift.push(`${rel}: scanned file disappeared`);
+}
+if (drift.length > 0) {
+  console.error('\n✖ snippet coverage drift (a fence may have been retagged or swapped):');
+  for (const line of drift) console.error(`  ✖ ${line}`);
   process.exit(1);
 }
 
