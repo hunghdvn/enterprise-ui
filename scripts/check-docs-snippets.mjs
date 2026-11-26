@@ -148,7 +148,7 @@ for (const file of files) {
     .split(path.sep)
     .join('/');
   const source = readFileSync(file, 'utf8');
-  const name = rel.replace(/[/. :]/g, '-').replace(/\.mdx?$/, '');
+  const name = createHash('sha256').update(rel).digest('hex').slice(0, 12);
   let blocks;
   try {
     blocks = extractFences(source, rel);
@@ -227,18 +227,26 @@ if (existsSync(manifestPath)) {
   }
 }
 
-if (expected === null && process.argv.includes('--update')) {
-  // A deleted working copy must not bypass the append guard — fall back to the
-  // committed manifest as the baseline.
+if (process.argv.includes('--update')) {
+  let fromHead = null;
   try {
-    const committed = execFileSync(
-      'git',
-      ['show', `HEAD:${path.relative(repoRoot, manifestPath)}`],
-      { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-    );
-    expected = JSON.parse(committed);
+    const relPath = path.relative(repoRoot, manifestPath).split(path.sep).join('/');
+    const committed = execFileSync('git', ['show', `HEAD:${relPath}`], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    fromHead = JSON.parse(committed);
   } catch {
-    // No committed manifest either — first creation, allowed with a warning.
+    // No committed manifest — first creation on this branch.
+  }
+  if (fromHead && Object.keys(fromHead).length > 0) {
+    if (!expected || JSON.stringify(expected) !== JSON.stringify(fromHead)) {
+      console.warn('using the committed manifest as the --update baseline');
+    }
+    expected = fromHead;
+  } else if (!expected || Object.keys(expected).length === 0) {
+    console.warn('no manifest on disk or in HEAD; regenerating baseline — review the diff');
   }
 }
 

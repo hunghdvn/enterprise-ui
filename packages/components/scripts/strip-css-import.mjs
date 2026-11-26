@@ -74,23 +74,70 @@ for (const file of files) {
   removed += removedHere;
 }
 
-for (const file of files) {
-  const state = { inBlock: false };
-  let leaked = false;
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
-    const startsInBlock = commentState(line, state);
-    const bare = line.replace(/\r$/, '');
-    if (startsInBlock) continue;
-    if (/^\s*\/\//.test(bare)) continue;
-    // Strip inline block comments rather than skipping the whole line: a line
-    // like `/* docs */ import './x.css';` still contains a real specifier.
-    const code = bare.replace(/\/\*[\s\S]*?\*\//g, '');
-    if (cssSpecifier.test(code)) {
-      leaked = true;
-      break;
+/** Blank out comments and string literals; code (including marker tokens) stays. */
+function maskCommentsAndStrings(text) {
+  let out = '';
+  let i = 0;
+  let inBlock = false;
+  let inLine = false;
+  let quote = null;
+  while (i < text.length) {
+    const c = text[i];
+    const n = text[i + 1];
+    if (inLine) {
+      if (c === '\n') {
+        inLine = false;
+        out += '\n';
+      }
+      i += 1;
+      continue;
     }
+    if (inBlock) {
+      if (c === '*' && n === '/') {
+        inBlock = false;
+        i += 2;
+      } else {
+        if (c === '\n') out += '\n';
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (c === '\\') {
+        i += 2;
+        continue;
+      }
+      if (c === quote) quote = null;
+      i += 1;
+      continue;
+    }
+    if (c === '/' && n === '*') {
+      inBlock = true;
+      i += 2;
+      continue;
+    }
+    if (c === '/' && n === '/') {
+      inLine = true;
+      i += 2;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      quote = c;
+      i += 1;
+      continue;
+    }
+    out += c;
+    i += 1;
   }
-  if (leaked) {
+  return out;
+}
+
+for (const file of files) {
+  // Mark every CSS specifier, then blank out comments and strings. A marker
+  // that survives is a real module specifier in the declaration code; one in a
+  // JSDoc example or string literal disappears with its container.
+  const marked = readFileSync(file, 'utf8').replace(cssSpecifier, '__CSS_SPEC__');
+  if (maskCommentsAndStrings(marked).includes('__CSS_SPEC__')) {
     throw new Error(
       `strip-css-import: CSS module specifier remains in ${file} ` +
         '(consumer types need a *.css declaration; ship one or remove the specifier)',
