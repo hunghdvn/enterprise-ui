@@ -10,7 +10,8 @@
  *
  * Uses the TypeScript parser instead of regex/lexer heuristics: comments and
  * string literals never look like imports, and every import form (static,
- * re-export, dynamic `import()`, `typeof import()`) is visible.
+ * re-export, `import = require()`, dynamic `import()`, `typeof import()`) is
+ * visible.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -39,8 +40,8 @@ if (files.length === 0) {
   throw new Error('strip-css-import: no .d.ts files under dist');
 }
 
-const isCss = (text) => /\.css([?#][^'"]*)?$/.test(text);
-const isTokensCss = (text) => /^@enterprise-ui\/tokens\/[^'"]+\.css([?#][^'"]*)?$/.test(text);
+const isCss = (text) => /\.css(?:[?#][^'"]*)?$/i.test(text);
+const isTokensCss = (text) => /^@enterprise-ui\/tokens\/[^'"]+\.css(?:[?#][^'"]*)?$/i.test(text);
 
 /** Collect every module specifier in the declaration AST. */
 function specifiers(source, fileName) {
@@ -64,6 +65,10 @@ function specifiers(source, fileName) {
       ) {
         found[found.length - 1].sideEffectTokens = true;
       }
+    } else if (ts.isImportEqualsDeclaration(node)) {
+      if (ts.isExternalModuleReference(node.moduleReference)) {
+        add(node, node.moduleReference.expression, 'importEquals');
+      }
     } else if (ts.isExportDeclaration(node)) {
       add(node, node.moduleSpecifier, 'export');
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
@@ -78,6 +83,49 @@ function specifiers(source, fileName) {
   return { sf, found };
 }
 
+/**
+ * Remove the exact source range of each target node — never whole lines, which
+ * would also drop declarations emitted on the same line — then reparse and
+ * require every other top-level statement to survive unchanged.
+ */
+function stripTargets(source, fileName, sf, targets) {
+  const seen = new Set();
+  const ranges = [];
+  for (const { node } of targets) {
+    const key = `${node.getStart(sf)}:${node.getEnd()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    ranges.push([node.getStart(sf), node.getEnd()]);
+  }
+
+  let next = source;
+  for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) {
+    next = next.slice(0, start) + next.slice(end);
+  }
+
+  const removed = new Set(targets.map(({ node }) => node));
+  const before = sf.statements
+    .filter((statement) => !removed.has(statement))
+    .map((statement) => statement.getText(sf));
+  const afterSf = ts.createSourceFile(
+    fileName,
+    next,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const after = afterSf.statements.map((statement) => statement.getText(afterSf));
+  const intact =
+    before.length === after.length && before.every((text, index) => text === after[index]);
+  if (!intact) {
+    throw new Error(
+      `strip-css-import: refusing to rewrite ${fileName} — stripping the tokens ` +
+        'import would change other declarations',
+    );
+  }
+  return next;
+}
+
 let changedFiles = 0;
 let removed = 0;
 
@@ -87,17 +135,7 @@ for (const file of files) {
   const targets = found.filter((entry) => entry.sideEffectTokens);
   if (targets.length === 0) continue;
 
-  const ranges = targets.map(({ node }) => {
-    const start = source.lastIndexOf('\n', node.getStart(sf) - 1) + 1;
-    const end = source.indexOf('\n', node.getEnd(sf));
-    return [start, end === -1 ? source.length : end + 1];
-  });
-  const kept = source;
-  let next = kept;
-  for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) {
-    next = next.slice(0, start) + next.slice(end);
-  }
-  writeFileSync(file, next);
+  writeFileSync(file, stripTargets(source, file, sf, targets));
   changedFiles += 1;
   removed += targets.length;
 }

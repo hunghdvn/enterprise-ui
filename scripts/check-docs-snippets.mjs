@@ -18,10 +18,17 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Token-normalized hashes: comments and whitespace do not churn the manifest,
+// code changes still do. Resolve TypeScript from the components workspace so
+// both hoisted and nested installs work.
+const ts = createRequire(path.join(repoRoot, 'packages', 'components', 'package.json'))(
+  'typescript',
+);
 const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
 // README fences are consumer-facing too (npm pages, quick start); check them with
 // the same tsconfig so a renamed component cannot leave the README stale. Every
@@ -139,6 +146,25 @@ const skipped = new Map();
 const guardFailures = [];
 const fences = {};
 
+const snippetScanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX);
+
+/**
+ * Hash the snippet's tokens, not its raw text: editing a comment or reindenting
+ * an example must not require a manifest commit, while changing code must.
+ */
+function snippetHash(body) {
+  snippetScanner.setText(body);
+  const parts = [];
+  for (
+    let token = snippetScanner.scan();
+    token !== ts.SyntaxKind.EndOfFileToken;
+    token = snippetScanner.scan()
+  ) {
+    parts.push(`${token}:${snippetScanner.getTokenText()}`);
+  }
+  return createHash('sha256').update(parts.join('\n')).digest('hex').slice(0, 16);
+}
+
 for (const file of files) {
   const rel = (
     file.startsWith(contentDir + path.sep)
@@ -173,8 +199,7 @@ for (const file of files) {
     .filter((block) => CHECKED_LANGS.has(block.lang) && block.body.join('\n').trim())
     .map((block) => {
       const body = block.body.join('\n');
-      const hash = createHash('sha256').update(body).digest('hex').slice(0, 16);
-      return `${block.lang}:${hash}`;
+      return `${block.lang}:${snippetHash(body)}`;
     });
 }
 
@@ -218,49 +243,90 @@ try {
   process.exit(1);
 }
 
-let expected = null;
-if (existsSync(manifestPath)) {
+const update = process.argv.includes('--update');
+const force = process.argv.includes('--force');
+
+function loadManifest(file, label) {
+  if (!existsSync(file)) return { present: false, value: null };
   try {
-    expected = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    return { present: true, value: JSON.parse(readFileSync(file, 'utf8')) };
   } catch (error) {
-    console.error(`\n✖ cannot read snippet manifest ${manifestPath}: ${error.message}`);
+    if (force) {
+      console.warn(`ignoring invalid ${label} snippet manifest (--force): ${error.message}`);
+      return { present: false, value: null };
+    }
+    console.error(
+      `\n✖ cannot read ${label} snippet manifest ${file}: ${error.message}\n` +
+        '  Use --force to regenerate it (review the diff).',
+    );
     process.exit(1);
   }
 }
 
-if (process.argv.includes('--update')) {
-  let fromHead = null;
+const onDisk = loadManifest(manifestPath, 'working-copy');
+let expected = onDisk.value;
+
+if (update) {
   let committedText = null;
   try {
     const relPath = path.relative(repoRoot, manifestPath).split(path.sep).join('/');
     committedText = execFileSync('git', ['show', `HEAD:${relPath}`], {
       cwd: repoRoot,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-  } catch {
-    // No committed manifest — first creation on this branch.
-  }
-  if (committedText !== null) {
-    try {
-      fromHead = JSON.parse(committedText);
-    } catch (error) {
-      console.error(`invalid committed snippet manifest: ${error.message}`);
+  } catch (error) {
+    const stderr = String(error.stderr ?? error.message ?? '');
+    // Absent, not broken: no repo, no HEAD commit, git unavailable, or the
+    // manifest is not tracked in HEAD yet. Any other failure is a real error.
+    if (
+      /does not exist in|exists on disk, but not in|not a git repository|ambiguous argument 'HEAD'|ENOENT/.test(
+        stderr,
+      )
+    ) {
+      console.warn(
+        'no committed snippet manifest; using the working copy as the --update baseline',
+      );
+    } else {
+      console.error(
+        `\n✖ cannot read the committed snippet manifest: ${stderr.trim() || error.message}`,
+      );
       process.exit(1);
     }
   }
-  if (fromHead && Object.keys(fromHead).length > 0) {
-    if (!expected || JSON.stringify(expected) !== JSON.stringify(fromHead)) {
-      console.warn('using the committed manifest as the --update baseline');
+
+  if (committedText !== null) {
+    let fromHead;
+    try {
+      fromHead = JSON.parse(committedText);
+    } catch (error) {
+      if (force) {
+        console.warn(`ignoring invalid committed snippet manifest (--force): ${error.message}`);
+      } else {
+        console.error(
+          `\n✖ invalid committed snippet manifest: ${error.message}\n` +
+            '  Use --force to regenerate it (review the diff).',
+        );
+        process.exit(1);
+      }
     }
-    expected = fromHead;
-  } else if (!expected || Object.keys(expected).length === 0) {
-    console.warn('no manifest on disk or in HEAD; regenerating baseline — review the diff');
+    if (fromHead !== undefined) {
+      if (Object.keys(fromHead).length === 0) {
+        console.warn(
+          'committed snippet manifest is empty; every checked fence is new — review the diff',
+        );
+      } else if (!onDisk.present || JSON.stringify(onDisk.value) !== JSON.stringify(fromHead)) {
+        console.warn('using the committed manifest as the --update baseline');
+      }
+      expected = fromHead;
+    }
+  } else if (!onDisk.present) {
+    console.warn('no snippet manifest on disk or in HEAD; regenerating baseline — review the diff');
   }
 }
 
-if (process.argv.includes('--update')) {
-  if (expected && !process.argv.includes('--force')) {
+if (update) {
+  if (expected && !force) {
     const counts = (list) => {
       const map = new Map();
       for (const value of list) map.set(value, (map.get(value) ?? 0) + 1);
@@ -283,9 +349,18 @@ if (process.argv.includes('--update')) {
       process.exit(1);
     }
   }
-  writeFileSync(manifestPath, `${JSON.stringify(fences, null, 2)}\n`);
+  // Keep the manifest Prettier-stable: short arrays stay on one line so a hash
+  // refresh does not reformat the whole file.
+  const entries = Object.keys(fences).map((rel) => {
+    const values = fences[rel].map((value) => JSON.stringify(value));
+    const single = `  ${JSON.stringify(rel)}: [${values.join(', ')}]`;
+    // Leave room for the trailing comma between entries (Prettier wraps at 100).
+    if (single.length <= 99) return single;
+    return `  ${JSON.stringify(rel)}: [\n${values.map((value) => `    ${value}`).join(',\n')}\n  ]`;
+  });
+  writeFileSync(manifestPath, `{\n${entries.join(',\n')}\n}\n`);
   console.log(
-    `manifest ${process.argv.includes('--force') ? 'force-' : ''}regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
+    `manifest ${force ? 'force-' : ''}regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
   );
   process.exit(0);
 }
