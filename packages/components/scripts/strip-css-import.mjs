@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * Remove build-time tokens CSS side-effect imports from emitted declarations.
+ * Remove the build-time tokens CSS side-effect import from emitted declarations.
  *
  * `src/index.ts` side-effect imports `@enterprise-ui/tokens/all.css` so Vite
  * bundles the token layer into `dist/style.css`, but the published JS does not
  * import CSS. `tsc` preserves the import in `.d.ts`, which breaks consumers on
- * TS < 5.6 (or with `noUncheckedSideEffectImports`). This script removes those
- * lines and fails if any other CSS module specifier remains in the types.
+ * TS < 5.6 (or with `noUncheckedSideEffectImports`). This script removes that
+ * one import and fails if any other CSS module specifier remains.
  *
- * Line-based with block-comment tracking: every line is retained unless it is
- * exactly a tokens CSS side-effect import outside a comment. JSDoc examples are
- * documentation and are never edited. CRLF input is handled without losing the
- * original line ending.
+ * Uses the TypeScript parser instead of regex/lexer heuristics: comments and
+ * string literals never look like imports, and every import form (static,
+ * re-export, dynamic `import()`, `typeof import()`) is visible.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -39,107 +39,76 @@ if (files.length === 0) {
   throw new Error('strip-css-import: no .d.ts files under dist');
 }
 
-const tokensImport =
-  /^[ \t]*import\s+(['"])@enterprise-ui\/tokens\/[^'"]+\.css(?:\?[^'"]*)?\1;[ \t]*$/;
-const cssSpecifier = /['"][^'"]+\.css([?#][^'"]*)?['"]/;
+const isCss = (text) => /\.css([?#][^'"]*)?$/.test(text);
+const isTokensCss = (text) => /^@enterprise-ui\/tokens\/[^'"]+\.css([?#][^'"]*)?$/.test(text);
 
-/** Block-comment state for one line; returns whether the line starts in a block. */
-function commentState(line, state) {
-  const startsInBlock = state.inBlock;
-  const bare = line.replace(/\r$/, '');
-  const opens = (bare.match(/\/\*/g) ?? []).length;
-  const closes = (bare.match(/\*\//g) ?? []).length;
-  state.inBlock = startsInBlock ? closes <= opens : opens > closes;
-  return startsInBlock;
+/** Collect every module specifier in the declaration AST. */
+function specifiers(source, fileName) {
+  const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const found = [];
+
+  const add = (node, module, kind) => {
+    if (module && ts.isStringLiteral(module)) {
+      found.push({ node, text: module.text, kind });
+    }
+  };
+
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node)) {
+      add(node, node.moduleSpecifier, 'import');
+      // A bare side-effect import has no importClause.
+      if (
+        !node.importClause &&
+        ts.isStringLiteral(node.moduleSpecifier) &&
+        isTokensCss(node.moduleSpecifier.text)
+      ) {
+        found[found.length - 1].sideEffectTokens = true;
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      add(node, node.moduleSpecifier, 'export');
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      add(node, node.arguments[0], 'dynamic');
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
+      add(node, node.argument.literal, 'importType');
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sf);
+  return { sf, found };
 }
 
 let changedFiles = 0;
 let removed = 0;
 
 for (const file of files) {
-  const state = { inBlock: false };
-  const kept = [];
-  let removedHere = 0;
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
-    const startsInBlock = commentState(line, state);
-    if (!startsInBlock && tokensImport.test(line.replace(/\r$/, ''))) {
-      removedHere += 1;
-    } else {
-      kept.push(line);
-    }
-  }
-  if (removedHere === 0) continue;
-  writeFileSync(file, kept.join('\n'));
-  changedFiles += 1;
-  removed += removedHere;
-}
+  const source = readFileSync(file, 'utf8');
+  const { sf, found } = specifiers(source, file);
+  const targets = found.filter((entry) => entry.sideEffectTokens);
+  if (targets.length === 0) continue;
 
-/** Blank out comments and string literals; code (including marker tokens) stays. */
-function maskCommentsAndStrings(text) {
-  let out = '';
-  let i = 0;
-  let inBlock = false;
-  let inLine = false;
-  let quote = null;
-  while (i < text.length) {
-    const c = text[i];
-    const n = text[i + 1];
-    if (inLine) {
-      if (c === '\n') {
-        inLine = false;
-        out += '\n';
-      }
-      i += 1;
-      continue;
-    }
-    if (inBlock) {
-      if (c === '*' && n === '/') {
-        inBlock = false;
-        i += 2;
-      } else {
-        if (c === '\n') out += '\n';
-        i += 1;
-      }
-      continue;
-    }
-    if (quote) {
-      if (c === '\\') {
-        i += 2;
-        continue;
-      }
-      if (c === quote) quote = null;
-      i += 1;
-      continue;
-    }
-    if (c === '/' && n === '*') {
-      inBlock = true;
-      i += 2;
-      continue;
-    }
-    if (c === '/' && n === '/') {
-      inLine = true;
-      i += 2;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === '`') {
-      quote = c;
-      i += 1;
-      continue;
-    }
-    out += c;
-    i += 1;
+  const ranges = targets.map(({ node }) => {
+    const start = source.lastIndexOf('\n', node.getStart(sf) - 1) + 1;
+    const end = source.indexOf('\n', node.getEnd(sf));
+    return [start, end === -1 ? source.length : end + 1];
+  });
+  const kept = source;
+  let next = kept;
+  for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) {
+    next = next.slice(0, start) + next.slice(end);
   }
-  return out;
+  writeFileSync(file, next);
+  changedFiles += 1;
+  removed += targets.length;
 }
 
 for (const file of files) {
-  // Mark every CSS specifier, then blank out comments and strings. A marker
-  // that survives is a real module specifier in the declaration code; one in a
-  // JSDoc example or string literal disappears with its container.
-  const marked = readFileSync(file, 'utf8').replace(cssSpecifier, '__CSS_SPEC__');
-  if (maskCommentsAndStrings(marked).includes('__CSS_SPEC__')) {
+  const source = readFileSync(file, 'utf8');
+  const { found } = specifiers(source, file);
+  const leaked = found.find((entry) => isCss(entry.text));
+  if (leaked) {
     throw new Error(
-      `strip-css-import: CSS module specifier remains in ${file} ` +
+      `strip-css-import: CSS module specifier "${leaked.text}" remains in ${file} ` +
         '(consumer types need a *.css declaration; ship one or remove the specifier)',
     );
   }

@@ -148,7 +148,8 @@ for (const file of files) {
     .split(path.sep)
     .join('/');
   const source = readFileSync(file, 'utf8');
-  const name = createHash('sha256').update(rel).digest('hex').slice(0, 12);
+  const readable = rel.replace(/\.mdx?$/, '').replace(/[^a-zA-Z0-9_-]/g, '-');
+  const name = `${readable}-${createHash('sha256').update(rel).digest('hex').slice(0, 8)}`;
   let blocks;
   try {
     blocks = extractFences(source, rel);
@@ -229,16 +230,24 @@ if (existsSync(manifestPath)) {
 
 if (process.argv.includes('--update')) {
   let fromHead = null;
+  let committedText = null;
   try {
     const relPath = path.relative(repoRoot, manifestPath).split(path.sep).join('/');
-    const committed = execFileSync('git', ['show', `HEAD:${relPath}`], {
+    committedText = execFileSync('git', ['show', `HEAD:${relPath}`], {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
-    fromHead = JSON.parse(committed);
   } catch {
     // No committed manifest — first creation on this branch.
+  }
+  if (committedText !== null) {
+    try {
+      fromHead = JSON.parse(committedText);
+    } catch (error) {
+      console.error(`invalid committed snippet manifest: ${error.message}`);
+      process.exit(1);
+    }
   }
   if (fromHead && Object.keys(fromHead).length > 0) {
     if (!expected || JSON.stringify(expected) !== JSON.stringify(fromHead)) {
