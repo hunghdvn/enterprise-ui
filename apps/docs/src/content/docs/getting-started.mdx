@@ -4,12 +4,14 @@ description: Cài Enterprise UI trong một workspace npm, import stylesheet và
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import ReleaseInstallNote from '../../components/ReleaseInstallNote.astro';
 
 ## Yêu cầu
 
 - Node.js 20 trở lên
 - React 18.3 và React DOM 18.3 (peer dependency)
 - Một bundler hiểu CSS Modules — Vite, Next.js, Remix hoặc Astro đều được
+- TypeScript với `moduleResolution: "bundler"` (hoặc `skipLibCheck: true`); published types dùng relative import không đuôi
 
 ## Cài package
 
@@ -23,11 +25,13 @@ Trong monorepo này, package được tham chiếu qua workspace:
 }
 ```
 
-Với ứng dụng bên ngoài, cài từ registry nội bộ hoặc đường dẫn package:
+Với ứng dụng bên ngoài, cài từ npm:
 
 ```bash
 npm install @enterprise-ui/components
 ```
+
+<ReleaseInstallNote />
 
 Nếu bạn đang phát triển chính thư viện, build package trước khi chạy app tiêu thụ:
 

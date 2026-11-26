@@ -1,20 +1,24 @@
 # @enterprise-ui/components
 
-React 18 + TypeScript ERP component kit (zero runtime dependencies). Components are
-presentational-only: data in via props, events out via `onChange`/`onSort`/`onPage`.
-Styling is CSS Modules driven by CSS custom properties whose token layer
-(`@enterprise-ui/tokens`) is bundled straight into the built stylesheet.
+React 18 + TypeScript ERP component kit with no runtime JavaScript dependencies beyond
+`@enterprise-ui/tokens`. Components are presentational-only: data in via props, events
+out via `onChange`/`onSort`/`onPage`. Styling is CSS Modules driven by CSS custom
+properties whose token layer (`@enterprise-ui/tokens`) is bundled straight into the
+built stylesheet.
 
 ## Install
 
 ```bash
-npm install @enterprise-ui/components @enterprise-ui/tokens
+npm install @enterprise-ui/components
 ```
 
-Both packages are required — `@enterprise-ui/tokens` stays a dependency of
-`@enterprise-ui/components` — but you no longer have to import it yourself: the
-component stylesheet already carries the CSS variables it reads at runtime.
-React stays a peer dependency.
+`@enterprise-ui/tokens` is installed as a dependency of `@enterprise-ui/components` — you
+do not have to import it yourself: the component stylesheet already carries the CSS
+variables it reads at runtime. React 18.3 and React DOM 18.3 are peer dependencies.
+
+The published types use extensionless relative imports, so use
+`moduleResolution: "bundler"` (the standard for React 18 + Vite/Next/Remix/Astro) or set
+`skipLibCheck: true`; `node16`/`nodenext` are not supported by the declaration output.
 
 ## Styles
 
@@ -33,11 +37,28 @@ stays supported — it re-exports `tokens.css`, `theme-light.css`,
 `theme-dark.css`, `density.css` and `breakpoints.css`. It is optional and no
 longer required.
 
+## Usage
+
+```tsx
+import { Badge, Button, Icon } from '@enterprise-ui/components';
+
+export function Actions() {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Button icon={<Icon name="plus" size={14} />}>Tạo đơn</Button>
+      <Button variant="secondary">Huỷ</Button>
+      <Badge tone="green">Đã lưu</Badge>
+    </div>
+  );
+}
+```
+
 ## Theming
 
 Wrap the app in `ThemeProvider` — it sets `data-theme`/`data-density` on the root
-element (light + compact by default, persisted to localStorage). Toggle with
-`useTheme()`:
+element (light + compact by default, persisted to localStorage). The `theme`/`density`
+props are the initial values; a choice persisted in localStorage overrides them on later
+loads. Toggle with `useTheme()`:
 
 ```tsx
 import { ThemeProvider, useTheme } from '@enterprise-ui/components';
@@ -58,10 +79,16 @@ export function App() {
 }
 ```
 
+## Documentation
+
+Full documentation — every component with props and examples, plus theming and tokens —
+is published at <https://hunghdvn.github.io/enterprise-ui/>. Source lives in
+[`apps/docs`](https://github.com/hunghdvn/enterprise-ui/tree/main/apps/docs).
+
 ## Showcase
 
 See the runnable demo — Light/Dark switching, dense table, FilterBar, Form/Modal —
-in [`apps/showcase`](../apps/showcase):
+in [`apps/showcase`](https://github.com/hunghdvn/enterprise-ui/tree/main/apps/showcase):
 
 ```bash
 npm run dev --workspace=@enterprise-ui/showcase
@@ -70,4 +97,4 @@ npm run dev --workspace=@enterprise-ui/showcase
 ## License
 
 MIT. Icon geometry is derived from Lucide (ISC) and Feather (MIT); see
-[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md).
+[`THIRD_PARTY_NOTICES.md`](https://github.com/hunghdvn/enterprise-ui/blob/main/packages/components/THIRD_PARTY_NOTICES.md).

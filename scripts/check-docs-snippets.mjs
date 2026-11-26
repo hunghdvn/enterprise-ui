@@ -16,12 +16,64 @@
  * fence was unclosed, or the harness itself failed.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Token-normalized hashes: comments and whitespace do not churn the manifest,
+// code changes still do. Resolve TypeScript from the components workspace so
+// both hoisted and nested installs work.
+const ts = createRequire(path.join(repoRoot, 'packages', 'components', 'package.json'))(
+  'typescript',
+);
 const contentDir = path.join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
+// README fences are consumer-facing too (npm pages, quick start); check them with
+// the same tsconfig so a renamed component cannot leave the README stale. Every
+// publishable package must have one — a missing file is an error, not a silent skip.
+const rootPkgPath = path.join(repoRoot, 'package.json');
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    throw new Error(`invalid JSON in ${file}: ${error.message}`);
+  }
+}
+const rootPkg = readJson(rootPkgPath);
+const readmeFiles = [path.join(repoRoot, 'README.md')];
+const seenReadmes = new Set();
+
+function considerReadme(dir) {
+  const pkgPath = path.join(dir, 'package.json');
+  if (!existsSync(pkgPath)) return;
+  const pkg = readJson(pkgPath);
+  if (pkg.private) return;
+  const readme = path.join(dir, 'README.md');
+  if (!existsSync(readme)) {
+    throw new Error(`missing README for publishable package ${pkg.name}: ${readme}`);
+  }
+  if (seenReadmes.has(readme)) return;
+  seenReadmes.add(readme);
+  readmeFiles.push(readme);
+}
+
+for (const pattern of rootPkg.workspaces ?? []) {
+  if (pattern.endsWith('/*')) {
+    const base = path.join(repoRoot, pattern.slice(0, -2));
+    if (!existsSync(base)) continue;
+    for (const entry of readdirSync(base, { withFileTypes: true })) {
+      if (entry.isDirectory()) considerReadme(path.join(base, entry.name));
+    }
+  } else {
+    considerReadme(path.join(repoRoot, pattern));
+  }
+}
+for (const file of readmeFiles) {
+  if (!existsSync(file)) throw new Error(`missing README: ${file}`);
+}
+const extraFiles = readmeFiles;
 const outDir = path.join(repoRoot, 'node_modules', '.docs-snippets');
 // `tsc` is not on PATH in CI/npm-scripts contexts — use the hoisted workspace
 // install directly, falling back to PATH for exotic setups.
@@ -29,6 +81,7 @@ const tscBin = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
 const tscCmd = existsSync(tscBin) ? tscBin : 'tsc';
 
 const CHECKED_LANGS = new Set(['tsx', 'ts']);
+const manifestPath = path.join(repoRoot, 'scripts', 'docs-snippets-manifest.json');
 
 /** Recursively collect *.md and *.mdx content files. */
 function contentFiles(dir) {
@@ -53,7 +106,7 @@ function contentFiles(dir) {
  * as a reader would copy it.
  */
 function extractFences(source, file) {
-  const lines = source.split('\n');
+  const lines = source.replace(/\r\n/g, '\n').split('\n');
   const blocks = [];
   let open = null;
 
@@ -87,14 +140,42 @@ function extractFences(source, file) {
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-const files = contentFiles(contentDir);
+const files = [...contentFiles(contentDir), ...extraFiles];
 let snippets = 0;
+const skipped = new Map();
 const guardFailures = [];
+const fences = {};
+
+const snippetScanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX);
+
+/**
+ * Hash the snippet's tokens, not its raw text: editing a comment or reindenting
+ * an example must not require a manifest commit, while changing code must.
+ */
+function snippetHash(body) {
+  snippetScanner.setText(body);
+  const parts = [];
+  for (
+    let token = snippetScanner.scan();
+    token !== ts.SyntaxKind.EndOfFileToken;
+    token = snippetScanner.scan()
+  ) {
+    parts.push(`${token}:${snippetScanner.getTokenText()}`);
+  }
+  return createHash('sha256').update(parts.join('\n')).digest('hex').slice(0, 16);
+}
 
 for (const file of files) {
-  const rel = path.relative(contentDir, file);
+  const rel = (
+    file.startsWith(contentDir + path.sep)
+      ? path.relative(contentDir, file)
+      : `readme:${path.relative(repoRoot, file)}`
+  )
+    .split(path.sep)
+    .join('/');
   const source = readFileSync(file, 'utf8');
-  const name = rel.replace(/[/.]/g, '-').replace(/\.mdx?$/, '');
+  const readable = rel.replace(/\.mdx?$/, '').replace(/[^a-zA-Z0-9_-]/g, '-');
+  const name = `${readable}-${createHash('sha256').update(rel).digest('hex').slice(0, 8)}`;
   let blocks;
   try {
     blocks = extractFences(source, rel);
@@ -104,13 +185,22 @@ for (const file of files) {
   }
 
   blocks.forEach((block, index) => {
-    if (!CHECKED_LANGS.has(block.lang)) return;
+    if (!CHECKED_LANGS.has(block.lang)) {
+      skipped.set(block.lang, (skipped.get(block.lang) ?? 0) + 1);
+      return;
+    }
     const body = block.body.join('\n');
     if (!body.trim()) return;
     snippets += 1;
     const ext = block.lang === 'ts' ? 'ts' : 'tsx';
     writeFileSync(path.join(outDir, `${name}-${index}.${ext}`), `${body}\n`);
   });
+  fences[rel] = blocks
+    .filter((block) => CHECKED_LANGS.has(block.lang) && block.body.join('\n').trim())
+    .map((block) => {
+      const body = block.body.join('\n');
+      return `${block.lang}:${snippetHash(body)}`;
+    });
 }
 
 if (guardFailures.length > 0) {
@@ -153,4 +243,162 @@ try {
   process.exit(1);
 }
 
-console.log(`docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked)`);
+const update = process.argv.includes('--update');
+const force = process.argv.includes('--force');
+
+function loadManifest(file, label) {
+  if (!existsSync(file)) return { present: false, value: null };
+  try {
+    return { present: true, value: JSON.parse(readFileSync(file, 'utf8')) };
+  } catch (error) {
+    if (force) {
+      console.warn(`ignoring invalid ${label} snippet manifest (--force): ${error.message}`);
+      return { present: false, value: null };
+    }
+    console.error(
+      `\n✖ cannot read ${label} snippet manifest ${file}: ${error.message}\n` +
+        '  Use --force to regenerate it (review the diff).',
+    );
+    process.exit(1);
+  }
+}
+
+const onDisk = loadManifest(manifestPath, 'working-copy');
+let expected = onDisk.value;
+
+if (update) {
+  let committedText = null;
+  try {
+    const relPath = path.relative(repoRoot, manifestPath).split(path.sep).join('/');
+    committedText = execFileSync('git', ['show', `HEAD:${relPath}`], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    const stderr = String(error.stderr ?? error.message ?? '');
+    // Absent, not broken: no repo, no HEAD commit, git unavailable, or the
+    // manifest is not tracked in HEAD yet. Any other failure is a real error.
+    if (
+      /does not exist in|exists on disk, but not in|not a git repository|ambiguous argument 'HEAD'|ENOENT/.test(
+        stderr,
+      )
+    ) {
+      console.warn(
+        'no committed snippet manifest; using the working copy as the --update baseline',
+      );
+    } else {
+      console.error(
+        `\n✖ cannot read the committed snippet manifest: ${stderr.trim() || error.message}`,
+      );
+      process.exit(1);
+    }
+  }
+
+  if (committedText !== null) {
+    let fromHead;
+    try {
+      fromHead = JSON.parse(committedText);
+    } catch (error) {
+      if (force) {
+        console.warn(`ignoring invalid committed snippet manifest (--force): ${error.message}`);
+      } else {
+        console.error(
+          `\n✖ invalid committed snippet manifest: ${error.message}\n` +
+            '  Use --force to regenerate it (review the diff).',
+        );
+        process.exit(1);
+      }
+    }
+    if (fromHead !== undefined) {
+      if (Object.keys(fromHead).length === 0) {
+        console.warn(
+          'committed snippet manifest is empty; every checked fence is new — review the diff',
+        );
+      } else if (!onDisk.present || JSON.stringify(onDisk.value) !== JSON.stringify(fromHead)) {
+        console.warn('using the committed manifest as the --update baseline');
+      }
+      expected = fromHead;
+    }
+  } else if (!onDisk.present) {
+    console.warn('no snippet manifest on disk or in HEAD; regenerating baseline — review the diff');
+  }
+}
+
+if (update) {
+  if (expected && !force) {
+    const counts = (list) => {
+      const map = new Map();
+      for (const value of list) map.set(value, (map.get(value) ?? 0) + 1);
+      return map;
+    };
+    const changed = Object.entries(expected)
+      .map(([rel, beforeList]) => {
+        const before = counts(Array.isArray(beforeList) ? beforeList : []);
+        const after = counts(fences[rel] ?? []);
+        const missing = [...before].some(([value, count]) => (after.get(value) ?? 0) < count);
+        return missing ? `${rel}: an existing checked fence changed or was removed` : null;
+      })
+      .filter(Boolean);
+    if (changed.length > 0) {
+      console.error(
+        '\n✖ --update may only append checked fences; existing ones changed:\n' +
+          changed.map((line) => `  ✖ ${line}`).join('\n') +
+          '\n  Use --force for a deliberate manifest rewrite (review the diff).',
+      );
+      process.exit(1);
+    }
+  }
+  // Keep the manifest Prettier-stable: short arrays stay on one line so a hash
+  // refresh does not reformat the whole file.
+  const entries = Object.keys(fences).map((rel) => {
+    const values = fences[rel].map((value) => JSON.stringify(value));
+    const single = `  ${JSON.stringify(rel)}: [${values.join(', ')}]`;
+    // Leave room for the trailing comma between entries (Prettier wraps at 100).
+    if (single.length <= 99) return single;
+    return `  ${JSON.stringify(rel)}: [\n${values.map((value) => `    ${value}`).join(',\n')}\n  ]`;
+  });
+  writeFileSync(manifestPath, `{\n${entries.join(',\n')}\n}\n`);
+  console.log(
+    `manifest ${force ? 'force-' : ''}regenerated after successful typecheck (${snippets} snippets across ${files.length} files)`,
+  );
+  process.exit(0);
+}
+
+if (!expected) {
+  console.error(
+    `\n✖ missing snippet manifest ${manifestPath}. Generate it with ` +
+      '`npm run docs:snippets -- --update` (after a successful typecheck).',
+  );
+  process.exit(1);
+}
+
+const drift = [];
+for (const rel of Object.keys(fences)) {
+  if (!(rel in expected)) {
+    drift.push(`${rel}: new scanned file — run --update`);
+  } else if (JSON.stringify(fences[rel]) !== JSON.stringify(expected[rel])) {
+    drift.push(
+      `${rel}: checked fences changed — expected ${JSON.stringify(expected[rel])}, found ${JSON.stringify(fences[rel])}`,
+    );
+  }
+}
+for (const rel of Object.keys(expected)) {
+  if (!(rel in fences)) drift.push(`${rel}: scanned file disappeared`);
+}
+if (drift.length > 0) {
+  console.error('\n✖ snippet coverage drift (a fence may have been retagged or swapped):');
+  for (const line of drift) console.error(`  ✖ ${line}`);
+  process.exit(1);
+}
+
+const skippedSummary = [...skipped.entries()]
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([lang, count]) => `${lang || '(none)'} ${count}`)
+  .join(', ');
+
+console.log(
+  `docs snippets ok (${snippets} snippet${snippets === 1 ? '' : 's'} typechecked; ${extraFiles.length} READMEs scanned` +
+    (skippedSummary ? `; skipped non-TS fences: ${skippedSummary}` : '') +
+    ')',
+);

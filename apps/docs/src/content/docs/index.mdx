@@ -1,10 +1,10 @@
 ---
 title: Giới thiệu
-description: Bộ component React cho ứng dụng quản trị doanh nghiệp — token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+description: Bộ component React cho ứng dụng quản trị doanh nghiệp — token rõ ràng, theme sáng/tối, mật độ compact và chỉ một dependency runtime JavaScript là `@enterprise-ui/tokens`.
 template: splash
 hero:
   title: Enterprise UI
-  tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và không phụ thuộc runtime.
+  tagline: Bộ component React cho ứng dụng quản trị doanh nghiệp. Token rõ ràng, theme sáng/tối, mật độ compact và chỉ một dependency runtime JavaScript là `@enterprise-ui/tokens`.
   actions:
     - text: Bắt đầu
       link: getting-started/
@@ -19,6 +19,7 @@ hero:
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 import { HomePreview } from '../../components/demos/HomePreview.tsx';
 import Demo from '../../components/Demo.astro';
+import ReleaseInstallNote from '../../components/ReleaseInstallNote.astro';
 
 <Demo title="Bảng điều khiển mẫu" hint="Component thật, chạy trực tiếp trong trang docs">
   <HomePreview client:visible />
@@ -40,10 +41,11 @@ import Demo from '../../components/Demo.astro';
     </p>
   </div>
   <div class="feature-card">
-    <h3>Không phụ thuộc runtime</h3>
+    <h3>Chỉ một dependency runtime</h3>
     <p>
-      Package chỉ cần React 18 làm peer dependency. CSS Modules đóng gói trong một file
-      <code>style.css</code> duy nhất.
+      React 18.3 và React DOM 18.3 là peer dependencies;
+      <code>@enterprise-ui/tokens</code> là dependency runtime duy nhất. CSS Modules đóng gói trong
+      một file <code>style.css</code>.
     </p>
   </div>
 </div>
@@ -55,6 +57,8 @@ Cài package, import stylesheet một lần và bọc ứng dụng bằng `Theme
 ```bash
 npm install @enterprise-ui/components
 ```
+
+<ReleaseInstallNote />
 
 ```tsx
 import { Button, ThemeProvider } from '@enterprise-ui/components';
